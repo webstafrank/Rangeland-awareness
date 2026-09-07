@@ -1,26 +1,179 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Tokens. Mirrors design/tokens.ts, and design/__tests__/tokens.test.ts fails
+ * the build if the two drift apart. Change a colour in one place only and let
+ * the test tell you about the other.
+ *
+ * This app deliberately commits to ONE look: alternating dark-blue and white
+ * bands with a scarlet accent. There is no OS dark-mode flip, because "dark
+ * mode" here would fight the brand's own alternation. Components that can sit
+ * on either ground take a `tone` prop ("dark" | "light") instead, which is
+ * explicit, testable, and cannot be wrong at runtime the way a media query can.
+ */
+@theme {
+  --color-navy-950: #071831;
+  --color-navy-900: #0b2143;
+  --color-navy-800: #0f2c58;
+  --color-navy-700: #123a70;
+  --color-navy-600: #1a5199;
+
+  --color-white: #ffffff;
+  --color-paper: #f4f7fb;
+  --color-edge: #e8eef7;
+
+  --color-scarlet-fill: #d32211;
+  --color-scarlet-fill-deep: #b81c0d;
+  --color-scarlet-ink-light: #c81f0f;
+  --color-scarlet-ink-dark: #ff6f5c;
+  --color-scarlet-mark: #ff2400;
+
+  --color-ink-light-primary: #0b2143;
+  --color-ink-light-secondary: #4d5f7a;
+  --color-ink-light-muted: #5b6b85;
+  --color-ink-dark-primary: #ffffff;
+  --color-ink-dark-secondary: #a8bad4;
+  --color-ink-dark-muted: #8fa4c4;
+
+  --color-status-good: #0ca30c;
+  --color-status-warning: #fab219;
+  --color-status-serious: #ec835a;
+  --color-status-critical: #d03b3b;
+
+  --color-grid-light: #e1e7f0;
+  --color-grid-dark: #1b3a66;
+  --color-axis-light: #b9c6d8;
+  --color-axis-dark: #2b527f;
+  --color-boundary-light: #4d5f7a;
+  --color-boundary-dark: #a8bad4;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Type scale. A real scale, not three weights of one size. */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.15rem;
+  --text-display: 3.25rem;
+  --text-display--line-height: 1.04;
+  --text-hero: 4.25rem;
+  --text-hero--line-height: 1;
+
+  --ease-out-soft: cubic-bezier(0.22, 0.8, 0.3, 1);
+
+  --animate-sweep: sweep 1.4s var(--ease-out-soft) infinite;
+  --animate-rise: rise 0.38s var(--ease-out-soft) both;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  html {
+    /* Next 16 no longer overrides scroll-behavior during SPA navigation
+       unless this attribute is present; see app/layout.tsx. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-white);
+    color: var(--color-ink-light-primary);
+    font-family: var(--font-sans);
+    /* Kenyan county names carry apostrophes and hyphens; keep them unbroken. */
+    text-wrap: pretty;
+  }
+
+  /*
+   * One focus ring for the whole app. #ff2400 clears 3:1 on white (3.82) and
+   * on navy-900 (4.19), so a single colour is legible on every ground here.
+   * The white outer ring keeps it visible when the control's own fill is dark.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-scarlet-mark);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* Figures that stack vertically must align; prose numbers must not. */
+  th,
+  td,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: var(--color-scarlet-mark);
+    color: var(--color-white);
+  }
+}
+
+@layer utilities {
+  /*
+   * The alternating bands. A page is a stack of these, and adjacent bands must
+   * never repeat: `band-navy` then `band-white` then `band-navy`. Each band sets
+   * its own ink colours so children never have to know which ground they are on.
+   */
+  .band-navy {
+    background: var(--color-navy-900);
+    color: var(--color-ink-dark-primary);
+  }
+
+  .band-navy-deep {
+    background: var(--color-navy-950);
+    color: var(--color-ink-dark-primary);
+  }
+
+  .band-white {
+    background: var(--color-white);
+    color: var(--color-ink-light-primary);
+  }
+
+  .band-paper {
+    background: var(--color-paper);
+    color: var(--color-ink-light-primary);
+  }
+
+  /* Scarlet hairline used to open a band. Decorative, never load-bearing. */
+  .rule-scarlet {
+    background: linear-gradient(
+      90deg,
+      var(--color-scarlet-mark) 0%,
+      var(--color-scarlet-mark) 22%,
+      transparent 22%
+    );
+  }
+}
+
+/*
+ * Rubric R8: motion is purposeful and respects the OS setting. This kills every
+ * animation and transition in one place, including the running screen's, so a
+ * new component cannot forget to honour it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
