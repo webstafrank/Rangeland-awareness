@@ -17,7 +17,14 @@ import {
   getAnalysisType,
 } from "@/lib/analysis/models";
 
-export type AoiSource = "point" | "drawn" | "shapefile";
+/**
+ * Where an area came from.
+ *
+ * `coordinate` is its own source rather than being filed as `point`: a typed
+ * coordinate with a radius produces a real polygon with a real area, and
+ * labelling that "point" would put a point badge next to a 400 km2 figure.
+ */
+export type AoiSource = "point" | "drawn" | "shapefile" | "coordinate";
 
 export interface AreaOfInterest {
   /** Assigned by the reducer, monotonic per session: aoi-1, aoi-2, ... */
@@ -57,6 +64,15 @@ export interface SelectionState {
    * dropped by an analysis-type switch. Never used for success chatter.
    */
   notice: string | null;
+  /**
+   * The selection as it was immediately before an analysis-type switch dropped
+   * areas, so the switch is undoable.
+   *
+   * Cleared by any other action. An undo offered after the user has gone on to
+   * edit the selection would silently discard that newer work, so the offer
+   * only stands while nothing else has happened.
+   */
+  undo: { analysisType: AnalysisTypeId; areas: AreaOfInterest[] } | null;
   nextId: number;
   nextToken: number;
 }
@@ -69,7 +85,8 @@ export type SelectionAction =
   | { type: "clearAreas" }
   | { type: "focusArea"; id: string }
   | { type: "focusAll" }
-  | { type: "dismissNotice" };
+  | { type: "dismissNotice" }
+  | { type: "undoTypeSwitch" };
 
 export const initialSelectionState: SelectionState = {
   analysisType: "single",
@@ -77,6 +94,7 @@ export const initialSelectionState: SelectionState = {
   areas: [],
   focus: null,
   notice: null,
+  undo: null,
   nextId: 1,
   nextToken: 1,
 };
@@ -135,6 +153,10 @@ export function selectionReducer(
           ...state,
           analysisType: action.analysisType,
           areas: kept,
+          // Snapshot the whole prior selection, not just the dropped tail, so
+          // the undo restores the original build order rather than appending
+          // the dropped areas after the kept one.
+          undo: { analysisType: state.analysisType, areas: state.areas },
           notice:
             `Single location takes one area, so ${dropped} earlier ` +
             `${areaWord(dropped)} ${dropped === 1 ? "was" : "were"} removed. ` +
@@ -142,7 +164,12 @@ export function selectionReducer(
         };
       }
 
-      return { ...state, analysisType: action.analysisType, notice: null };
+      return {
+        ...state,
+        analysisType: action.analysisType,
+        notice: null,
+        undo: null,
+      };
     }
 
     case "setModel":
@@ -162,6 +189,7 @@ export function selectionReducer(
       if (room <= 0) {
         return {
           ...state,
+          undo: null,
           notice:
             `Comparison holds at most ${cap} areas. Remove one before adding ` +
             `another.`,
@@ -180,6 +208,7 @@ export function selectionReducer(
         ...state,
         areas: [...base, ...stamped],
         nextId: state.nextId + stamped.length,
+        undo: null,
         notice:
           rejected > 0
             ? `Added ${stamped.length} of ${action.areas.length} ${areaWord(
@@ -194,13 +223,13 @@ export function selectionReducer(
     case "removeArea": {
       const areas = state.areas.filter((a) => a.id !== action.id);
       if (areas.length === state.areas.length) return state;
-      return { ...state, areas, notice: null };
+      return { ...state, areas, notice: null, undo: null };
     }
 
     case "clearAreas":
       return state.areas.length === 0
         ? state
-        : { ...state, areas: [], focus: null, notice: null };
+        : { ...state, areas: [], focus: null, notice: null, undo: null };
 
     case "focusArea": {
       const target = state.areas.find((a) => a.id === action.id);
@@ -211,8 +240,40 @@ export function selectionReducer(
       return withFocus(state, unionBounds(state.areas.map((a) => a.bounds)));
 
     case "dismissNotice":
-      return state.notice === null ? state : { ...state, notice: null };
+      return state.notice === null && state.undo === null
+        ? state
+        : { ...state, notice: null, undo: null };
+
+    case "undoTypeSwitch": {
+      if (state.undo === null) return state;
+
+      // Fresh ids in the original build order, so the list renumbers 1, 2, 3
+      // the way the analyst built it. Restoring the dropped areas after the
+      // kept one would silently reorder a comparison, and the ordinals are
+      // what the map badges and the result table are keyed on.
+      const restored: AreaOfInterest[] = state.undo.areas.map((area, i) => ({
+        ...area,
+        id: `aoi-${state.nextId + i}`,
+      }));
+
+      const next: SelectionState = {
+        ...state,
+        analysisType: state.undo.analysisType,
+        areas: restored,
+        nextId: state.nextId + restored.length,
+        notice: null,
+        undo: null,
+      };
+
+      return withFocus(next, unionBounds(restored.map((a) => a.bounds)));
+    }
   }
+}
+
+/** How many areas an undo would bring back, for the button label. */
+export function undoRestoreCount(state: SelectionState): number {
+  if (state.undo === null) return 0;
+  return state.undo.areas.length - state.areas.length;
 }
 
 /** True when the analysis type will drop areas if selected right now. */

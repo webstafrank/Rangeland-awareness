@@ -6,6 +6,7 @@ import {
   initialSelectionState,
   selectionReducer,
   switchWouldDrop,
+  undoRestoreCount,
 } from "@/lib/analysis/selection";
 import { getAnalysisType } from "@/lib/analysis/models";
 
@@ -397,5 +398,137 @@ describe("purity", () => {
     selectionReducer(before, { type: "clearAreas" });
 
     expect(JSON.stringify(before)).toBe(snapshot);
+  });
+});
+
+describe("undoing an analysis-type switch", () => {
+  /** Comparison with three areas, then narrowed to single. */
+  const narrowed = () =>
+    run(
+      comparison,
+      {
+        type: "addAreas",
+        areas: [box("A", 30, 0), box("B", 32, 0), box("C", 34, 0)],
+      },
+      { type: "setAnalysisType", analysisType: "single" },
+    );
+
+  it("offers an undo naming how many areas come back", () => {
+    const state = narrowed();
+    expect(state.areas).toHaveLength(1);
+    expect(undoRestoreCount(state)).toBe(2);
+  });
+
+  it("restores every area and the previous analysis type", () => {
+    const state = selectionReducer(narrowed(), { type: "undoTypeSwitch" });
+    expect(state.analysisType).toBe("comparison");
+    expect(state.areas).toHaveLength(3);
+    expect(state.notice).toBeNull();
+  });
+
+  it("restores the original build order, not kept-first", () => {
+    // Readmitting the dropped areas after the kept one would silently reorder
+    // a comparison, and the ordinals are what the map badges are keyed on.
+    const state = selectionReducer(narrowed(), { type: "undoTypeSwitch" });
+    expect(state.areas.map((a) => a.label)).toEqual(["A", "B", "C"]);
+  });
+
+  it("renumbers ids in build order so the list reads 1, 2, 3", () => {
+    const state = selectionReducer(narrowed(), { type: "undoTypeSwitch" });
+    const ids = state.areas.map((a) => a.id);
+    expect(new Set(ids).size).toBe(3);
+    // Monotonic in the same order as the labels.
+    const numbers = ids.map((id) => Number(id.replace("aoi-", "")));
+    expect(numbers).toEqual([...numbers].sort((a, b) => a - b));
+  });
+
+  it("zooms to cover everything it restored", () => {
+    const before = narrowed();
+    const after = selectionReducer(before, { type: "undoTypeSwitch" });
+    expect(after.focus).not.toBeNull();
+    expect(after.focus?.token).toBeGreaterThan(before.focus?.token ?? 0);
+    expect(after.focus?.bounds[0][1]).toBeLessThanOrEqual(30);
+    expect(after.focus?.bounds[1][1]).toBeGreaterThanOrEqual(35);
+  });
+
+  it("offers no undo when the switch dropped nothing", () => {
+    const state = run({ type: "addAreas", areas: [box("A", 30, 0)] }, comparison);
+    expect(state.undo).toBeNull();
+    expect(undoRestoreCount(state)).toBe(0);
+    expect(selectionReducer(state, { type: "undoTypeSwitch" })).toBe(state);
+  });
+
+  it("withdraws the undo once the user adds an area instead", () => {
+    // An undo that fires after newer work would discard that work silently.
+    const state = selectionReducer(narrowed(), {
+      type: "addAreas",
+      areas: [box("D", 36, 0)],
+    });
+    expect(state.undo).toBeNull();
+    expect(undoRestoreCount(state)).toBe(0);
+  });
+
+  it("withdraws the undo once the user removes an area", () => {
+    const state = selectionReducer(narrowed(), {
+      type: "removeArea",
+      id: "aoi-3",
+    });
+    expect(state.undo).toBeNull();
+  });
+
+  it("withdraws the undo on clear, and on dismissing the notice", () => {
+    expect(selectionReducer(narrowed(), { type: "clearAreas" }).undo).toBeNull();
+    expect(
+      selectionReducer(narrowed(), { type: "dismissNotice" }).undo,
+    ).toBeNull();
+  });
+
+  it("withdraws the undo once the type is switched again", () => {
+    const state = selectionReducer(narrowed(), {
+      type: "setAnalysisType",
+      analysisType: "comparison",
+    });
+    expect(state.undo).toBeNull();
+    // Switching back does not resurrect the dropped areas by itself.
+    expect(state.areas).toHaveLength(1);
+  });
+
+  it("keeps the undo across a model change, which does not touch areas", () => {
+    const state = selectionReducer(narrowed(), {
+      type: "setModel",
+      modelId: "xgboost",
+    });
+    expect(undoRestoreCount(state)).toBe(2);
+  });
+
+  it("is a no-op when there is nothing to undo", () => {
+    expect(
+      selectionReducer(initialSelectionState, { type: "undoTypeSwitch" }),
+    ).toBe(initialSelectionState);
+  });
+});
+
+describe("coordinate areas", () => {
+  it("keeps coordinate as its own source, not filed as a point", () => {
+    // A radius box is a real polygon with a real area; calling it a point
+    // would put a point badge beside a 400 km2 figure.
+    const draft = draftAreaFromGeometry(
+      {
+        type: "Polygon",
+        coordinates: [
+          [
+            [30, 0],
+            [31, 0],
+            [31, 1],
+            [30, 1],
+            [30, 0],
+          ],
+        ],
+      },
+      "coordinate",
+      "2.3300N 37.9900E +10km",
+    );
+    expect(draft?.source).toBe("coordinate");
+    expect(draft?.areaKm2).toBeGreaterThan(0);
   });
 });

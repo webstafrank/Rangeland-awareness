@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# Gate lane pre-commit hook.
+#
+# Runs only the fast, deterministic, free checks: the vitest gate suite, the
+# typechecker and the linter. Budget is a couple of seconds. The Playwright
+# eval lane is deliberately NOT here: it builds the app and drives a browser,
+# which is a minute-plus and belongs before a push, not on every commit.
+#
+# Install (from my-app/):
+#   git config core.hooksPath scripts
+#
+# core.hooksPath is used rather than copying into .git/hooks so the hook is
+# version controlled and every worktree of this repo picks it up.
+
+set -euo pipefail
+
+# The hook runs from the repo root, but this project lives in my-app/.
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+echo "pre-commit: gate lane"
+
+echo "  - typecheck"
+npx tsc --noEmit
+
+echo "  - lint"
+npx eslint .
+
+echo "  - gate tests"
+npx vitest run --silent
+
+echo "pre-commit: green"

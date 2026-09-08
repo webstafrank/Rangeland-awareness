@@ -10,6 +10,7 @@ bounds and zoom behaviour be tested without a browser.
 | --- | --- |
 | `bounds.ts` | Bounds from any GeoJSON, union, padding, the `fitBounds` argument. |
 | `area.ts` | Geodesic polygon area and its display format. |
+| `box.ts` | Parsing a typed coordinate and building a box around it. |
 | `zip.ts` | ZIP structural pre-flight. Exists because of a measured hang, see below. |
 | `shapefile.ts` | Shapefile ingestion and every failure path a user can hit. |
 
@@ -40,6 +41,28 @@ significant figures at 12,364 km2 for a 1x1 degree cell at the equator.
 
 Points and lines return `null`, not `0`. "This has no area" and "this has an
 area of zero" are different facts, and the UI shows a dash for the first.
+
+## The typed-coordinate path
+
+`box.ts` is the keyboard route to an area. Without it the only ways to select
+one are the map (pointer only) and a shapefile (needs a file to exist), so an
+analyst working from a radio call or a field report has none.
+
+`parseCoordinatePair` takes one string, not two fields, because that is how
+coordinates arrive: `"2.4512, 36.8203"`. It accepts commas, spaces, slashes,
+semicolons, degree symbols and N/S/E/W suffixes, and uses hemisphere letters to
+order the pair when they are present, so `"36.82E, 2.45N"` parses correctly
+despite being written longitude first. With no letters it reads latitude first,
+which is the reporting convention and the opposite of GeoJSON.
+
+Coordinates outside Kenya warn but are never blocked: a cross-border catchment
+or a shared rangeland is a real analysis.
+
+`boxAroundPoint` treats radius as half-width, so radius 10 gives a 20km box,
+and divides the east-west span by `cos(latitude)`. Without that the box is
+square in degrees but visibly taller than wide on the ground. The test asserts
+the two ground spans are equal *and* that the degree spans deliberately are
+not.
 
 ## Why there is a ZIP pre-flight
 

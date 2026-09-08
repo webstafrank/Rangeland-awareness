@@ -110,12 +110,21 @@ body {
 }
 
 /*
- * The dark basemap is served as light raster tiles, so they get filtered.
- * Applied to the tile pane only, never to overlays, or the drawn polygons and
- * the shapefile outlines would be inverted too.
+ * OpenStreetMap only ships light tiles, so in dark mode they get inverted.
+ *
+ * Scoped to the street basemap's own container, not to .leaflet-tile-pane:
+ * a pane-wide filter would also invert satellite imagery (turning vegetation
+ * magenta) and cannot be undone by a child, since a parent filter applies to
+ * the whole subtree.
  */
 @media (prefers-color-scheme: dark) {
-  .leaflet-tile-pane {
+  .basemap-street {
     filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9);
   }
+}
+
+/* Geoman's draw cursor and hint text inherit app colours rather than its own. */
+.leaflet-container.leaflet-crosshair,
+.leaflet-container.leaflet-crosshair .leaflet-interactive {
+  cursor: crosshair;
 }
