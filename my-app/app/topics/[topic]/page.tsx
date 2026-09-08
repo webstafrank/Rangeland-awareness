@@ -14,8 +14,22 @@ import TopicWorkbench from "@/components/topic/TopicWorkbench";
  */
 
 /**
- * Prerender the four known topics. The registry is the source, so a topic added
- * to lib/analysis/topics.ts gets a static route with no edit here.
+ * The four known topic slugs. The registry is the source, so a topic added to
+ * lib/analysis/topics.ts gets a route with no edit here.
+ *
+ * Note that this route still reports as dynamic, not static, because the page
+ * reads searchParams (see below). Outside partial prerendering there is no way
+ * to read a search param and keep a static shell, so this is a deliberate
+ * trade rather than an oversight:
+ *
+ *   dynamic route  correct 404 status, no flash of default choices, and the
+ *                  query validated on the server before first paint
+ *   static route   CDN-cacheable HTML for four pages that render in single
+ *                  digit milliseconds anyway
+ *
+ * For an internal analyst tool the first column is worth more than the second.
+ * generateStaticParams is kept because it still documents the valid slugs and
+ * would resume prerendering the moment the searchParams read goes away.
  */
 export function generateStaticParams() {
   return TOPICS.map((topic) => ({ topic: topic.slug }));

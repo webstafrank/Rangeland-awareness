@@ -1,68 +1,99 @@
 @import "tailwindcss";
 
 /*
- * Design tokens for the whole app. Both routes build against these, so a
- * surface or border colour is changed here once and nowhere else.
+ * One light palette, committed to deliberately.
  *
- * Light is defined on bare :root and dark only overrides the tokens, so no
- * colour has its only definition inside a media query.
+ * `color-scheme: light` is load-bearing, not decoration. Without it a visitor
+ * whose OS is set to dark gets dark native form controls, dark scrollbars and
+ * a dark autofill highlight painted over a light page, which looks broken in a
+ * way no amount of CSS on our own elements can fix. Declaring the scheme makes
+ * the browser render its own chrome to match.
+ *
+ * There are no prefers-color-scheme blocks anywhere in this file. That is the
+ * point: every colour has exactly one definition, so a token cannot be legible
+ * in one theme and invisible in the other.
  */
 :root {
-  --background: #f8fafc;
-  --surface: #ffffff;
-  --surface-muted: #f1f5f9;
-  --foreground: #0f172a;
-  --foreground-muted: #475569;
-  --foreground-faint: #64748b;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --focus: #0f766e;
-}
+  color-scheme: light;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #08090c;
-    --surface: #101319;
-    --surface-muted: #171b23;
-    --foreground: #f1f5f9;
-    --foreground-muted: #a2aec1;
-    --foreground-faint: #7c8798;
-    --border: #232833;
-    --border-strong: #333a48;
-    --focus: #2dd4bf;
-  }
+  /* Neutrals. A single ramp, used for every surface and every piece of text. */
+  --page: #f7f8fa;
+  --surface: #ffffff;
+  --surface-sunken: #f2f4f7;
+  --border: #e4e7ec;
+  --border-strong: #d0d5dd;
+
+  --text: #101828;
+  --text-muted: #475467;
+  --text-faint: #667085;
+
+  /* One accent, for primary actions and selected state. */
+  --accent: #0f766e;
+  --accent-hover: #115e59;
+  --accent-soft: #f0fdfa;
+  --accent-border: #5eead4;
+
+  /* Status. Used for upload failures and selection notices only. */
+  --danger: #b42318;
+  --danger-soft: #fef3f2;
+  --danger-border: #fda29b;
+  --warn: #b54708;
+  --warn-soft: #fffaeb;
+  --warn-border: #fec84b;
+
+  /* Elevation. Two steps, both restrained: this is a data tool, not a deck. */
+  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  --shadow-raised: 0 4px 8px -2px rgb(16 24 40 / 0.08),
+    0 2px 4px -2px rgb(16 24 40 / 0.04);
 }
 
 @theme inline {
-  --color-background: var(--background);
+  --color-page: var(--page);
   --color-surface: var(--surface);
-  --color-surface-muted: var(--surface-muted);
-  --color-foreground: var(--foreground);
-  --color-foreground-muted: var(--foreground-muted);
-  --color-foreground-faint: var(--foreground-faint);
+  --color-sunken: var(--surface-sunken);
   --color-edge: var(--border);
   --color-edge-strong: var(--border-strong);
-  --color-focus: var(--focus);
+
+  --color-ink: var(--text);
+  --color-ink-muted: var(--text-muted);
+  --color-ink-faint: var(--text-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-border: var(--warn-border);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--page);
+  color: var(--text);
+  /* Tabular figures everywhere: this app shows a lot of coordinates and areas,
+     and proportional digits make a column of them ragged. */
+  font-variant-numeric: tabular-nums;
 }
 
-/*
- * One focus ring for the whole app, visible in both themes. :focus-visible so
- * a mouse click does not leave a ring behind, but every keyboard path does.
- */
+/* One focus ring for the whole app. :focus-visible so a mouse click does not
+   leave a ring behind, but every keyboard path does. */
 :focus-visible {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
-/* Respect a user who has asked for less motion. Leaflet pans and zooms a lot. */
+/* Respect a user who has asked for less motion. A map pans and zooms a lot. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -74,14 +105,21 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------- Leaflet */
 /*
- * Leaflet ships its own light-only chrome. These are the only overrides needed
- * to stop its controls and popups glowing white in dark mode. Scoped to
- * Leaflet's own class names so nothing else is affected.
+ * Leaflet ships its own chrome with hardcoded colours and a 12px sans stack.
+ * These overrides put it on the app's tokens so the map does not read as an
+ * embedded widget from another product. Scoped to Leaflet's own class names,
+ * so nothing else is affected.
+ *
+ * No tile filter here. The previous build inverted OpenStreetMap tiles for
+ * dark mode; with one light theme the tiles are already right, and the filter
+ * would only ever have made them wrong.
  */
 .leaflet-container {
-  background: var(--surface-muted);
+  background: var(--surface-sunken);
   font: inherit;
+  font-size: 0.8125rem;
 }
 
 .leaflet-bar,
@@ -89,41 +127,44 @@ body {
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
   background: var(--surface);
-  color: var(--foreground);
+  color: var(--text);
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-raised);
 }
 
 .leaflet-bar a,
 .leaflet-bar a:hover {
   background: var(--surface);
-  color: var(--foreground);
+  color: var(--text);
   border-bottom-color: var(--border);
 }
 
+.leaflet-bar a:hover {
+  background: var(--surface-sunken);
+}
+
+.leaflet-control-layers-toggle,
+.leaflet-control-layers-expanded {
+  border-radius: 8px;
+}
+
+.leaflet-control-layers-expanded {
+  padding: 8px 10px;
+  color: var(--text-muted);
+}
+
 .leaflet-control-attribution {
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-  color: var(--foreground-faint);
+  background: rgb(255 255 255 / 0.86);
+  color: var(--text-faint);
+  font-size: 0.6875rem;
+  padding: 1px 6px;
 }
 
 .leaflet-control-attribution a {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
-/*
- * OpenStreetMap only ships light tiles, so in dark mode they get inverted.
- *
- * Scoped to the street basemap's own container, not to .leaflet-tile-pane:
- * a pane-wide filter would also invert satellite imagery (turning vegetation
- * magenta) and cannot be undone by a child, since a parent filter applies to
- * the whole subtree.
- */
-@media (prefers-color-scheme: dark) {
-  .basemap-street {
-    filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9);
-  }
-}
-
-/* Geoman's draw cursor and hint text inherit app colours rather than its own. */
+/* The draw cursor, so it is obvious the map is armed. */
 .leaflet-container.leaflet-crosshair,
 .leaflet-container.leaflet-crosshair .leaflet-interactive {
   cursor: crosshair;

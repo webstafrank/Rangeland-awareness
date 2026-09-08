@@ -93,8 +93,8 @@ export default function ShapefileUpload({
         className={[
           "rounded-lg border border-dashed px-3 py-3 transition-colors",
           dragging
-            ? "border-teal-500 bg-teal-50 dark:bg-teal-950/40"
-            : "border-edge-strong bg-surface-muted",
+            ? "border-accent bg-accent-soft"
+            : "border-edge-strong bg-sunken",
           disabled ? "opacity-60" : "",
         ].join(" ")}
       >
@@ -111,9 +111,9 @@ export default function ShapefileUpload({
           accept={`${ACCEPTED_EXTENSIONS.join(",")},application/zip`}
           disabled={disabled || busy}
           onChange={(event) => void ingest(event.target.files?.[0])}
-          className="mt-1.5 block w-full text-xs text-foreground-muted file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-edge-strong file:bg-surface file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-foreground disabled:cursor-not-allowed"
+          className="mt-1.5 block w-full text-xs text-ink-muted file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-edge-strong file:bg-surface file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-ink disabled:cursor-not-allowed"
         />
-        <p className="mt-1.5 text-xs text-foreground-faint">
+        <p className="mt-1.5 text-xs text-ink-faint">
           {disabled && disabledReason
             ? disabledReason
             : "A .zip holding .shp, .shx, .dbf and .prj, or drag one here. Polygons only."}
@@ -121,7 +121,7 @@ export default function ShapefileUpload({
       </div>
 
       {busy && (
-        <p role="status" aria-live="polite" className="text-xs text-foreground-muted">
+        <p role="status" aria-live="polite" className="text-xs text-ink-muted">
           Reading shapefile...
         </p>
       )}
@@ -132,7 +132,7 @@ export default function ShapefileUpload({
           // Next injects its own role="alert" route announcer into every page,
           // so an eval cannot address this one by role alone.
           data-testid="shapefile-error"
-          className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-900 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200"
+          className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-xs text-danger"
         >
           {/*
             Verbatim and never clamped: every clause of these messages is
@@ -153,7 +153,7 @@ export default function ShapefileUpload({
                 () => setCopied(false),
               );
             }}
-            className="mt-1.5 rounded border border-rose-300 px-1.5 py-0.5 text-[11px] font-medium hover:bg-rose-100 dark:border-rose-800 dark:hover:bg-rose-900/60"
+            className="mt-1.5 rounded border border-danger-border px-2 py-1 text-[11px] font-semibold hover:bg-white"
           >
             {copied ? "Copied" : "Copy message"}
           </button>
@@ -164,7 +164,7 @@ export default function ShapefileUpload({
         <ul
           role="status"
           aria-live="polite"
-          className="space-y-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+          className="space-y-1 rounded-md border border-warn-border bg-warn-soft px-3 py-2 text-xs text-warn"
         >
           {warnings.map((warning) => (
             <li key={warning}>{warning}</li>

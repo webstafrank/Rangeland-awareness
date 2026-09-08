@@ -49,14 +49,15 @@ bundler. A circle sidesteps the problem and themes correctly.
 
 | File | What it owns |
 | --- | --- |
-| `TopicWorkbench.tsx` | The reducer, the layout, URL sync. |
+| `TopicWorkbench.tsx` | The reducer, the four bands, URL sync, the submitted request. |
 | `RadioCards.tsx` | A labelled `role="radiogroup"` of native radios. |
 | `CoordinateEntry.tsx` | The keyboard path to an area: type or paste a coordinate. |
 | `ShapefileUpload.tsx` | File picking, drag and drop, and every upload failure message. |
 | `SelectedAreas.tsx` | The running list, each row removable and clickable to re-centre. |
 | `SelectionNotice.tsx` | The banner for a selection change, with the undo. |
 | `RequestReceipt.tsx` | One line restating the whole request. |
-| `RunPanel.tsx` | The run button, its blocking reason, and the emitted payload. |
+| `RunAction.tsx` | The run button and the one reason it is disabled. |
+| `RequestResult.tsx` | The validated payload a run produced. |
 | `MapSizeStepper.tsx`, `map-size.ts`, `map-size-store.ts` | The mobile map height. |
 
 ### Why the radios are shaped the way they are
@@ -89,6 +90,28 @@ as the page scrolls; `dvh` changes with it and resizes the map container
 mid-gesture, so Leaflet needs an `invalidateSize` and a half-drawn polygon's
 vertices shift under the finger. `svh` is the small stable viewport and holds
 one height for the session.
+
+### Layout
+
+The topic page is four bands down a scrolling page, not a locked full-height
+split with every control in one rail:
+
+1. Topic header: what this topic answers and returns.
+2. Scope and Model side by side across the full width.
+3. Select areas: the three input methods as equal panels in a row, then the map
+   beside the running list.
+4. A sticky action bar with the request receipt and the run button.
+
+The split follows how the page is used. Analysis type and model are chosen once
+and then ignored, so they get a wide band and get out of the way; area selection
+is iterative, so the tall space is reserved for the map. The earlier build put
+all eight controls in one 380px column, which made the interactive part the most
+cramped thing on the page.
+
+`RunAction` and `RequestResult` are separate components because the button
+belongs in the sticky bar and the payload belongs in the page. One component
+rendered in both places would mean two buttons and two copies of every id, which
+is exactly the strict-mode failure the eval caught.
 
 ## Accessibility commitments
 

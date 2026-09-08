@@ -133,7 +133,7 @@ function ViewReadout() {
       data-zoom={zoom}
       role="status"
       aria-live="polite"
-      className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded bg-surface/90 px-2 py-1 font-mono text-[11px] text-foreground-muted shadow-sm"
+      className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded bg-surface/90 px-2 py-1 font-mono text-[11px] text-ink-muted shadow-sm"
     >
       Centre {lat}, {lng} at zoom {zoom}
     </p>

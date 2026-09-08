@@ -134,6 +134,24 @@ async function clickMap(page: Page, fraction = CLICK_FRACTION) {
   });
 }
 
+/**
+ * A topic card link, scoped to the card grid.
+ *
+ * The homepage links every topic twice: once in the hero quick-start nav and
+ * once in the card grid below. Both are wanted, so neither can be addressed by
+ * link text alone.
+ */
+const topicCard = (page: Page, name: string | RegExp) =>
+  page
+    .getByRole("list", { name: /analysis topics/i })
+    .getByRole("link", { name: typeof name === "string" ? new RegExp(name, "i") : name });
+
+/** The same topic, reached from the hero quick-start list instead. */
+const topicQuickStart = (page: Page, name: string | RegExp) =>
+  page
+    .getByRole("navigation", { name: /start an analysis/i })
+    .getByRole("link", { name: typeof name === "string" ? new RegExp(name, "i") : name });
+
 const selectedAreas = (page: Page) =>
   page.getByRole("region", { name: /selected areas/i });
 
@@ -159,11 +177,17 @@ test.describe("homepage", () => {
     );
 
     for (const topic of TOPICS) {
-      const link = page.getByRole("link", { name: new RegExp(topic.name, "i") });
+      const link = topicCard(page, topic.name);
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute("href", `/topics/${topic.slug}`);
       // H3: the card carries the question, not only the name.
       await expect(link).toContainText(topic.question);
+
+      // And the hero quick-start reaches the same route.
+      await expect(topicQuickStart(page, topic.name)).toHaveAttribute(
+        "href",
+        `/topics/${topic.slug}`,
+      );
     }
 
     expect(problems).toEqual([]);
@@ -189,7 +213,7 @@ test.describe("homepage", () => {
 
     // And Enter on a focused topic link navigates.
     await page.goto("/");
-    await page.getByRole("link", { name: /flood risk/i }).focus();
+    await topicCard(page, "flood risk").focus();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/topics\/flood-risk$/);
   });
@@ -816,7 +840,7 @@ test.describe("measurable outcome", () => {
     await page.goto("/");
 
     // 1: choose the topic.
-    await click(() => page.getByRole("link", { name: /drought monitoring/i }).click());
+    await click(() => topicCard(page, "drought monitoring").click());
     await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
 
     // 2: comparison.
@@ -858,7 +882,7 @@ test.describe("measurable outcome", () => {
       loads += 1;
     });
 
-    await page.getByRole("link", { name: /flood risk/i }).click();
+    await topicCard(page, "flood risk").click();
     await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
     await clickMap(page);
     await expect(areaRows(page)).toHaveCount(1);

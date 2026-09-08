@@ -38,7 +38,7 @@ export default function RequestReceipt({
       key={field}
       className={
         blockedField === field
-          ? "underline decoration-amber-600 decoration-dotted decoration-2 underline-offset-2 dark:decoration-amber-400"
+          ? "underline decoration-warn decoration-dotted decoration-2 underline-offset-2"
           : undefined
       }
     >
@@ -49,18 +49,18 @@ export default function RequestReceipt({
   return (
     <p
       data-testid="request-receipt"
-      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-edge bg-surface px-3 py-2 text-xs text-foreground-muted"
+      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-edge bg-surface px-3 py-2 text-xs text-ink-muted"
     >
       {chip("topic", topic.name)}
-      <span aria-hidden="true" className="text-foreground-faint">
+      <span aria-hidden="true" className="text-ink-faint">
         &middot;
       </span>
       {chip("analysisType", analysisType.label)}
-      <span aria-hidden="true" className="text-foreground-faint">
+      <span aria-hidden="true" className="text-ink-faint">
         &middot;
       </span>
       {chip("model", model.label)}
-      <span aria-hidden="true" className="text-foreground-faint">
+      <span aria-hidden="true" className="text-ink-faint">
         &middot;
       </span>
       {chip(

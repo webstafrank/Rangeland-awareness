@@ -44,8 +44,8 @@ git config core.hooksPath scripts
 360px: 59 journey checks and 36 theme checks. It proves the things the gate
 lane structurally cannot: that all four area-selection methods work, that a
 selection moves the map viewport, that a corrupt upload fails fast instead of
-freezing the tab, that every control has an accessible name, that both themes
-are legible, and that the journey fits its budget. It uses the system Chrome
+freezing the tab, that every control has an accessible name, that the light
+theme holds under a dark OS preference, and that the journey fits its budget. It uses the system Chrome
 (`channel: "chrome"`), so no browser download is needed, and picks a port from
 the session id so two sessions do not collide.
 
@@ -66,7 +66,7 @@ app/                      routes only, no business logic
   page.tsx                homepage, server component, four topic cards
   topics/[topic]/         the workbench route, server component
   layout.tsx              shell, header, footer, skip link
-  globals.css             design tokens and the dark-mode Leaflet overrides
+  globals.css             design tokens and the Leaflet chrome overrides
 components/               UI. See components/README.md
   map/                    everything that touches Leaflet
   topic/                  the request rail
@@ -105,6 +105,23 @@ if the pre-flight is removed.
 (polygon area) and turf costs roughly 500KB in a client bundle for it.
 `lib/geo/area.ts` is the same spherical-excess formula, checked against the
 independent closed-form area of a lat/lng cell.
+
+**One light theme, committed to.** There are no `prefers-color-scheme` blocks
+anywhere, so every colour has exactly one definition and cannot be legible in
+one theme and invisible in the other. `color-scheme: light` on the root is
+load-bearing: without it a visitor whose OS is dark gets dark native form
+controls, dark scrollbars and a dark autofill highlight painted through a light
+page, which no CSS on our own elements can fix. `evals/theme.spec.ts` runs every
+check twice, under a light and a dark OS preference, and asserts the same light
+result both times, plus that no `prefers-color-scheme` rule ships in the parsed
+stylesheets.
+
+**The topic route is server-rendered on demand, not prerendered.** It reads a
+search param, and outside partial prerendering you cannot read one and keep a
+static shell. The trade is deliberate: a correct 404 status, no flash of default
+choices, and the query validated on the server before first paint, against
+CDN-cacheable HTML for four pages that render in single-digit milliseconds. The
+reasoning is in `app/topics/[topic]/page.tsx`.
 
 **Type and model live in the URL**, areas do not.
 `/topics/drought-monitoring?type=comparison&model=combined` is bookmarkable, so

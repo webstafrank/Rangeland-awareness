@@ -34,8 +34,14 @@ export interface RadioCardsProps<T extends string> {
   value: T;
   options: readonly RadioCardOption<T>[];
   onChange: (value: T) => void;
-  /** Cards side by side, or stacked. Stacked reads better under 380px. */
+  /** Cards side by side, or stacked. Stacked reads better in a narrow panel. */
   layout?: "row" | "stack";
+  /**
+   * Hide the visible legend while keeping the accessible name.
+   * Used where a section heading already says what the group is, so the label
+   * is not printed twice. The group stays named for assistive technology.
+   */
+  hideLegend?: boolean;
   /** Compact drops the description, for a dense toolbar. */
   compact?: boolean;
 }
@@ -48,6 +54,7 @@ export default function RadioCards<T extends string>({
   onChange,
   layout = "row",
   compact = false,
+  hideLegend = false,
 }: RadioCardsProps<T>) {
   const labelId = useId();
 
@@ -55,7 +62,11 @@ export default function RadioCards<T extends string>({
     <div>
       <span
         id={labelId}
-        className="block text-xs font-semibold uppercase tracking-wide text-foreground-faint"
+        className={
+          hideLegend
+            ? "sr-only"
+            : "block text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint"
+        }
       >
         {legend}
       </span>
@@ -64,7 +75,7 @@ export default function RadioCards<T extends string>({
         role="radiogroup"
         aria-labelledby={labelId}
         className={[
-          "mt-2 gap-2",
+          hideLegend ? "gap-2.5" : "mt-2 gap-2.5",
           layout === "row"
             ? "grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr"
             : "flex flex-col",
@@ -112,11 +123,11 @@ export default function RadioCards<T extends string>({
               <label
                 htmlFor={inputId}
                 className={[
-                  "flex h-full cursor-pointer flex-col rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                  "peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus",
+                  "flex h-full cursor-pointer flex-col rounded-lg border px-3.5 py-3 text-sm transition-colors",
+                  "peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent",
                   checked
-                    ? "border-teal-600 bg-teal-50 dark:border-teal-500 dark:bg-teal-950/50"
-                    : "border-edge bg-surface hover:border-edge-strong",
+                    ? "border-accent bg-accent-soft"
+                    : "border-edge bg-surface hover:border-edge-strong hover:bg-sunken",
                   option.disabled ? "cursor-not-allowed opacity-50" : "",
                 ].join(" ")}
               >
@@ -124,14 +135,12 @@ export default function RadioCards<T extends string>({
                   <span
                     aria-hidden="true"
                     className={[
-                      "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
-                      checked
-                        ? "border-teal-600 dark:border-teal-400"
-                        : "border-edge-strong",
+                      "grid h-4 w-4 shrink-0 place-items-center rounded-full border-[1.5px] bg-surface",
+                      checked ? "border-accent" : "border-edge-strong",
                     ].join(" ")}
                   >
                     {checked && (
-                      <span className="h-2 w-2 rounded-full bg-teal-600 dark:bg-teal-400" />
+                      <span className="h-2 w-2 rounded-full bg-accent" />
                     )}
                   </span>
                   {option.label}
@@ -140,7 +149,7 @@ export default function RadioCards<T extends string>({
                 {!compact && option.description && (
                   <span
                     id={descId}
-                    className="mt-1 pl-6 text-xs leading-snug text-foreground-muted"
+                    className="mt-1.5 pl-6 text-xs leading-relaxed text-ink-muted"
                   >
                     {option.description}
                   </span>
@@ -149,7 +158,7 @@ export default function RadioCards<T extends string>({
                 {option.note && (
                   <span
                     id={noteId}
-                    className="mt-1 pl-6 text-xs font-medium leading-snug text-amber-700 dark:text-amber-400"
+                    className="mt-1.5 pl-6 text-xs font-medium leading-relaxed text-warn"
                   >
                     {option.note}
                   </span>

@@ -24,11 +24,11 @@ const AoiMap = dynamic(() => import("@/components/map/AoiMap"), {
 function MapSkeleton() {
   return (
     <div
-      className="grid h-full w-full place-items-center bg-surface-muted"
+      className="grid h-full w-full place-items-center bg-sunken"
       role="status"
       aria-live="polite"
     >
-      <span className="text-sm text-foreground-faint">Loading map...</span>
+      <span className="text-sm text-ink-faint">Loading map...</span>
     </div>
   );
 }

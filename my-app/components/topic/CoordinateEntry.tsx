@@ -144,13 +144,13 @@ export default function CoordinateEntry({
           type="button"
           onClick={submit}
           disabled={!canAdd}
-          className="shrink-0 rounded-md border border-edge-strong bg-surface px-3 py-1.5 text-xs font-semibold hover:border-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-md border border-edge-strong bg-surface px-3 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add area
         </button>
       </div>
 
-      <p className="text-xs leading-snug text-foreground-faint">
+      <p className="text-xs leading-snug text-ink-faint">
         Latitude first. Radius 0 selects the exact point; any radius selects a
         square of that half-width around it.
       </p>
@@ -159,7 +159,7 @@ export default function CoordinateEntry({
         <p
           role="alert"
           data-testid="coordinate-error"
-          className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-900 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200"
+          className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-xs text-danger"
         >
           {error}
         </p>
@@ -169,7 +169,7 @@ export default function CoordinateEntry({
         <p
           role="status"
           aria-live="polite"
-          className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+          className="rounded-md border border-warn-border bg-warn-soft px-3 py-2 text-xs text-warn"
         >
           {warning}
         </p>

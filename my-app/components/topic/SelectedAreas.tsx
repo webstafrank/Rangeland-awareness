@@ -25,9 +25,9 @@ export interface SelectedAreasProps {
   areas: readonly AreaOfInterest[];
   /** Shown when nothing is selected, so the panel is never just blank. */
   emptyHint: string;
-  /** How many areas this analysis type still needs, or wants. */
-  countHint: string;
   onFocus: (id: string) => void;
+  /** Zoom out to cover every selected area. Only useful past one. */
+  onFitAll: () => void;
   onRemove: (id: string) => void;
   onClear: () => void;
 }
@@ -35,36 +35,56 @@ export interface SelectedAreasProps {
 export default function SelectedAreas({
   areas,
   emptyHint,
-  countHint,
   onFocus,
+  onFitAll,
   onRemove,
   onClear,
 }: SelectedAreasProps) {
   return (
     <section aria-label="Selected areas" className="flex min-h-0 flex-col">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-foreground-faint">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
           Selected areas
         </h2>
+
+        {/*
+          The count is deliberately NOT repeated here. It is already in the
+          step heading above and in the sticky bar below, and a third copy in
+          the panel that literally lists them adds nothing.
+        */}
         {areas.length > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="rounded text-xs font-medium text-foreground-muted hover:text-foreground hover:underline"
-          >
-            Clear all
-          </button>
+          <div className="flex items-center gap-2 text-xs font-medium">
+            {/*
+              Adding an area zooms to that area, which is right for a single
+              selection but leaves the earlier ones off screen in a comparison.
+              This is the way back to seeing all of them at once.
+            */}
+            {areas.length > 1 && (
+              <button
+                type="button"
+                onClick={onFitAll}
+                className="rounded text-ink-muted hover:text-accent hover:underline"
+              >
+                Fit all
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClear}
+              className="rounded text-ink-muted hover:text-ink hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
         )}
       </div>
 
-      <p className="mt-1 text-xs text-foreground-faint">{countHint}</p>
-
       {areas.length === 0 ? (
-        <p className="mt-3 rounded-lg border border-dashed border-edge-strong bg-surface-muted px-3 py-4 text-xs leading-relaxed text-foreground-muted">
+        <p className="mt-3 rounded-lg border border-dashed border-edge-strong bg-sunken px-3.5 py-4 text-xs leading-relaxed text-ink-muted">
           {emptyHint}
         </p>
       ) : (
-        <ul className="mt-2 space-y-1.5 overflow-y-auto">
+        <ul className="mt-3 space-y-2 overflow-y-auto">
           {areas.map((area, index) => (
             <li
               key={area.id}
@@ -72,7 +92,7 @@ export default function SelectedAreas({
             >
               <span
                 aria-hidden="true"
-                className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-teal-600 font-mono text-[10px] font-bold text-white dark:bg-teal-500 dark:text-teal-950"
+                className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent font-mono text-[10px] font-bold text-white"
               >
                 {index + 1}
               </span>
@@ -90,7 +110,7 @@ export default function SelectedAreas({
                 <span className="block truncate text-sm font-medium">
                   {area.label}
                 </span>
-                <span className="block text-xs text-foreground-faint">
+                <span className="block text-xs text-ink-faint">
                   {SOURCE_LABEL[area.source]} &middot; {formatArea(area.areaKm2)}
                 </span>
               </button>
@@ -98,7 +118,7 @@ export default function SelectedAreas({
               <button
                 type="button"
                 onClick={() => onRemove(area.id)}
-                className="shrink-0 rounded-md border border-transparent px-2 py-1 text-xs font-medium text-foreground-muted hover:border-edge-strong hover:text-foreground"
+                className="shrink-0 rounded-md border border-transparent px-2 py-1 text-xs font-medium text-ink-muted hover:border-edge-strong hover:text-ink"
                 aria-label={`Remove ${area.label}`}
               >
                 Remove

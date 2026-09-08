@@ -35,11 +35,11 @@ export default function MapSizeStepper({ size, onChange }: MapSizeStepperProps) 
       // The label states the current size and what the press does, so a screen
       // reader user knows both before and after. 36px tall for a thumb.
       aria-label={`Map size: ${current.label}. Press to make it ${next.label}.`}
-      className="flex h-9 w-full items-center justify-center gap-1.5 border-b border-edge bg-surface text-xs font-medium text-foreground-muted lg:hidden"
+      className="flex h-9 w-full items-center justify-center gap-1.5 border-b border-edge bg-surface text-xs font-medium text-ink-muted lg:hidden"
     >
       <span aria-hidden="true">{current.glyph}</span>
       Map: {current.label}
-      <span aria-hidden="true" className="text-foreground-faint">
+      <span aria-hidden="true" className="text-ink-faint">
         &middot; tap to {next.label === "small" ? "shrink" : "grow"}
       </span>
     </button>

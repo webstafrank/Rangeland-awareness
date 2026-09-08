@@ -41,11 +41,25 @@ describe("topic registry", () => {
     expect(new Set(tiles).size).toBe(TOPICS.length);
   });
 
-  it("defines light and dark for every accent class", () => {
+  it("uses single-theme accent classes with no variant prefix", () => {
+    // The app commits to one light theme, so an accent carrying a `dark:` or
+    // any other variant would be a leftover from the two-theme build and would
+    // never apply. Tailwind also only sees literal class names, so a variant
+    // assembled at runtime compiles to nothing.
     for (const topic of TOPICS) {
       for (const value of Object.values(topic.accent)) {
-        expect(value).toMatch(/dark:/);
+        expect(value).not.toMatch(/dark:/);
+        expect(value).not.toMatch(/:/);
+        expect(value.split(/\s+/)).toHaveLength(1);
       }
+    }
+  });
+
+  it("gives every topic a text, tile and border accent", () => {
+    for (const topic of TOPICS) {
+      expect(topic.accent.text).toMatch(/^text-/);
+      expect(topic.accent.tile).toMatch(/^bg-/);
+      expect(topic.accent.border).toMatch(/^border-/);
     }
   });
 

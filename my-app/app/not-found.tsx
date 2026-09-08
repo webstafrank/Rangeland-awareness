@@ -4,13 +4,13 @@ import { TOPICS } from "@/lib/analysis/topics";
 export default function NotFound() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-4 py-16 sm:px-6">
-      <p className="font-mono text-xs uppercase tracking-widest text-foreground-faint">
+      <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">
         404
       </p>
       <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
         Page not found
       </h1>
-      <p className="mt-3 text-foreground-muted">
+      <p className="mt-3 text-ink-muted">
         That address does not match anything in this app. Pick a topic to start
         an analysis.
       </p>

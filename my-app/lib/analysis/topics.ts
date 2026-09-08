@@ -25,14 +25,19 @@ export interface Topic {
   output: string;
   /** Inputs the topic leans on. Shown as chips; also documents the data contract. */
   inputs: readonly string[];
-  /** Tailwind accent classes, kept here so topic colour is data, not scattered CSS. */
+  /**
+   * Tailwind accent classes, kept here so topic colour is data, not scattered
+   * CSS. Muted on purpose: these are wayfinding, so a reader can tell the four
+   * topics apart at a glance, not branding. The app has one light theme, so
+   * each value is a single class with no variant.
+   */
   accent: {
-    /** Text colour for the icon and headings. */
+    /** Text colour for the topic name and its icon glyph. */
     text: string;
-    /** Subtle background for the icon tile. */
+    /** Subtle fill behind the icon glyph. */
     tile: string;
-    /** Ring/border colour on hover and focus. */
-    ring: string;
+    /** Border for the icon tile and the card's hover state. */
+    border: string;
   };
 }
 
@@ -45,9 +50,9 @@ export const TOPICS: readonly Topic[] = [
       "A per-pixel flood susceptibility score with the contributing drivers ranked.",
     inputs: ["Rainfall", "Terrain and slope", "Drainage density", "Soil moisture"],
     accent: {
-      text: "text-sky-700 dark:text-sky-300",
-      tile: "bg-sky-50 dark:bg-sky-950/60",
-      ring: "group-hover:ring-sky-400/70 dark:group-hover:ring-sky-500/60",
+      text: "text-sky-800",
+      tile: "bg-sky-50",
+      border: "border-sky-200",
     },
   },
   {
@@ -63,9 +68,9 @@ export const TOPICS: readonly Topic[] = [
       "Evapotranspiration",
     ],
     accent: {
-      text: "text-amber-700 dark:text-amber-300",
-      tile: "bg-amber-50 dark:bg-amber-950/60",
-      ring: "group-hover:ring-amber-400/70 dark:group-hover:ring-amber-500/60",
+      text: "text-amber-800",
+      tile: "bg-amber-50",
+      border: "border-amber-200",
     },
   },
   {
@@ -81,9 +86,9 @@ export const TOPICS: readonly Topic[] = [
       "Rainfall seasonality",
     ],
     accent: {
-      text: "text-emerald-700 dark:text-emerald-300",
-      tile: "bg-emerald-50 dark:bg-emerald-950/60",
-      ring: "group-hover:ring-emerald-400/70 dark:group-hover:ring-emerald-500/60",
+      text: "text-emerald-800",
+      tile: "bg-emerald-50",
+      border: "border-emerald-200",
     },
   },
   {
@@ -99,9 +104,9 @@ export const TOPICS: readonly Topic[] = [
       "Rainfall forecast",
     ],
     accent: {
-      text: "text-rose-700 dark:text-rose-300",
-      tile: "bg-rose-50 dark:bg-rose-950/60",
-      ring: "group-hover:ring-rose-400/70 dark:group-hover:ring-rose-500/60",
+      text: "text-rose-800",
+      tile: "bg-rose-50",
+      border: "border-rose-200",
     },
   },
 ];
