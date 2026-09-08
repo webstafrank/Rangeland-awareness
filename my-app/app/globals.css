@@ -1,26 +1,121 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens for the whole app. Both routes build against these, so a
+ * surface or border colour is changed here once and nowhere else.
+ *
+ * Light is defined on bare :root and dark only overrides the tokens, so no
+ * colour has its only definition inside a media query.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --foreground: #0f172a;
+  --foreground-muted: #475569;
+  --foreground-faint: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --focus: #0f766e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #08090c;
+    --surface: #101319;
+    --surface-muted: #171b23;
+    --foreground: #f1f5f9;
+    --foreground-muted: #a2aec1;
+    --foreground-faint: #7c8798;
+    --border: #232833;
+    --border-strong: #333a48;
+    --focus: #2dd4bf;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-faint: var(--foreground-faint);
+  --color-edge: var(--border);
+  --color-edge-strong: var(--border-strong);
+  --color-focus: var(--focus);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/*
+ * One focus ring for the whole app, visible in both themes. :focus-visible so
+ * a mouse click does not leave a ring behind, but every keyboard path does.
+ */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Respect a user who has asked for less motion. Leaflet pans and zooms a lot. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Leaflet ships its own light-only chrome. These are the only overrides needed
+ * to stop its controls and popups glowing white in dark mode. Scoped to
+ * Leaflet's own class names so nothing else is affected.
+ */
+.leaflet-container {
+  background: var(--surface-muted);
+  font: inherit;
+}
+
+.leaflet-bar,
+.leaflet-control-layers,
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--surface);
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  color: var(--foreground-faint);
+}
+
+.leaflet-control-attribution a {
+  color: var(--foreground-muted);
+}
+
+/*
+ * The dark basemap is served as light raster tiles, so they get filtered.
+ * Applied to the tile pane only, never to overlays, or the drawn polygons and
+ * the shapefile outlines would be inverted too.
+ */
+@media (prefers-color-scheme: dark) {
+  .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9);
+  }
 }
