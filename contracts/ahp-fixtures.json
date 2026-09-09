@@ -1,0 +1,163 @@
+{
+  "$comment": "Shared AHP conformance fixtures. The TypeScript implementation in my-app/lib/ahp and the Python one in services/analysis/app/domain/ahp.py are both tested against this file, so they cannot disagree about a weight or a consistency ratio. Tolerances are absolute. Adding a case here obliges both sides.",
+  "version": 1,
+  "tolerance": 0.0005,
+  "cases": [
+    {
+      "name": "notebook-weights-round-trip",
+      "why": "A consistent matrix built from the Tana River notebook's AHP weights must return them exactly. This is the ground truth for the eigenvector: there is one right answer and it is known in advance.",
+      "criteria": ["elevation", "slope", "dist_to_river", "rainfall", "landcover"],
+      "matrix": [
+        [1.0, 1.6666666666666667, 0.7142857142857143, 1.25, 5.0],
+        [0.6, 1.0, 0.42857142857142855, 0.75, 3.0],
+        [1.4, 2.3333333333333335, 1.0, 1.75, 7.0],
+        [0.8, 1.3333333333333333, 0.5714285714285714, 1.0, 4.0],
+        [0.2, 0.3333333333333333, 0.14285714285714285, 0.25, 1.0]
+      ],
+      "expect": {
+        "weights": [0.25, 0.15, 0.35, 0.2, 0.05],
+        "lambdaMax": 5.0,
+        "consistencyIndex": 0.0,
+        "consistencyRatio": 0.0,
+        "acceptable": true
+      }
+    },
+    {
+      "name": "saaty-textbook-3x3",
+      "why": "Saaty's published example. The expected values are from the literature, not from either implementation, so agreeing with them is independent evidence rather than agreeing with ourselves.",
+      "criteria": ["a", "b", "c"],
+      "matrix": [
+        [1.0, 3.0, 5.0],
+        [0.3333333333333333, 1.0, 3.0],
+        [0.2, 0.3333333333333333, 1.0]
+      ],
+      "expect": {
+        "weights": [0.637, 0.2583, 0.1047],
+        "lambdaMax": 3.0385,
+        "consistencyIndex": 0.0193,
+        "consistencyRatio": 0.0332,
+        "acceptable": true
+      }
+    },
+    {
+      "name": "all-equal",
+      "why": "Every comparison equal must give equal weights and perfect consistency, at any order.",
+      "criteria": ["a", "b", "c", "d"],
+      "matrix": [
+        [1.0, 1.0, 1.0, 1.0],
+        [1.0, 1.0, 1.0, 1.0],
+        [1.0, 1.0, 1.0, 1.0],
+        [1.0, 1.0, 1.0, 1.0]
+      ],
+      "expect": {
+        "weights": [0.25, 0.25, 0.25, 0.25],
+        "lambdaMax": 4.0,
+        "consistencyIndex": 0.0,
+        "consistencyRatio": 0.0,
+        "acceptable": true
+      }
+    },
+    {
+      "name": "two-criteria-cannot-be-inconsistent",
+      "why": "RI is 0 at order 2. Dividing by it gives NaN or Infinity and rejects a matrix that is correct by construction. Both implementations must special-case this rather than divide.",
+      "criteria": ["a", "b"],
+      "matrix": [
+        [1.0, 7.0],
+        [0.14285714285714285, 1.0]
+      ],
+      "expect": {
+        "weights": [0.875, 0.125],
+        "lambdaMax": 2.0,
+        "consistencyIndex": 0.0,
+        "consistencyRatio": 0.0,
+        "acceptable": true
+      }
+    },
+    {
+      "name": "single-criterion",
+      "why": "Order 1 is degenerate but legal: one criterion carries all the weight.",
+      "criteria": ["a"],
+      "matrix": [[1.0]],
+      "expect": {
+        "weights": [1.0],
+        "lambdaMax": 1.0,
+        "consistencyIndex": 0.0,
+        "consistencyRatio": 0.0,
+        "acceptable": true
+      }
+    },
+    {
+      "name": "cyclic-preference-is-refused",
+      "why": "A strongly beats B, B strongly beats C, C strongly beats A. Not a close call, impossible. Catching this is the entire reason the consistency ratio is computed rather than the weights taken on trust.",
+      "criteria": ["a", "b", "c"],
+      "matrix": [
+        [1.0, 9.0, 0.1111111111111111],
+        [0.1111111111111111, 1.0, 9.0],
+        [9.0, 0.1111111111111111, 1.0]
+      ],
+      "expect": {
+        "consistencyRatioAtLeast": 1.0,
+        "acceptable": false
+      }
+    },
+    {
+      "name": "mildly-inconsistent-but-usable",
+      "why": "The realistic case: judgements that do not line up perfectly but stay inside the threshold. Both sides must accept it and agree on the ordering.",
+      "criteria": ["slope", "aspect", "elevation", "rainfall"],
+      "matrix": [
+        [1.0, 3.0, 2.0, 4.0],
+        [0.3333333333333333, 1.0, 0.5, 2.0],
+        [0.5, 2.0, 1.0, 3.0],
+        [0.25, 0.5, 0.3333333333333333, 1.0]
+      ],
+      "expect": {
+        "acceptable": true,
+        "consistencyRatioAtMost": 0.1,
+        "weightOrder": ["slope", "elevation", "aspect", "rainfall"]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "not-reciprocal",
+      "why": "Reciprocity is what makes it an AHP matrix at all.",
+      "matrix": [
+        [1.0, 3.0],
+        [3.0, 1.0]
+      ]
+    },
+    {
+      "name": "zero-comparison",
+      "why": "A zero is not a weak preference, it is a broken matrix; its eigenvector means nothing.",
+      "matrix": [
+        [1.0, 0.0],
+        [1.0, 1.0]
+      ]
+    },
+    {
+      "name": "negative-comparison",
+      "matrix": [
+        [1.0, -3.0],
+        [-0.3333333333333333, 1.0]
+      ]
+    },
+    {
+      "name": "diagonal-not-one",
+      "matrix": [
+        [2.0, 1.0],
+        [1.0, 1.0]
+      ]
+    },
+    {
+      "name": "not-square",
+      "matrix": [
+        [1.0, 2.0],
+        [0.5]
+      ]
+    },
+    {
+      "name": "empty",
+      "matrix": []
+    }
+  ]
+}
