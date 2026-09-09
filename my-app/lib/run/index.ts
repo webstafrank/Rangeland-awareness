@@ -120,7 +120,13 @@ export {
   spanOf,
 } from "@/lib/run/indicators";
 export { aridityClass, aridityOfBounds } from "@/lib/run/aridity";
-export { isDeterioration, worstArea } from "@/lib/run/narrative";
+// isWorse is here because a comparison table has to rank areas, and "worse"
+// is not a comparison the UI can safely re-derive: it depends on the
+// indicator's badEnd, so a table that sorted by raw value would put the best
+// area at the top for VHI and the worst area at the top for flood risk. One
+// definition, imported, rather than a second copy in a component.
+export { isDeterioration, isWorse, worstArea } from "@/lib/run/narrative";
+export { worseBand } from "@/lib/run/indicators";
 export { SYNTHETIC_NOTE } from "@/lib/run/exporters";
 export { STAGE_SCRIPT, stageTotalMs } from "@/lib/run/stages";
 export {

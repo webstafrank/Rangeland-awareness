@@ -54,6 +54,13 @@ describe("resolveSource", () => {
   });
 
   it("does not mutate the registry entry when the endpoint is overridden", () => {
+    // Captured, not written as a literal. This test is about the override
+    // COPYING rather than about what the registry happens to hold, and pinning
+    // the literal made it fail the day the real GeoServer address replaced the
+    // placeholder — a false alarm about an unrelated change.
+    const BEFORE_OVERRIDE = SOURCES.find((s) => s.id === "ksa-geoserver")?.endpoint;
+    expect(BEFORE_OVERRIDE).toBeTruthy();
+
     resolveSource({
       sourceId: "ksa-geoserver",
       endpoint: "https://geoserver.ksa.go.ke/geoserver/wms",
@@ -63,7 +70,7 @@ describe("resolveSource", () => {
     // every later call in the same process, which under `isolate: false` means
     // into other test files too.
     const fresh = SOURCES.find((s) => s.id === "ksa-geoserver");
-    expect(fresh?.endpoint).toBe("https://geoserver.internal.invalid/geoserver/wms");
+    expect(fresh?.endpoint).toBe(BEFORE_OVERRIDE);
   });
 
   it("falls back with a stated reason for an unknown source id, and does not throw", () => {

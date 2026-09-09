@@ -26,11 +26,27 @@ describe("sources", () => {
     expect(SOURCES.map((s) => s.id)).toContain(DEFAULT_SOURCE_ID);
   });
 
-  it("gives every source an absolute https endpoint", () => {
+  it("gives every source an absolute http or https endpoint", () => {
+    // Not https-only. The KSA GeoServer is an internal host on plain http, and
+    // demanding TLS here would either fail the gate or push someone into
+    // inventing an https address that does not exist. What actually has to hold
+    // is that the value parses as an absolute URL with a web protocol: a
+    // relative or malformed one aims every tile request at this app's own
+    // origin and 404s the lot.
     for (const source of SOURCES) {
       const url = new URL(source.endpoint);
-      expect(url.protocol).toBe("https:");
+      expect(["http:", "https:"], source.id).toContain(url.protocol);
     }
+  });
+
+  it("flags any plain-http source, because an https page cannot fetch from one", () => {
+    // A page served over https may not load http subresources: the browser
+    // blocks them as mixed content, silently, and the tiles simply never
+    // arrive. That is a deployment constraint rather than a defect, so this
+    // records which sources carry it instead of forbidding them. If this list
+    // grows, the deployment story needs revisiting, not this assertion.
+    const insecure = SOURCES.filter((s) => new URL(s.endpoint).protocol === "http:");
+    expect(insecure.map((s) => s.id)).toEqual(["ksa-geoserver"]);
   });
 
   it("explains itself when it has no layers", () => {

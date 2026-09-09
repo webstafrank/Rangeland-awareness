@@ -63,15 +63,35 @@ const GIBS: WmsSource = {
 const KSA_GEOSERVER: WmsSource = {
   id: "ksa-geoserver",
   label: "Kenya Space Agency GeoServer",
-  // Placeholder, and never reachable as written. NEXT_PUBLIC_WMS_ENDPOINT is
-  // expected to override it; if it does not, every tile fails and the control
-  // states the endpoint it tried.
-  endpoint: "https://geoserver.internal.invalid/geoserver/wms",
+  /*
+   * The internal GeoServer. Overridable with NEXT_PUBLIC_WMS_ENDPOINT, which is
+   * how a different workspace or a moved host is handled without a code change.
+   *
+   * Two properties of this address decide how the app behaves around it, and
+   * both are deliberate rather than incidental:
+   *
+   * A PRIVATE ADDRESS. Tiles are fetched by the analyst's BROWSER, not by the
+   * server rendering the page, so every viewer must themselves be on a network
+   * that routes to 192.168.0.40. That is the right shape for an internal tool
+   * and the wrong shape for anything published outward; if this app is ever
+   * served beyond the LAN, the tiles need a proxy route in this app rather than
+   * a direct browser fetch.
+   *
+   * PLAIN HTTP. A page served over https may not fetch http subresources: the
+   * browser blocks them as mixed content, silently, with the tiles simply never
+   * arriving. So the app and GeoServer have to agree — both http on the LAN
+   * (the normal case here), or GeoServer behind TLS.
+   *
+   * Checked 2026-09-09 from 192.168.4.198: the host answers ping in ~9.6ms, and
+   * every common web port including 8080 answers Connection refused. Routing is
+   * fine; nothing was listening. The layer list below is therefore still empty.
+   */
+  endpoint: "http://192.168.0.40:8080/geoserver/wms",
   version: "1.3.0",
   attribution: "Kenya Space Agency",
   layers: KSA_LAYERS,
   supportsGetLegendGraphic: true,
-  note: "No layers are registered for this source yet. Add them to KSA_LAYERS in lib/wms/layers.ts, checking each name against the server's GetCapabilities first.",
+  note: "No layers are registered for this source yet. Run `node scripts/wms-preflight.mjs` once GeoServer is up to list what it publishes, then add them to KSA_LAYERS in lib/wms/layers.ts.",
 };
 
 export const SOURCES: readonly WmsSource[] = [GIBS, KSA_GEOSERVER];
