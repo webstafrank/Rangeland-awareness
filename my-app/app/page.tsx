@@ -40,7 +40,7 @@ export default function Home() {
       {/* Statement of purpose. Generous, because it is read once and it has to
           land: what this is, and what it produces. */}
       <section className="border-b border-edge bg-surface">
-        <div className="mx-auto grid w-full max-w-[1440px] items-start gap-12 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:px-10 lg:py-20">
+        <div className="mx-auto grid w-full max-w-band items-start gap-12 px-gutter py-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:px-gutter-lg lg:py-20">
           <div className="max-w-3xl">
             <p className="font-mono text-xs font-medium uppercase tracking-[0.14em] text-accent">
               Kenya Space Agency &middot; Earth observation
@@ -96,7 +96,7 @@ export default function Home() {
             aria-label="Start an analysis"
             className="rounded-2xl border border-edge bg-surface p-2 shadow-raised lg:sticky lg:top-24"
           >
-            <p className="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+            <p className="px-3 pb-2 pt-3 eyebrow">
               Start an analysis
             </p>
             <ul>
@@ -108,9 +108,9 @@ export default function Home() {
                   >
                     <span
                       aria-hidden="true"
-                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border text-[13px] font-bold ${topic.accent.tile} ${topic.accent.border} ${topic.accent.text}`}
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border text-[11px] font-bold tracking-tight ${topic.accent.tile} ${topic.accent.border} ${topic.accent.text}`}
                     >
-                      {topic.name.slice(0, 1)}
+                      {topic.glyph}
                     </span>
                     <span className="min-w-0 flex-1 text-sm font-semibold tracking-tight">
                       {topic.name}
@@ -131,7 +131,7 @@ export default function Home() {
 
       {/* The four topics. The main event, so it gets the widest band and the
           largest cards. */}
-      <section className="mx-auto w-full max-w-[1440px] px-6 py-14 lg:px-10 lg:py-20">
+      <section className="mx-auto w-full max-w-band px-gutter py-14 lg:px-gutter-lg lg:py-20">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <h2 className="text-2xl font-semibold tracking-tight">
             Choose a topic
@@ -158,9 +158,9 @@ export default function Home() {
               >
                 <span
                   aria-hidden="true"
-                  className={`grid h-11 w-11 place-items-center rounded-xl border text-base font-bold ${topic.accent.tile} ${topic.accent.border} ${topic.accent.text}`}
+                  className={`grid h-11 w-11 place-items-center rounded-xl border text-xs font-bold tracking-tight ${topic.accent.tile} ${topic.accent.border} ${topic.accent.text}`}
                 >
-                  {topic.name.slice(0, 1)}
+                  {topic.glyph}
                 </span>
 
                 <h3
@@ -179,7 +179,7 @@ export default function Home() {
                 </p>
 
                 <div className="mt-6 border-t border-edge pt-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                  <p className="eyebrow">
                     Inputs
                   </p>
                   <p className="mt-2 flex flex-wrap gap-1.5">
@@ -212,7 +212,7 @@ export default function Home() {
       {/* How a request is built. Four steps across the full width, so the flow
           reads as a sequence rather than a stacked list. */}
       <section className="border-y border-edge bg-surface">
-        <div className="mx-auto w-full max-w-[1440px] px-6 py-14 lg:px-10 lg:py-20">
+        <div className="mx-auto w-full max-w-band px-gutter py-14 lg:px-gutter-lg lg:py-20">
           <h2 className="text-2xl font-semibold tracking-tight">
             How an analysis is put together
           </h2>
@@ -244,7 +244,7 @@ export default function Home() {
 
       {/* The models, with their trade-offs. Read once, on the way in, so the
           choice on the topic page is not a guess. */}
-      <section className="mx-auto w-full max-w-[1440px] px-6 py-14 lg:px-10 lg:py-20">
+      <section className="mx-auto w-full max-w-band px-gutter py-14 lg:px-gutter-lg lg:py-20">
         <h2 className="text-2xl font-semibold tracking-tight">
           The models
         </h2>

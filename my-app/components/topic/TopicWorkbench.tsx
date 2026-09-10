@@ -236,7 +236,7 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
     <div className="flex flex-1 flex-col">
       {/* 1. Topic header. What this topic answers and what it gives back. */}
       <section className="border-b border-edge bg-surface">
-        <div className="mx-auto w-full max-w-[1440px] px-6 py-8 lg:px-10 lg:py-10">
+        <div className="mx-auto w-full max-w-band px-gutter py-8 lg:px-gutter-lg lg:py-10">
           <nav aria-label="Breadcrumb" className="text-xs text-ink-faint">
             <Link
               href="/"
@@ -255,9 +255,9 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
               <div className="flex items-center gap-3">
                 <span
                   aria-hidden="true"
-                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border text-base font-bold ${topic.accent.tile} ${topic.accent.border} ${topic.accent.text}`}
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border text-xs font-bold tracking-tight ${topic.accent.tile} ${topic.accent.border} ${topic.accent.text}`}
                 >
-                  {topic.name.slice(0, 1)}
+                  {topic.glyph}
                 </span>
                 <h1
                   className={`text-2xl font-semibold tracking-tight lg:text-3xl ${topic.accent.text}`}
@@ -274,7 +274,7 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
             </div>
 
             <dl className="w-full max-w-xs shrink-0 rounded-xl border border-edge bg-sunken p-4 lg:ml-auto">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+              <dt className="eyebrow">
                 Model inputs
               </dt>
               <dd className="mt-2.5 flex flex-wrap gap-1.5">
@@ -293,7 +293,7 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
       </section>
 
       {/* 2. Scope and model. Set-once choices, side by side, with room. */}
-      <section className="mx-auto w-full max-w-[1440px] px-6 pt-10 lg:px-10 lg:pt-12">
+      <section className="mx-auto w-full max-w-band px-gutter pt-10 lg:px-gutter-lg lg:pt-12">
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
           <div>
             <StepHeading
@@ -359,11 +359,11 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
       </section>
 
       {/* 3. Select areas. Four methods as equal cards, then the map. */}
-      <section className="mx-auto w-full max-w-[1440px] px-6 pt-12 lg:px-10 lg:pt-16">
+      <section className="mx-auto w-full max-w-band px-gutter pt-12 lg:px-gutter-lg lg:pt-16">
         <StepHeading
           step={3}
           title="Select areas"
-          hint="Any of these four, mixed freely. Each selection zooms the map to it."
+          hint="Mix these freely. Every selection zooms the map to what you picked."
         >
           <p className="rounded-lg border border-edge bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted">
             {countHint}
@@ -431,13 +431,20 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
             </div>
           </div>
 
-          <div className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card lg:max-h-[calc(620px+2.25rem)]">
+          {/*
+            self-start, so the panel is as tall as its contents rather than
+            stretching to match the map. As a plain grid item it filled the
+            full 620px, which meant the largest element on the page was an
+            empty white box in the state every session starts in. It still
+            grows with the list, and caps at the map's height so a long
+            selection scrolls inside the panel instead of past the map.
+          */}
+          <div className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card lg:self-start lg:max-h-[calc(620px+2.25rem)]">
             <SelectedAreas
               areas={state.areas}
               emptyHint={
-                "Nothing selected yet. Use any of the three panels above: " +
-                "click or draw on the map, paste a coordinate, or upload a " +
-                "shapefile."
+                "Nothing selected yet. Use a panel above: click or draw on the " +
+                "map, paste a coordinate, or upload a shapefile."
               }
               onFocus={(id) => dispatch({ type: "focusArea", id })}
               onFitAll={() => dispatch({ type: "focusAll" })}
@@ -452,7 +459,7 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
              never covers it. */}
       <section
         ref={resultRef}
-        className="mx-auto w-full max-w-[1440px] px-6 pt-12 lg:px-10 lg:pt-16"
+        className="mx-auto w-full max-w-band px-gutter pt-12 lg:px-gutter-lg lg:pt-16"
       >
         <StepHeading
           step={4}
@@ -469,8 +476,8 @@ export default function TopicWorkbench({ topic, initial }: TopicWorkbenchProps) 
 
       {/* The action bar. Sticky, so the whole request and the one thing
           blocking it are readable at every scroll position. */}
-      <div className="sticky bottom-0 z-[800] border-t border-edge bg-surface shadow-[0_-2px_8px_-4px_rgb(16_24_40/0.08)]">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:gap-6 lg:px-10">
+      <div className="sticky bottom-0 z-action-bar border-t border-edge bg-surface shadow-lifted">
+        <div className="mx-auto flex w-full max-w-band flex-col gap-3 px-gutter py-4 lg:flex-row lg:items-center lg:gap-6 lg:px-gutter-lg">
           {model && (
             <RequestReceipt
               topic={topic}

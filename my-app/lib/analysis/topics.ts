@@ -26,6 +26,13 @@ export interface Topic {
   /** Inputs the topic leans on. Shown as chips; also documents the data contract. */
   inputs: readonly string[];
   /**
+   * Two-letter tile glyph. Explicit rather than derived from the name: "Flood
+   * risk" and "Food security assessment" both start with F, so a first-letter
+   * slice gave two topics the same tile and the tile stopped being a way to
+   * recognise a topic at a glance. A test asserts all four stay distinct.
+   */
+  glyph: string;
+  /**
    * Tailwind accent classes, kept here so topic colour is data, not scattered
    * CSS. Muted on purpose: these are wayfinding, so a reader can tell the four
    * topics apart at a glance, not branding. The app has one light theme, so
@@ -44,6 +51,7 @@ export interface Topic {
 export const TOPICS: readonly Topic[] = [
   {
     slug: "flood-risk",
+    glyph: "FL",
     name: "Flood risk",
     question: "Which areas are likely to flood, and how badly?",
     output:
@@ -57,6 +65,7 @@ export const TOPICS: readonly Topic[] = [
   },
   {
     slug: "drought-monitoring",
+    glyph: "DR",
     name: "Drought monitoring",
     question: "Where is drought setting in, and how far has it progressed?",
     output:
@@ -75,6 +84,7 @@ export const TOPICS: readonly Topic[] = [
   },
   {
     slug: "rangeland-dynamics",
+    glyph: "RD",
     name: "Rangeland dynamics",
     question: "How is grazing land changing across seasons and years?",
     output:
@@ -93,6 +103,7 @@ export const TOPICS: readonly Topic[] = [
   },
   {
     slug: "food-security",
+    glyph: "FS",
     name: "Food security assessment",
     question: "Which populations are at risk of food insecurity, and when?",
     output:

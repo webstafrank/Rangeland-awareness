@@ -46,20 +46,38 @@ export interface AoiMapProps {
   onDrawFinished: () => void;
 }
 
-/** Accent for selected geometry. Readable on street tiles and on imagery. */
-const AREA_STYLE: L.PathOptions = {
-  color: "#0d9488",
-  weight: 2,
-  opacity: 1,
-  fillColor: "#14b8a6",
-  fillOpacity: 0.18,
-};
+/**
+ * The accent, read from the theme rather than hardcoded.
+ *
+ * Leaflet paints SVG through JS options, not class names, so it needs a real
+ * colour string and cannot take a Tailwind utility. Reading the same custom
+ * property the utilities are generated from is what keeps this from becoming a
+ * second palette that drifts from globals.css.
+ *
+ * The fallback is the current value of --color-accent, used only if the
+ * property is missing, which in practice means the stylesheet has not loaded.
+ */
+function accentColor(): string {
+  if (typeof window === "undefined") return "#0f766e";
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue("--color-accent")
+    .trim();
+  return value === "" ? "#0f766e" : value;
+}
 
-const AREA_STYLE_POINT: L.PathOptions = {
-  ...AREA_STYLE,
-  fillOpacity: 0.9,
-  weight: 3,
-};
+/** Style for selected geometry. Readable on street tiles and on imagery. */
+function areaStyle(): L.PathOptions {
+  const accent = accentColor();
+  return {
+    color: accent,
+    weight: 2,
+    opacity: 1,
+    // Same hue as the stroke at low opacity, so the fill cannot drift to a
+    // different teal from the outline that contains it.
+    fillColor: accent,
+    fillOpacity: 0.18,
+  };
+}
 
 /**
  * Zoom to whatever the reducer last asked for.
@@ -133,7 +151,7 @@ function ViewReadout() {
       data-zoom={zoom}
       role="status"
       aria-live="polite"
-      className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded bg-surface/90 px-2 py-1 font-mono text-[11px] text-ink-muted shadow-sm"
+      className="pointer-events-none absolute bottom-2 left-2 z-map-overlay rounded bg-surface/90 px-2 py-1 font-mono text-[11px] text-ink-muted shadow-sm"
     >
       Centre {lat}, {lng} at zoom {zoom}
     </p>
@@ -239,12 +257,16 @@ function DrawController({
   // Arm and disarm the requested shape. Geoman keeps its own toolbar hidden;
   // the app's own toolbar drives it, so the map has one visual language.
   useEffect(() => {
+    // Same accent as the committed areas, so the shape being drawn does not
+    // change colour the moment it is finished.
+    const accent = accentColor();
+
     map.pm.setGlobalOptions({
       allowSelfIntersection: false,
       finishOn: "dblclick",
-      templineStyle: { color: "#0d9488" },
-      hintlineStyle: { color: "#0d9488", dashArray: "4,4" },
-      pathOptions: AREA_STYLE,
+      templineStyle: { color: accent },
+      hintlineStyle: { color: accent, dashArray: "4,4" },
+      pathOptions: areaStyle(),
     });
 
     if (tool === "polygon") map.pm.enableDraw("Polygon");
@@ -272,10 +294,19 @@ export default function AoiMap({
   // A point AOI is rendered as a circle rather than a pin, which sidesteps
   // Leaflet's default marker icon entirely. Its icon URLs are resolved
   // relative to the CSS file and break under every bundler.
+  // Resolved once per mount rather than per layer: reading a computed style
+  // forces a style recalculation, and a comparison can hold twelve areas.
+  const style = useMemo(() => areaStyle(), []);
+
   const pointToLayer = useCallback(
     (_feature: Feature, latlng: L.LatLng) =>
-      L.circleMarker(latlng, { ...AREA_STYLE_POINT, radius: 7 }),
-    [],
+      L.circleMarker(latlng, {
+        ...style,
+        fillOpacity: 0.9,
+        weight: 3,
+        radius: 7,
+      }),
+    [style],
   );
 
   const layers = useMemo(
@@ -286,7 +317,7 @@ export default function AoiMap({
           // one reconciled onto its layer.
           key={area.id}
           data={area.feature}
-          style={AREA_STYLE}
+          style={style}
           pointToLayer={pointToLayer}
           eventHandlers={{ click: () => onFocusArea(area.id) }}
         >
@@ -294,7 +325,7 @@ export default function AoiMap({
               take a click, and a popup would cover its neighbours. */}
         </GeoJSON>
       )),
-    [areas, onFocusArea, pointToLayer],
+    [areas, onFocusArea, pointToLayer, style],
   );
 
   return (
@@ -310,9 +341,10 @@ export default function AoiMap({
       <LayersControl position="topright">
         <LayersControl.BaseLayer checked name="Street">
           <TileLayer
-            // basemap-street is what the dark-mode inversion in globals.css
-            // targets. Imagery must not carry it.
-            className="basemap-street"
+            // No className here. It used to carry `basemap-street`, which the
+            // dark-mode tile inversion in globals.css targeted. That filter is
+            // gone with the second theme, so the hook is gone too rather than
+            // left behind with a comment describing CSS that no longer exists.
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             maxZoom={19}

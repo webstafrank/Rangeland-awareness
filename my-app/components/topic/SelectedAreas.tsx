@@ -43,7 +43,7 @@ export default function SelectedAreas({
   return (
     <section aria-label="Selected areas" className="flex min-h-0 flex-col">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+        <h2 className="eyebrow">
           Selected areas
         </h2>
 

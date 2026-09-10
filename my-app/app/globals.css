@@ -1,85 +1,121 @@
 @import "tailwindcss";
 
 /*
- * One light palette, committed to deliberately.
+ * The design system, as one Tailwind theme.
  *
- * `color-scheme: light` is load-bearing, not decoration. Without it a visitor
- * whose OS is set to dark gets dark native form controls, dark scrollbars and
- * a dark autofill highlight painted over a light page, which looks broken in a
- * way no amount of CSS on our own elements can fix. Declaring the scheme makes
- * the browser render its own chrome to match.
+ * Everything lives in a single `@theme` block. Tailwind v4 emits each token as
+ * a CSS custom property on `:root` AND generates the matching utilities, so
+ * `--color-surface` here is both `var(--color-surface)` for the Leaflet rules
+ * at the bottom of this file and `bg-surface` / `text-surface` /
+ * `border-surface` in markup. One declaration, two uses.
  *
- * There are no prefers-color-scheme blocks anywhere in this file. That is the
- * point: every colour has exactly one definition, so a token cannot be legible
- * in one theme and invisible in the other.
+ * The previous version declared every value twice: a `:root` block of raw
+ * variables plus an `@theme inline` block re-mapping each one. That shape is
+ * only needed when a token's value changes at runtime, which is what a second
+ * theme would require. This app commits to one light theme, so the indirection
+ * bought nothing and cost about sixty lines that could drift apart.
  */
-:root {
-  color-scheme: light;
+@theme {
+  /* Neutrals. One ramp, used for every surface and every piece of text. */
+  --color-page: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-sunken: #f2f4f7;
+  --color-edge: #e4e7ec;
+  --color-edge-strong: #d0d5dd;
 
-  /* Neutrals. A single ramp, used for every surface and every piece of text. */
-  --page: #f7f8fa;
-  --surface: #ffffff;
-  --surface-sunken: #f2f4f7;
-  --border: #e4e7ec;
-  --border-strong: #d0d5dd;
-
-  --text: #101828;
-  --text-muted: #475467;
-  --text-faint: #667085;
+  --color-ink: #101828;
+  --color-ink-muted: #475467;
+  --color-ink-faint: #667085;
 
   /* One accent, for primary actions and selected state. */
-  --accent: #0f766e;
-  --accent-hover: #115e59;
-  --accent-soft: #f0fdfa;
-  --accent-border: #5eead4;
+  --color-accent: #0f766e;
+  --color-accent-hover: #115e59;
+  --color-accent-soft: #f0fdfa;
+  --color-accent-border: #5eead4;
 
-  /* Status. Used for upload failures and selection notices only. */
-  --danger: #b42318;
-  --danger-soft: #fef3f2;
-  --danger-border: #fda29b;
-  --warn: #b54708;
-  --warn-soft: #fffaeb;
-  --warn-border: #fec84b;
+  /* Status. Upload failures and selection notices only. */
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+  --color-danger-border: #fda29b;
+  --color-warn: #b54708;
+  --color-warn-soft: #fffaeb;
+  --color-warn-border: #fec84b;
 
   /* Elevation. Two steps, both restrained: this is a data tool, not a deck. */
   --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
-  --shadow-raised: 0 4px 8px -2px rgb(16 24 40 / 0.08),
-    0 2px 4px -2px rgb(16 24 40 / 0.04);
+  --shadow-raised:
+    0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+  /* Used by the sticky action bar, which casts upward. */
+  --shadow-lifted: 0 -2px 8px -4px rgb(16 24 40 / 0.08);
+
+  /* The page gutter and the content ceiling, so every band agrees. */
+  --spacing-gutter: 1.5rem;
+  --spacing-gutter-lg: 2.5rem;
+  --container-band: 1440px;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-page: var(--page);
-  --color-surface: var(--surface);
-  --color-sunken: var(--surface-sunken);
-  --color-edge: var(--border);
-  --color-edge-strong: var(--border-strong);
+/*
+ * The section label. Ten copies of the same four classes lived across six
+ * files, which is a design decision pretending to be a coincidence. Named
+ * once, so changing how a label reads is one edit rather than a find and
+ * replace that misses one.
+ */
+@utility eyebrow {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-faint);
+}
 
-  --color-ink: var(--text);
-  --color-ink-muted: var(--text-muted);
-  --color-ink-faint: var(--text-faint);
+/*
+ * The layer order, named.
+ *
+ * These four have to agree or the page breaks in ways that are obvious to a
+ * user and invisible in a diff: the sticky action bar covering the header, the
+ * map's coordinate readout sitting over Leaflet's own zoom controls, the skip
+ * link landing behind the header it exists to skip. Leaflet's panes occupy
+ * 200 to 700 and its controls sit at 800, which is why the app's own chrome
+ * starts above that rather than at Tailwind's default z-50.
+ */
+@utility z-map-overlay {
+  /* Above Leaflet's tile and overlay panes, below its controls. */
+  z-index: 500;
+}
+@utility z-action-bar {
+  z-index: 800;
+}
+@utility z-header {
+  z-index: 900;
+}
+@utility z-skip-link {
+  /* Above everything, or it cannot do its job. */
+  z-index: 1000;
+}
 
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-soft: var(--accent-soft);
-  --color-accent-border: var(--accent-border);
-
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-danger-border: var(--danger-border);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
-  --color-warn-border: var(--warn-border);
-
-  --shadow-card: var(--shadow-card);
-  --shadow-raised: var(--shadow-raised);
-
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/*
+ * `color-scheme: light` is load-bearing, not decoration. Without it a visitor
+ * whose OS is set to dark gets dark native form controls, dark scrollbars and
+ * a dark autofill highlight painted over a light page, which no amount of CSS
+ * on our own elements can fix. Declaring the scheme makes the browser render
+ * its own chrome to match.
+ *
+ * There are no prefers-color-scheme blocks anywhere in this file. That is the
+ * point: every colour has exactly one definition, so a token cannot be legible
+ * in one theme and invisible in the other. evals/theme.spec.ts fails if one
+ * ever comes back.
+ */
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--page);
-  color: var(--text);
+  background: var(--color-page);
+  color: var(--color-ink);
   /* Tabular figures everywhere: this app shows a lot of coordinates and areas,
      and proportional digits make a column of them ragged. */
   font-variant-numeric: tabular-nums;
@@ -88,7 +124,7 @@ body {
 /* One focus ring for the whole app. :focus-visible so a mouse click does not
    leave a ring behind, but every keyboard path does. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 3px;
 }
@@ -108,16 +144,20 @@ body {
 /* ---------------------------------------------------------------- Leaflet */
 /*
  * Leaflet ships its own chrome with hardcoded colours and a 12px sans stack.
- * These overrides put it on the app's tokens so the map does not read as an
- * embedded widget from another product. Scoped to Leaflet's own class names,
- * so nothing else is affected.
+ * These rules put it on the theme tokens above so the map does not read as an
+ * embedded widget from another product.
  *
- * No tile filter here. The previous build inverted OpenStreetMap tiles for
- * dark mode; with one light theme the tiles are already right, and the filter
- * would only ever have made them wrong.
+ * Raw CSS rather than utilities because these are third-party class names on
+ * elements Leaflet creates itself, so there is no markup to put a utility on.
+ * They still consume the same tokens, which is why there is no second palette
+ * hiding down here.
+ *
+ * No tile filter. An earlier build inverted OpenStreetMap tiles for dark mode;
+ * with one light theme the tiles are already right and a filter could only
+ * make them wrong.
  */
 .leaflet-container {
-  background: var(--surface-sunken);
+  background: var(--color-sunken);
   font: inherit;
   font-size: 0.8125rem;
 }
@@ -126,21 +166,21 @@ body {
 .leaflet-control-layers,
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--border-strong);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-edge-strong);
   box-shadow: var(--shadow-raised);
 }
 
 .leaflet-bar a,
 .leaflet-bar a:hover {
-  background: var(--surface);
-  color: var(--text);
-  border-bottom-color: var(--border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-bottom-color: var(--color-edge);
 }
 
 .leaflet-bar a:hover {
-  background: var(--surface-sunken);
+  background: var(--color-sunken);
 }
 
 .leaflet-control-layers-toggle,
@@ -150,18 +190,18 @@ body {
 
 .leaflet-control-layers-expanded {
   padding: 8px 10px;
-  color: var(--text-muted);
+  color: var(--color-ink-muted);
 }
 
 .leaflet-control-attribution {
   background: rgb(255 255 255 / 0.86);
-  color: var(--text-faint);
+  color: var(--color-ink-faint);
   font-size: 0.6875rem;
   padding: 1px 6px;
 }
 
 .leaflet-control-attribution a {
-  color: var(--text-muted);
+  color: var(--color-ink-muted);
 }
 
 /* The draw cursor, so it is obvious the map is armed. */

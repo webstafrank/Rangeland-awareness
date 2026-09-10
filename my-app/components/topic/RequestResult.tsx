@@ -69,19 +69,19 @@ export default function RequestResult({ request }: RequestResultProps) {
           a payload to find out which areas they picked. */}
       <dl className="grid gap-x-8 gap-y-4 border-b border-edge px-5 py-4 sm:grid-cols-3">
         <div>
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+          <dt className="eyebrow">
             Topic
           </dt>
           <dd className="mt-1 font-mono text-sm">{request.topic}</dd>
         </div>
         <div>
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+          <dt className="eyebrow">
             Analysis type
           </dt>
           <dd className="mt-1 font-mono text-sm">{request.analysisType}</dd>
         </div>
         <div>
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+          <dt className="eyebrow">
             Model
           </dt>
           <dd className="mt-1 font-mono text-sm">{request.model}</dd>
@@ -89,7 +89,7 @@ export default function RequestResult({ request }: RequestResultProps) {
       </dl>
 
       <div className="border-b border-edge px-5 py-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+        <p className="eyebrow">
           Areas ({request.areas.length})
         </p>
         <ol className="mt-2.5 divide-y divide-edge">
