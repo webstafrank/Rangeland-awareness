@@ -55,13 +55,27 @@ export interface PixelBudget {
 /**
  * Maximum Euclidean distance in sRGB for a pixel to count as "this token".
  *
- * 24 is wide enough to absorb 8-bit rounding, subpixel antialiasing on a flat
- * fill, and a hover tint one step off its base, and narrow enough that the two
- * closest tiers in a dark palette (a ground and the panel sitting on it, which
- * are typically 10-14 apart per channel) do not collapse into each other. The
- * nearest-token rule breaks that tie correctly even where the radii overlap.
+ * 10, and the number is forced rather than chosen. A dark palette packs its
+ * tiers close together in sRGB even when they are comfortably distinct to the
+ * eye: this app's page (#0f172a) and its panel (#14203f) are a clear step
+ * apart visually but only 23.4 apart numerically. For a pixel's role to never
+ * be ambiguous, no two tokens of DIFFERENT roles may have overlapping match
+ * radii, which means the tolerance must stay below half the smallest
+ * cross-role distance in the palette — 22.8/2 = 11.4 here.
+ *
+ * 10 sits under that with margin, and is still wide enough to absorb 8-bit
+ * rounding and the antialiasing on a flat fill (±5 per channel is 8.7).
+ *
+ * The cost is deliberate: pixels in the blend between two tiers fall outside
+ * every radius and are counted as `unmatched` rather than being assigned to
+ * whichever tier happens to be marginally nearer. Reporting them as unknown is
+ * honest; splitting them on a coin flip would move percentage points between
+ * the 60 and the 30 with nothing to show for it.
+ *
+ * `palette.test.ts` enforces the cross-role separation, so a future token that
+ * breaks this invariant fails a test instead of quietly skewing the budget.
  */
-export const MATCH_TOLERANCE = 24;
+export const MATCH_TOLERANCE = 10;
 
 /** Squared distance, so the hot loop never calls Math.sqrt. */
 function distanceSquared(a: Rgb, b: Rgb): number {
@@ -168,6 +182,69 @@ export function measurePixelBudget(
     unmatched: sampled === 0 ? 0 : unmatched / sampled,
     sampled,
   };
+}
+
+/** One distinct colour and how many pixels of it there were. */
+export type HistogramEntry = readonly [r: number, g: number, b: number, count: number];
+
+/**
+ * Measure from a colour histogram rather than from raw bytes.
+ *
+ * This is the path the browser eval uses. A full-page screenshot is ~23MB of
+ * RGBA, far too much to hand back from `page.evaluate`, but the histogram of a
+ * flat-design UI is a few thousand entries: the counting happens in the page,
+ * where the pixels already are, and the *classifying* happens here, so there
+ * is still exactly one implementation of what a role means.
+ *
+ * Identical in result to `measurePixelBudget` over the same image, which
+ * pixel-budget.test.ts asserts directly rather than assuming.
+ */
+export function measureFromHistogram(
+  entries: readonly HistogramEntry[],
+  tokens: readonly RoleToken[],
+): PixelBudget {
+  const prepared = prepareTokens(tokens);
+  const counts: Record<TokenRole, number> = {
+    ground: 0,
+    structure: 0,
+    accent: 0,
+    ink: 0,
+    status: 0,
+  };
+
+  let sampled = 0;
+  let unmatched = 0;
+
+  for (const [r, g, b, count] of entries) {
+    sampled += count;
+    const role = classifyPixel({ r, g, b }, prepared);
+    if (role === null) unmatched += count;
+    else counts[role] += count;
+  }
+
+  const matched = sampled - unmatched;
+  const share = (n: number) => (matched === 0 ? 0 : n / matched);
+
+  return {
+    ground: share(counts.ground),
+    structure: share(counts.structure),
+    accent: share(counts.accent),
+    ink: share(counts.ink),
+    status: share(counts.status),
+    unmatched: sampled === 0 ? 0 : unmatched / sampled,
+    sampled,
+  };
+}
+
+/** Format a budget as one line, so an eval failure is worth reading. */
+export function formatBudget(budget: PixelBudget): string {
+  const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
+  return (
+    `ground ${pct(budget.ground)}, structure ${pct(budget.structure)}, ` +
+    `accent ${pct(budget.accent)}, ink ${pct(budget.ink)}, ` +
+    `status ${pct(budget.status)}, unmatched ${pct(budget.unmatched)} ` +
+    `of ${budget.sampled} px`
+  );
 }
 
 /** The windows the rubric froze before any of the palette was designed. */

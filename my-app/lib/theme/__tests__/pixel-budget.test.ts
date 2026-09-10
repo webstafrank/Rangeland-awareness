@@ -3,6 +3,8 @@ import {
   BUDGET_WINDOW,
   MATCH_TOLERANCE,
   classifyPixel,
+  formatBudget,
+  measureFromHistogram,
   measurePixelBudget,
   prepareTokens,
   type RoleToken,
@@ -182,6 +184,76 @@ describe("measurePixelBudget", () => {
   });
 });
 
+describe("measureFromHistogram", () => {
+  it("agrees exactly with the byte-walking path on the same image", () => {
+    // The eval measures through the histogram because a full-page screenshot
+    // is too large to hand back from the browser. That shortcut is only safe
+    // while the two paths cannot disagree, so this asserts it rather than
+    // assuming it.
+    const runs: [string, number][] = [
+      ["#0f172a", 611],
+      ["#16213f", 288],
+      ["#f97316", 97],
+      ["#e2e8f0", 143],
+      ["#7f9f6f", 61],
+    ];
+    const fromBytes = measurePixelBudget(buffer(runs), TOKENS);
+    const fromHistogram = measureFromHistogram(
+      runs.map(([hex, count]) => [
+        Number.parseInt(hex.slice(1, 3), 16),
+        Number.parseInt(hex.slice(3, 5), 16),
+        Number.parseInt(hex.slice(5, 7), 16),
+        count,
+      ]),
+      TOKENS,
+    );
+
+    expect(fromHistogram).toEqual(fromBytes);
+  });
+
+  it("weights each colour by its count, not by being listed once", () => {
+    const budget = measureFromHistogram(
+      [
+        [15, 23, 42, 600],
+        [22, 33, 63, 300],
+        [249, 115, 22, 100],
+      ],
+      TOKENS,
+    );
+
+    expect(budget.ground).toBeCloseTo(0.6, 10);
+    expect(budget.structure).toBeCloseTo(0.3, 10);
+    expect(budget.accent).toBeCloseTo(0.1, 10);
+    expect(budget.sampled).toBe(1000);
+  });
+
+  it("handles an empty histogram without dividing by zero", () => {
+    const budget = measureFromHistogram([], TOKENS);
+    expect(budget.sampled).toBe(0);
+    expect(budget.ground).toBe(0);
+    expect(Number.isNaN(budget.unmatched)).toBe(false);
+  });
+});
+
+describe("formatBudget", () => {
+  it("reads as a sentence a failing eval can print", () => {
+    const line = formatBudget(
+      measureFromHistogram(
+        [
+          [15, 23, 42, 600],
+          [22, 33, 63, 300],
+          [249, 115, 22, 100],
+        ],
+        TOKENS,
+      ),
+    );
+    expect(line).toContain("ground 60.0%");
+    expect(line).toContain("structure 30.0%");
+    expect(line).toContain("accent 10.0%");
+    expect(line).toContain("of 1000 px");
+  });
+});
+
 describe("BUDGET_WINDOW", () => {
   it("is the window the rubric froze before the palette was designed", () => {
     // Pinned so widening the window to make a failing design pass is a visible
@@ -191,12 +263,13 @@ describe("BUDGET_WINDOW", () => {
     expect(BUDGET_WINDOW.accent).toEqual([0.02, 0.12]);
   });
 
-  it("keeps the match tolerance tight enough to separate adjacent tiers", () => {
-    // Two surfaces 10 levels apart per channel are 17.3 apart in sRGB distance.
-    // A tolerance above that would still classify them correctly by nearest
-    // match, but the margin is worth pinning: at 40+ the palette's dark tiers
-    // start absorbing each other's antialiasing.
-    expect(MATCH_TOLERANCE).toBeLessThanOrEqual(32);
-    expect(MATCH_TOLERANCE).toBeGreaterThanOrEqual(12);
+  it("keeps the match tolerance below half the palette's tightest cross-role gap", () => {
+    // The shipped palette's closest pair of differently-roled tokens is 22.8
+    // apart in sRGB, so radii stop overlapping below 11.4. Pinned as a range
+    // rather than an exact value: the upper bound is the correctness
+    // constraint, the lower bound stops someone "fixing" a noisy measurement
+    // by shrinking the tolerance until nothing matches at all.
+    expect(MATCH_TOLERANCE).toBeLessThanOrEqual(11);
+    expect(MATCH_TOLERANCE).toBeGreaterThanOrEqual(6);
   });
 });

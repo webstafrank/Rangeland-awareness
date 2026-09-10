@@ -1,62 +1,121 @@
 @import "tailwindcss";
 
 /*
- * One light palette, committed to deliberately.
+ * One dark palette, committed to deliberately.
  *
- * `color-scheme: light` is load-bearing, not decoration. Without it a visitor
- * whose OS is set to dark gets dark native form controls, dark scrollbars and
- * a dark autofill highlight painted over a light page, which looks broken in a
- * way no amount of CSS on our own elements can fix. Declaring the scheme makes
- * the browser render its own chrome to match.
+ * `color-scheme: dark` is load-bearing, not decoration. Without it a visitor
+ * whose OS is set to light gets light native form controls, light scrollbars
+ * and a white autofill highlight painted over a dark page, which looks broken
+ * in a way no amount of CSS on our own elements can fix. Declaring the scheme
+ * makes the browser render its own chrome to match.
  *
- * There are no prefers-color-scheme blocks anywhere in this file. That is the
- * point: every colour has exactly one definition, so a token cannot be legible
- * in one theme and invisible in the other.
+ * There are no prefers-color-scheme blocks anywhere in this file, and exactly
+ * one :root. That is the point: every colour has one definition, so a token
+ * cannot be legible in one theme and invisible in the other.
+ *
+ * Every value below is mirrored in lib/theme/palette.ts, and
+ * lib/theme/__tests__/palette.test.ts fails if the two drift apart. Edit both,
+ * or neither. The reasoning behind each colour lives in palette.ts; this file
+ * is the declaration, that file is the argument.
  */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* Neutrals. A single ramp, used for every surface and every piece of text. */
-  --page: #f7f8fa;
-  --surface: #ffffff;
-  --surface-sunken: #f2f4f7;
-  --border: #e4e7ec;
-  --border-strong: #d0d5dd;
+  /* Ground. The dominant 60%, plus the well that reads as cut into it. */
+  --page: #0f172a;
+  --page-deep: #0b1220;
 
-  --text: #101828;
-  --text-muted: #475467;
-  --text-faint: #667085;
+  /* Structure. The cobalt tier every panel and every piece of chrome is cut
+     from; this is the 30%, and it is measured, not assumed. */
+  --surface: #14203f;
+  --surface-raised: #182a55;
+  --surface-header: #1e3566;
+  --border: #2e4a8c;
+  --border-strong: #3b5fae;
+  --cobalt: #1d4ed8;
+  --cobalt-deep: #1e40af;
 
-  /* One accent, for primary actions and selected state. */
-  --accent: #0f766e;
-  --accent-hover: #115e59;
-  --accent-soft: #f0fdfa;
-  --accent-border: #5eead4;
+  /* Accent. The 10%: primary action, active state, live indicator. Nothing
+     else, and never on the map. */
+  --accent: #f97316;
+  --accent-hover: #fb8b33;
+  --accent-soft: #3a2010;
+  --accent-border: #7a3d12;
 
-  /* Status. Used for upload failures and selection notices only. */
-  --danger: #b42318;
-  --danger-soft: #fef3f2;
-  --danger-border: #fda29b;
-  --warn: #b54708;
-  --warn-soft: #fffaeb;
-  --warn-border: #fec84b;
+  /* Ink. */
+  --text: #e8eef9;
+  --text-muted: #afc2dc;
+  --text-faint: #8fa5c4;
+  --on-cobalt: #ffffff;
+  --on-accent: #0f172a;
+  --accent-text: #fdba74;
+  --cobalt-text: #60a5fa;
+  --cobalt-text-hi: #93c5fd;
 
-  /* Elevation. Two steps, both restrained: this is a data tool, not a deck. */
-  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
-  --shadow-raised: 0 4px 8px -2px rgb(16 24 40 / 0.08),
-    0 2px 4px -2px rgb(16 24 40 / 0.04);
+  /* Status. */
+  --danger: #fca5a5;
+  --danger-soft: #2a1220;
+  --danger-border: #7f2a3a;
+  --warn: #fde68a;
+  --warn-soft: #241f16;
+  --warn-border: #6e5a2e;
+
+  /* Focus. Blue, not orange, so it is never confused with the primary action
+     and stays visible on the orange button itself. */
+  --focus: #60a5fa;
+
+  /* Topic wayfinding. */
+  --topic-flood-text: #38bdf8;
+  --topic-flood-tile: #0d2f4d;
+  --topic-flood-edge: #1d5c86;
+  --topic-drought-text: #f0e68c;
+  --topic-drought-tile: #33301a;
+  --topic-drought-edge: #6e6635;
+  --topic-range-text: #34d399;
+  --topic-range-tile: #0d3328;
+  --topic-range-edge: #17624b;
+  --topic-food-text: #fda4af;
+  --topic-food-tile: #3a1526;
+  --topic-food-edge: #7a2b45;
+
+  /* Selected map geometry, drawn as a pair. See palette.ts: no single colour
+     clears 3:1 against light OSM, dark CARTO and satellite imagery at once. */
+  --geo-stroke: #ffffff;
+  --geo-casing: #0b1220;
+
+  /*
+   * Elevation. Two steps, and neither is a black drop shadow: on a near-black
+   * page a black shadow is invisible and a heavy one looks like dirt. What
+   * communicates height here is the tint step and a one-pixel top rim.
+   */
+  --shadow-card: inset 0 1px 0 0 rgb(59 95 174 / 0.22);
+  --shadow-raised: inset 0 1px 0 0 rgb(59 95 174 / 0.3),
+    0 -1px 0 0 rgb(59 95 174 / 0.35), 0 -18px 36px -28px rgb(3 7 18 / 0.9);
 }
 
 @theme inline {
   --color-page: var(--page);
+  --color-page-deep: var(--page-deep);
   --color-surface: var(--surface);
-  --color-sunken: var(--surface-sunken);
+  --color-raised: var(--surface-raised);
+  --color-panel-head: var(--surface-header);
+  /* `sunken` is kept as an alias for the recessed well so components that
+     already say bg-sunken keep working. On a dark ground "sunken" means
+     darker than the panel, which is the reverse of the light build. */
+  --color-sunken: var(--page-deep);
   --color-edge: var(--border);
   --color-edge-strong: var(--border-strong);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-deep: var(--cobalt-deep);
 
   --color-ink: var(--text);
   --color-ink-muted: var(--text-muted);
   --color-ink-faint: var(--text-faint);
+  --color-on-cobalt: var(--on-cobalt);
+  --color-on-accent: var(--on-accent);
+  --color-accent-text: var(--accent-text);
+  --color-cobalt-text: var(--cobalt-text);
+  --color-cobalt-text-hi: var(--cobalt-text-hi);
 
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
@@ -69,6 +128,19 @@
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --color-warn-border: var(--warn-border);
+
+  --color-topic-flood-text: var(--topic-flood-text);
+  --color-topic-flood-tile: var(--topic-flood-tile);
+  --color-topic-flood-edge: var(--topic-flood-edge);
+  --color-topic-drought-text: var(--topic-drought-text);
+  --color-topic-drought-tile: var(--topic-drought-tile);
+  --color-topic-drought-edge: var(--topic-drought-edge);
+  --color-topic-range-text: var(--topic-range-text);
+  --color-topic-range-tile: var(--topic-range-tile);
+  --color-topic-range-edge: var(--topic-range-edge);
+  --color-topic-food-text: var(--topic-food-text);
+  --color-topic-food-tile: var(--topic-food-tile);
+  --color-topic-food-edge: var(--topic-food-edge);
 
   --shadow-card: var(--shadow-card);
   --shadow-raised: var(--shadow-raised);
@@ -86,9 +158,10 @@ body {
 }
 
 /* One focus ring for the whole app. :focus-visible so a mouse click does not
-   leave a ring behind, but every keyboard path does. */
+   leave a ring behind, but every keyboard path does. The dark inner gap is
+   what keeps the ring readable when the focused control is itself filled. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 3px;
 }
@@ -112,12 +185,13 @@ body {
  * embedded widget from another product. Scoped to Leaflet's own class names,
  * so nothing else is affected.
  *
- * No tile filter here. The previous build inverted OpenStreetMap tiles for
- * dark mode; with one light theme the tiles are already right, and the filter
- * would only ever have made them wrong.
+ * No tile filter anywhere. An earlier build inverted OpenStreetMap tiles for
+ * dark mode; inverting a map turns water brown and vegetation purple, which
+ * is worse than useless on an Earth observation tool. The dark theme ships a
+ * genuinely dark basemap instead and leaves every tile as published.
  */
 .leaflet-container {
-  background: var(--surface-sunken);
+  background: var(--page-deep);
   font: inherit;
   font-size: 0.8125rem;
 }
@@ -140,7 +214,13 @@ body {
 }
 
 .leaflet-bar a:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-raised);
+}
+
+/* Leaflet greys out a disabled zoom button with a hardcoded light colour. */
+.leaflet-bar a.leaflet-disabled {
+  background: var(--surface);
+  color: var(--text-faint);
 }
 
 .leaflet-control-layers-toggle,
@@ -153,19 +233,42 @@ body {
   color: var(--text-muted);
 }
 
+.leaflet-control-layers-separator {
+  border-top-color: var(--border);
+}
+
+/*
+ * The attribution strip. This sits ON the basemap, which may be light or dark
+ * depending on which layer is selected, so it carries its own opaque dark
+ * ground rather than a translucent white one. That is also what lets the same
+ * dark chrome appear on both sides of the light/dark boundary, which is what
+ * stops a light basemap reading as a hole punched through the page.
+ */
 .leaflet-control-attribution {
-  background: rgb(255 255 255 / 0.86);
+  background: var(--page-deep);
   color: var(--text-faint);
   font-size: 0.6875rem;
   padding: 1px 6px;
+  border-top-left-radius: 6px;
 }
 
 .leaflet-control-attribution a {
-  color: var(--text-muted);
+  color: var(--cobalt-text);
 }
 
 /* The draw cursor, so it is obvious the map is armed. */
 .leaflet-container.leaflet-crosshair,
 .leaflet-container.leaflet-crosshair .leaflet-interactive {
   cursor: crosshair;
+}
+
+/*
+ * Geoman's vertex handles are white with a light border by default, which
+ * vanishes against a light basemap. Give them the same casing treatment the
+ * selected geometry uses.
+ */
+.leaflet-container .marker-icon,
+.leaflet-container .marker-icon-middle {
+  background: var(--geo-stroke);
+  border-color: var(--geo-casing);
 }

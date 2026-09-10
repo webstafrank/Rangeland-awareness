@@ -71,8 +71,11 @@ export function readRootTokens(css: string): Map<string, string> {
   return tokens;
 }
 
-/** Remove `/* ... *\/` comments so a commented-out token is not read as live. */
-function stripComments(css: string): string {
+/**
+ * Remove CSS comments, so a commented-out token is not read as live and a
+ * rule named in prose is not mistaken for a rule that ships.
+ */
+export function stripComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, "");
 }
 

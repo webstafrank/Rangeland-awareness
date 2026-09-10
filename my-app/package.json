@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "contrast": "vitest run lib/theme/__tests__/palette.test.ts --reporter=basic",
     "typecheck": "tsc --noEmit",
     "eval": "playwright test",
     "eval:desktop": "playwright test --project=desktop"
