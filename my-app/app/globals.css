@@ -183,6 +183,17 @@ body {
   background: var(--color-sunken);
 }
 
+/*
+ * Leaflet greys a disabled zoom button with a hardcoded #bbb on #f4f4f4, which
+ * is a different grey from anything in the ramp and reads as a rendering bug
+ * rather than a disabled control. Ported from the dark-theme branch, on the
+ * light tokens: the button keeps the panel ground and loses only its ink.
+ */
+.leaflet-bar a.leaflet-disabled {
+  background: var(--color-sunken);
+  color: var(--color-ink-faint);
+}
+
 .leaflet-control-layers-toggle,
 .leaflet-control-layers-expanded {
   border-radius: 8px;
@@ -191,6 +202,11 @@ body {
 .leaflet-control-layers-expanded {
   padding: 8px 10px;
   color: var(--color-ink-muted);
+}
+
+/* Leaflet's own separator is a hardcoded #ddd. One edge colour, like everything else. */
+.leaflet-control-layers-separator {
+  border-top-color: var(--color-edge);
 }
 
 .leaflet-control-attribution {
@@ -208,4 +224,18 @@ body {
 .leaflet-container.leaflet-crosshair,
 .leaflet-container.leaflet-crosshair .leaflet-interactive {
   cursor: crosshair;
+}
+
+/*
+ * Geoman's vertex handles ship white with a #3388ff border. The border is a
+ * blue this palette does not contain, and on satellite imagery a white square
+ * on a pale field has nothing holding its edge. Accent border, so a handle
+ * belongs to the same selection as the outline it is dragging, and a dark
+ * casing so it survives a bright tile underneath.
+ */
+.leaflet-container .marker-icon,
+.leaflet-container .marker-icon-middle {
+  background: var(--color-surface);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px rgb(16 24 40 / 0.35);
 }
