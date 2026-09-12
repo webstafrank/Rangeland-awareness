@@ -16,6 +16,7 @@ import { useCallback, useId, useRef, useState } from "react";
 import type { DraftArea } from "@/lib/analysis/selection";
 import {
   ACCEPTED_EXTENSIONS,
+  MAX_SHAPEFILE_BYTES,
   ShapefileError,
   readShapefile,
 } from "@/lib/geo/shapefile";
@@ -91,16 +92,21 @@ export default function ShapefileUpload({
           void ingest(event.dataTransfer.files[0]);
         }}
         className={[
-          "rounded-lg border border-dashed px-3 py-3 transition-colors",
+          // Padding is constant across states on purpose. An earlier version
+          // went from p-0 to p-3 on dragover, so the drop target grew under
+          // the cursor mid-drag and could slide out from under the pointer.
+          "rounded-lg border border-dashed p-3 transition-colors",
+          // A dashed outline with no fill reads as a drop target rather than
+          // a second card inside the panel, which is what a filled box did.
           dragging
             ? "border-accent bg-accent-soft"
-            : "border-edge-strong bg-sunken",
+            : "border-edge-strong bg-transparent",
           disabled ? "opacity-60" : "",
         ].join(" ")}
       >
         <label
           htmlFor={inputId}
-          className="block cursor-pointer text-sm font-medium"
+          className="block cursor-pointer text-xs font-medium"
         >
           Upload shapefile
         </label>
@@ -111,12 +117,16 @@ export default function ShapefileUpload({
           accept={`${ACCEPTED_EXTENSIONS.join(",")},application/zip`}
           disabled={disabled || busy}
           onChange={(event) => void ingest(event.target.files?.[0])}
-          className="mt-1.5 block w-full text-xs text-ink-muted file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-edge-strong file:bg-surface file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-ink disabled:cursor-not-allowed"
+          className="mt-1.5 block w-full text-xs text-ink-faint file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-edge-strong file:bg-surface file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-ink hover:file:bg-sunken disabled:cursor-not-allowed"
         />
-        <p className="mt-1.5 text-xs text-ink-faint">
+        <p className="mt-2 text-xs leading-relaxed text-ink-faint">
           {disabled && disabledReason
             ? disabledReason
-            : "A .zip holding .shp, .shx, .dbf and .prj, or drag one here. Polygons only."}
+            : dragging
+              ? "Drop to read it."
+              : `Or drag a file into this box. ${
+                  MAX_SHAPEFILE_BYTES / 1024 / 1024
+                }MB limit.`}
         </p>
       </div>
 

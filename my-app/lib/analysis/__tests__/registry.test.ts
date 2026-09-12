@@ -36,6 +36,17 @@ describe("topic registry", () => {
     }
   });
 
+  it("gives every topic a distinct glyph", () => {
+    // Derived glyphs collided: "Flood risk" and "Food security assessment"
+    // both start with F, so a first-letter slice put the same tile on two
+    // cards and the tile stopped identifying anything.
+    const glyphs = TOPICS.map((t) => t.glyph);
+    expect(new Set(glyphs).size).toBe(TOPICS.length);
+    for (const glyph of glyphs) {
+      expect(glyph).toMatch(/^[A-Z]{2}$/);
+    }
+  });
+
   it("gives every topic a distinct accent, so cards are told apart at a glance", () => {
     const tiles = TOPICS.map((t) => t.accent.tile);
     expect(new Set(tiles).size).toBe(TOPICS.length);

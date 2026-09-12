@@ -25,7 +25,7 @@ npm run dev          # http://localhost:3000
 Two lanes, different budgets.
 
 ```bash
-npm test             # gate lane: 193 tests, node, deterministic, ~0.7s
+npm test             # gate lane: 194 tests, node, deterministic, ~1s
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm run eval         # eval lane: Playwright, real browser, builds first
@@ -41,7 +41,7 @@ git config core.hooksPath scripts
 ```
 
 **Eval lane** (`playwright`, `evals/`) drives a real browser at 1280px and
-360px: 59 journey checks and 36 theme checks. It proves the things the gate
+360px: 64 journey checks and 46 theme checks, 110 in total. It proves the things the gate
 lane structurally cannot: that all four area-selection methods work, that a
 selection moves the map viewport, that a corrupt upload fails fast instead of
 freezing the tab, that every control has an accessible name, that the light
@@ -56,8 +56,16 @@ loses its label, which is the same thing that would break a screen reader.
 The eval prints the journey budget it measured:
 
 ```
-JOURNEY BUDGET: 6 clicks, 1507ms elapsed
+JOURNEY BUDGET: 6 clicks, 1771ms elapsed
 ```
+
+## The bar this is held to
+
+`docs/acceptance-rubric.md` is the frozen acceptance rubric: the measurable
+outcome, the named reference tools, and every criterion the evals implement. It
+lives in the repo on purpose. The first copy sat in a scratch directory and was
+deleted by a session cleanup, which is a poor property for something called
+frozen.
 
 ## Layout
 
@@ -65,17 +73,19 @@ JOURNEY BUDGET: 6 clicks, 1507ms elapsed
 app/                      routes only, no business logic
   page.tsx                homepage, server component, four topic cards
   topics/[topic]/         the workbench route, server component
+  not-found.tsx           the 404, same design language as the homepage
   layout.tsx              shell, header, footer, skip link
-  globals.css             design tokens and the Leaflet chrome overrides
+  globals.css             the whole design system, as one Tailwind @theme block
 components/               UI. See components/README.md
   map/                    everything that touches Leaflet
-  topic/                  the request rail
+  topic/                  the request bands and their controls
 lib/
   analysis/               topics, models, the AOI state machine, the request
-                          contract. See lib/analysis/README.md
-  geo/                    bounds, area, shapefile, zip pre-flight.
-                          See lib/geo/README.md
-evals/                    the Playwright journey eval
+                          contract, URL state. See lib/analysis/README.md
+  geo/                    bounds, area, coordinate parsing, shapefile, zip
+                          pre-flight. See lib/geo/README.md
+evals/                    journey.spec.ts and theme.spec.ts
+docs/acceptance-rubric.md the frozen rubric the evals implement
 scripts/pre-commit        the gate lane hook
 ```
 
@@ -87,8 +97,8 @@ browser. `app/` and `components/` are adapters over it.
 ## Decisions worth knowing
 
 **One registry drives everything.** Adding a topic to `lib/analysis/topics.ts`
-adds a homepage card and a working prerendered route with no other edit. A test
-fails if the slug list and the topic list ever drift apart.
+adds a homepage card, a 404 card and a working route with no other edit. A
+test fails if the slug list and the topic list ever drift apart.
 
 **`typedRoutes` is on**, so a link to a route that does not exist is a build
 error rather than a 404 found in production.
@@ -105,6 +115,14 @@ if the pre-flight is removed.
 (polygon area) and turf costs roughly 500KB in a client bundle for it.
 `lib/geo/area.ts` is the same spherical-excess formula, checked against the
 independent closed-form area of a lat/lng cell.
+
+**The design system is one Tailwind `@theme` block.** `app/globals.css` declares
+every token once; Tailwind v4 emits each as a `:root` custom property and
+generates the matching utility, so `--color-surface` is both
+`var(--color-surface)` for the Leaflet overrides and `bg-surface` in markup.
+Layout constants are tokens too, not repeated arbitrary values: `max-w-band`,
+`px-gutter` / `lg:px-gutter-lg`, `shadow-lifted`. Tailwind tree-shakes tokens
+nothing references, so an unused one never reaches the CSS.
 
 **One light theme, committed to.** There are no `prefers-color-scheme` blocks
 anywhere, so every colour has exactly one definition and cannot be legible in

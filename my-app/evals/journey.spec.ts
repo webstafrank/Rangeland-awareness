@@ -243,10 +243,23 @@ test.describe("topic page", () => {
     }
   });
 
-  test("C4: an unknown topic slug is a 404, not a blank page", async ({ page }) => {
+  test("C4: an unknown topic slug is a 404 that offers a way out", async ({
+    page,
+  }) => {
     const response = await page.goto("/topics/not-a-real-topic");
     expect(response?.status()).toBe(404);
-    await expect(page.locator("body")).toContainText(/not found/i);
+
+    // Asserted on intent, not on the wording. An earlier version pinned the
+    // literal string "not found", so rewriting the copy failed a test that had
+    // nothing to say about copy. What matters is that the page explains itself
+    // and is not a dead end.
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    for (const topic of TOPICS) {
+      await expect(
+        page.getByRole("link", { name: new RegExp(topic.name, "i") }),
+      ).toHaveAttribute("href", `/topics/${topic.slug}`);
+    }
   });
 
   test("T2: analysis type is selectable and changes what the page permits", async ({

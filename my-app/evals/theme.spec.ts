@@ -154,14 +154,27 @@ for (const scheme of ["light", "dark"] as const) {
 
       // The two-theme build inverted OpenStreetMap tiles for dark mode. With
       // one light theme the tiles are already correct, and a filter could only
-      // make them wrong. It must be gone from both the pane and the layer.
-      for (const selector of [".leaflet-tile-pane", ".basemap-street"]) {
-        const filter = await page.evaluate((sel) => {
-          const element = document.querySelector(sel);
-          return element ? getComputedStyle(element).filter : null;
-        }, selector);
-        expect(filter === null || filter === "none").toBe(true);
-      }
+      // make them wrong.
+      //
+      // Asserted on the tile pane, which always exists. An earlier version also
+      // checked `.basemap-street`, a class that has since been deleted along
+      // with the filter, so that half of the assertion had quietly become
+      // vacuous: querySelector returned null and null passes.
+      const pane = await page.evaluate(() => {
+        const element = document.querySelector(".leaflet-tile-pane");
+        return element ? getComputedStyle(element).filter : "MISSING";
+      });
+      expect(pane).not.toBe("MISSING");
+      expect(pane === "none" || pane === "").toBe(true);
+
+      // And no tile img inherits one either, which is where a filter would
+      // actually have to land to discolour the map.
+      const tileFilters = await page.evaluate(() =>
+        Array.from(document.querySelectorAll(".leaflet-tile"))
+          .map((tile) => getComputedStyle(tile).filter)
+          .filter((value) => value !== "none" && value !== ""),
+      );
+      expect(tileFilters).toEqual([]);
 
       // The Leaflet container still needs an opaque ground, or the gaps
       // between tiles show the page through while panning.

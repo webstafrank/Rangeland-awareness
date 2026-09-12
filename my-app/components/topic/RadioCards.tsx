@@ -65,7 +65,7 @@ export default function RadioCards<T extends string>({
         className={
           hideLegend
             ? "sr-only"
-            : "block text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint"
+            : "block eyebrow"
         }
       >
         {legend}
@@ -136,7 +136,12 @@ export default function RadioCards<T extends string>({
                     aria-hidden="true"
                     className={[
                       "grid h-4 w-4 shrink-0 place-items-center rounded-full border-[1.5px] bg-surface",
-                      checked ? "border-accent" : "border-edge-strong",
+                      // ink-faint, not edge-strong. The ring is the only thing
+                      // saying "not selected", so it is a meaningful graphic
+                      // and WCAG 1.4.11 wants 3:1 against the card behind it.
+                      // edge-strong (#d0d5dd) is 1.24:1 on white and fails;
+                      // ink-faint (#667085) is about 5:1 and passes.
+                      checked ? "border-accent" : "border-ink-faint",
                     ].join(" ")}
                   >
                     {checked && (
