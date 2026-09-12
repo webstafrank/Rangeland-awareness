@@ -7,12 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "gate": "npm run typecheck && npm run lint && npm run test",
     "contrast": "vitest run lib/theme/__tests__/palette.test.ts --silent=false --reporter=dot",
-    "typecheck": "tsc --noEmit",
     "eval": "playwright test",
-    "eval:desktop": "playwright test --project=desktop"
+    "eval:desktop": "playwright test --project=desktop",
+    "geo:build": "node services/geo/scripts/build-counties.mjs"
   },
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.20.0",
@@ -21,18 +23,25 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-leaflet": "^5.0.0",
-    "shpjs": "^6.2.0"
+    "shpjs": "^6.2.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^22.20.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/shpjs": "^3.4.7",
+    "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "jsdom": "^30.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.0"

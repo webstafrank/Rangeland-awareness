@@ -1,0 +1,35 @@
+# Repo-root ignores.
+#
+# my-app/ has its own .gitignore for the Next.js side. This file covers the
+# top level and the Python services, which had none: services/analysis landed
+# with nine committed .cpython-314.pyc files, which is a compiled output in
+# version control and churns on every interpreter minor version.
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python environments and build output
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Python tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment files. Never commit these; see "Safety" in CLAUDE.md.
+.env
+.env.*
+!.env.example
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp

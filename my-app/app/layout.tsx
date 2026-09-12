@@ -1,16 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { token } from "@/lib/theme/palette";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -21,12 +24,42 @@ export const metadata: Metadata = {
   description:
     "Earth observation analysis for flood risk, drought, rangeland condition " +
     "and food security across Kenya's rangelands.",
+  applicationName: "Rangeland Awareness",
+};
+
+/*
+ * Declared for the browser chrome, not for the page.
+ *
+ * `themeColor` is what paints the address bar on mobile Chrome and the status
+ * bar on iOS; left unset, the browser picks its own and the app appears to end
+ * at a seam above the header.
+ *
+ * It is read from the palette rather than written as a hex. This is the one
+ * colour in the app that CANNOT be a Tailwind class or a var() — Next
+ * serialises it into a <meta> tag at build time, where no stylesheet has run —
+ * so it is also the one colour that would silently drift out of step with the
+ * page the day someone retunes the ground. `token()` throws on an unknown
+ * name, so a renamed token breaks the build instead of the address bar.
+ *
+ * `colorScheme` here and `color-scheme: light` in globals.css are not
+ * redundant. The CSS declaration governs native controls, scrollbars and
+ * autofill inside the document; this one is read before any stylesheet loads
+ * and is what stops a dark-mode browser painting a dark canvas for the instant
+ * before first paint.
+ */
+export const viewport: Viewport = {
+  themeColor: token("--color-page"),
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      /* Next 16 stopped overriding scroll-behavior during SPA navigation by
+         default. This attribute opts back in, so an in-page anchor scrolls
+         smoothly while a route change still jumps instantly to the top. */
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-page font-sans text-ink">

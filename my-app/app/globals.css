@@ -55,6 +55,73 @@
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /*
+   * ----------------------------------------------------------- data-viz
+   *
+   * A second, deliberately separate namespace, mirrored from
+   * design/tokens.ts and asserted by design/__tests__/tokens.test.ts.
+   *
+   * These are NOT app chrome and must never be used as chrome. Everything
+   * above this line dresses the page: panels, text, buttons, the map's
+   * furniture. Everything below it encodes DATA inside a chart or a
+   * choropleth, where the constraints are different ones — a categorical
+   * series has to stay distinguishable from its neighbours, a sequential
+   * ramp has to stay monotonic in luminance, and a severity colour is
+   * fixed by meaning rather than chosen to match the page.
+   *
+   * They are declared here rather than passed as props because the chart
+   * and map components render raw SVG attributes (`fill="var(--color-
+   * scarlet-mark)"` in Logo.tsx, Graticule.tsx and MapCanvas.tsx, and the
+   * axis fills in TimeSeries.tsx), and an SVG attribute cannot take a
+   * Tailwind class. Undeclared, those attributes resolve to nothing and the
+   * marks render invisible rather than wrong, which is the failure mode
+   * design/__tests__/tokens.test.ts exists to catch.
+   *
+   * One name is deliberately absent: `--color-edge`. design/tokens.ts
+   * defines a light-ground hairline of its own (#e8eef7), but that name is
+   * already the app's chrome edge above (#e4e7ec), and the app's Leaflet
+   * rules read it. Two declarations of one custom property in a single
+   * @theme block is a silent last-wins, so the chart module gives up the
+   * name it never read back through CSS and keeps its TS export.
+   */
+
+  /* Dark blue ramp. 900 is the canonical dark chart ground. */
+  --color-navy-950: #071831;
+  --color-navy-900: #0b2143;
+  --color-navy-800: #0f2c58;
+  --color-navy-700: #123a70;
+  --color-navy-600: #1a5199;
+
+  /* The two chart grounds. */
+  --color-white: #ffffff;
+  --color-paper: #f4f7fb;
+
+  /* The data accent, in the three steps legibility on both grounds needs. */
+  --color-scarlet-fill: #d32211;
+  --color-scarlet-fill-deep: #b81c0d;
+  --color-scarlet-ink-light: #c81f0f;
+  --color-scarlet-ink-dark: #ff6f5c;
+  --color-scarlet-mark: #ff2400;
+
+  /* Chart text, per ground. */
+  --color-ink-light-primary: #0b2143;
+  --color-ink-light-secondary: #4d5f7a;
+  --color-ink-light-muted: #5b6b85;
+  --color-ink-dark-primary: #ffffff;
+  --color-ink-dark-secondary: #a8bad4;
+  --color-ink-dark-muted: #8fa4c4;
+
+  /*
+   * The reserved severity scale. Never themed, never reused as "series 4".
+   * `warning` and `serious` sit below 3:1 on a light ground by design; the
+   * mitigation is that <SeverityChip> always renders its label, so no
+   * status in this app is ever carried by colour alone.
+   */
+  --color-status-good: #0ca30c;
+  --color-status-warning: #fab219;
+  --color-status-serious: #ec835a;
+  --color-status-critical: #d03b3b;
 }
 
 /*
