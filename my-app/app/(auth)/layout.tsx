@@ -21,7 +21,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <Graticule />
 
         <div className="relative">
-          <Link href="/" className="rounded" aria-label="Rangeland Watch home">
+          <Link href="/" className="rounded" aria-label="Rangeland Awareness home">
             <Logo tone="dark" />
           </Link>
         </div>

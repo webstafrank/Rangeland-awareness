@@ -19,7 +19,7 @@ export function SiteHeader({ session, compact = false }: SiteHeaderProps) {
   return (
     <header className="band-navy-deep border-navy-700 border-b">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="rounded" aria-label="Rangeland Watch home">
+        <Link href="/" className="rounded" aria-label="Rangeland Awareness home">
           <Logo tone="dark" markOnly={compact} />
         </Link>
 

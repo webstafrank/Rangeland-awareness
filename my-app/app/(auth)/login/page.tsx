@@ -7,7 +7,7 @@ import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to Rangeland Watch to reach your saved analysis runs.",
+  description: "Sign in to Rangeland Awareness to reach your saved analysis runs.",
 };
 
 export default function LoginPage() {

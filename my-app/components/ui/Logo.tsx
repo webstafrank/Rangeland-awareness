@@ -47,7 +47,7 @@ export function Logo({ tone = "light", markOnly = false, size = 30, className = 
 
       {markOnly ? null : (
         <span className="flex flex-col leading-none">
-          <span className={`text-sm font-bold tracking-tight ${wordInk}`}>Rangeland Watch</span>
+          <span className={`text-sm font-bold tracking-tight ${wordInk}`}>Rangeland Awareness</span>
           <span className={`text-micro mt-0.5 tracking-[0.1em] uppercase ${subInk}`}>
             Kenya · Earth Observation
           </span>

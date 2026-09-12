@@ -165,6 +165,55 @@
 }
 
 /*
+ * The alternating bands, and the one place the dark ground is legitimate.
+ *
+ * A band sets BOTH its background and its ink, so a child never has to know
+ * which ground it is standing on. That pairing is the whole point: the auth
+ * screen's left panel is deliberately navy with white type, and `Logo`,
+ * `Eyebrow` and the copy inside it take `tone="dark"` to match.
+ *
+ * These came in with the Sep 7 scaffold, which declared them in the stylesheet
+ * that the light redesign replaced. The components kept using the class names,
+ * so for one commit `/login` rendered its white type directly onto the light
+ * page ground: the wordmark was invisible and the supporting copy sat at about
+ * 1.4:1. Painting a ground and setting ink on it are one decision, and this is
+ * the rule that keeps them together.
+ *
+ * This is NOT a second theme, and there is still no prefers-color-scheme
+ * anywhere: a band is an opted-into region with a known ground, not a
+ * preference the visitor's OS gets to flip.
+ */
+@utility band-navy {
+  background: var(--color-navy-900);
+  color: var(--color-ink-dark-primary);
+}
+
+@utility band-navy-deep {
+  background: var(--color-navy-950);
+  color: var(--color-ink-dark-primary);
+}
+
+@utility band-white {
+  background: var(--color-white);
+  color: var(--color-ink-light-primary);
+}
+
+@utility band-paper {
+  background: var(--color-paper);
+  color: var(--color-ink-light-primary);
+}
+
+/* Scarlet hairline used to open a band. Decorative, never load-bearing. */
+@utility rule-scarlet {
+  background: linear-gradient(
+    90deg,
+    var(--color-scarlet-mark) 0%,
+    var(--color-scarlet-mark) 22%,
+    transparent 22%
+  );
+}
+
+/*
  * `color-scheme: light` is load-bearing, not decoration. Without it a visitor
  * whose OS is set to dark gets dark native form controls, dark scrollbars and
  * a dark autofill highlight painted over a light page, which no amount of CSS
@@ -179,6 +228,7 @@
 :root {
   color-scheme: light;
 }
+
 
 body {
   background: var(--color-page);
