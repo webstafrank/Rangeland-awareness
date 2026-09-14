@@ -12,14 +12,40 @@
 #
 # core.hooksPath is used rather than copying into .git/hooks so the hook is
 # version controlled and every worktree of this repo picks it up.
+#
+# NOTE on that install line: `git config core.hooksPath scripts` stores the
+# path RELATIVE TO THE SHARED CHECKOUT, and on this repo it was stored
+# absolute, as /home/.../Rangeland-awareness/my-app/scripts. Either way every
+# worktree runs the shared checkout's copy of this file — which is fine, and is
+# the point of version controlling it — but see the cd below for what that
+# implies.
 
 set -euo pipefail
 
-# The hook runs from the repo root, but this project lives in my-app/.
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# Change to the my-app directory OF THE TREE BEING COMMITTED.
+#
+# Not `dirname "${BASH_SOURCE[0]}"/..`, which was the original and which is
+# wrong in a worktree. core.hooksPath points at the shared checkout, so
+# BASH_SOURCE is the shared checkout's copy of this script, and that cd took the
+# hook to the shared checkout's my-app. The result: a commit made in a worktree
+# was gated on a completely different working tree — passing when the shared
+# checkout happened to be green and failing when it was not, in both cases
+# saying nothing about the code actually being committed.
+#
+# That is the exact failure the worktree discipline exists to prevent, so the
+# hook has to ask git which tree it is running for rather than infer it from
+# where the script lives.
+#
+# GIT_DIR is set by git when it runs a hook and confuses rev-parse's view of
+# the top level; clearing it makes --show-toplevel answer for the worktree the
+# commit is happening in.
+repo_root="$(unset GIT_DIR GIT_WORK_TREE; git rev-parse --show-toplevel)"
+cd "$repo_root/my-app"
 
-echo "pre-commit: gate lane"
+echo "pre-commit: gate lane in $repo_root"
 
+# Only the frontend is gated here. A commit touching nothing under my-app still
+# runs it, which is cheap and catches a contract artifact going stale.
 echo "  - typecheck"
 npx tsc --noEmit
 
@@ -28,5 +54,17 @@ npx eslint .
 
 echo "  - gate tests"
 npx vitest run --silent
+
+# The Django service, when the commit touches it. Skipped otherwise so a
+# frontend-only commit does not pay for it, and skipped entirely when Django is
+# not installed, because the backend is not every contributor's concern.
+if git diff --cached --name-only | grep -q '^services/backend/'; then
+  if python3 -c "import django" 2>/dev/null; then
+    echo "  - backend tests"
+    (cd "$repo_root/services/backend" && python3 manage.py test apps --verbosity 0)
+  else
+    echo "  - backend tests SKIPPED (django not importable)"
+  fi
+fi
 
 echo "pre-commit: green"
