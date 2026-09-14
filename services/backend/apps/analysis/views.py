@@ -19,6 +19,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 
 from apps.analysis.domain import ahp, criteria
+from apps.analysis.jobs.runner import submit
+from apps.analysis.jobs.stages import plan_stages
+from apps.analysis.models import Run, config_hash
+from apps.analysis.validation import validate_run_config
 
 log = logging.getLogger(__name__)
 
@@ -177,5 +181,121 @@ def derive_weights(request: HttpRequest) -> JsonResponse:
             "consistencyRatio": round(assessment.consistency_ratio, 6),
             "acceptable": assessment.acceptable,
             "maxAcceptableRatio": ahp.MAX_ACCEPTABLE_CR,
+        }
+    )
+
+
+# ---------------------------------------------------------------------- runs
+
+
+@csrf_exempt
+def create_run(request: HttpRequest) -> JsonResponse:
+    """Create a run, or return the one an identical configuration already made.
+
+    202 for new work, 200 for a cache hit. The distinction is worth two status
+    codes: a client resubmitting after a dropped connection wants to know it did
+    not just start a second four-minute computation.
+    """
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    body, problem = _read_json(request)
+    if problem is not None:
+        return problem
+    assert body is not None
+
+    config, errors = validate_run_config(body)
+    if errors:
+        # Every problem at once, keyed by field. Revealing them one submit at a
+        # time makes the analyst click, read, fix and click again, for checks
+        # that are all independent and all cheap.
+        return _problem(
+            "Invalid run configuration", status=400, fieldErrors=dict(errors)
+        )
+
+    run_id = config_hash(config)
+    existing = Run.objects.filter(pk=run_id).first()
+    if existing is not None:
+        return JsonResponse(
+            {
+                "runId": existing.run_id,
+                "statusUrl": f"/api/v1/runs/{existing.run_id}",
+                "status": existing.status,
+                "cached": True,
+                "stages": existing.as_status_json()["stages"],
+            },
+            status=200,
+        )
+
+    method = criteria.method_for(config["topic"])
+    used = [c for c in method.criteria if c.id in config["weights"]]
+    run = Run(
+        run_id=run_id,
+        topic=config["topic"],
+        config=config,
+        status=Run.Status.QUEUED,
+    )
+    run.set_stages(plan_stages(used, publish_layers=config["publishLayers"]))
+    # Re-asserted after set_stages, which derives status from the stage list.
+    # An all-pending plan derives as queued anyway; saying so here means a
+    # reader does not have to know that to follow the code.
+    run.status = Run.Status.QUEUED
+    run.save()
+
+    submit(run)
+
+    return JsonResponse(
+        {
+            "runId": run.run_id,
+            "statusUrl": f"/api/v1/runs/{run.run_id}",
+            "status": run.status,
+            "cached": False,
+            "stages": run.as_status_json()["stages"],
+        },
+        status=202,
+    )
+
+
+@require_GET
+def run_status(request: HttpRequest, run_id: str) -> JsonResponse:
+    """Poll this. Cheap by construction: one row read, no computation."""
+    run = Run.objects.filter(pk=run_id).first()
+    if run is None:
+        return _problem(f'No run "{run_id}".', status=404)
+
+    response = JsonResponse(run.as_status_json())
+    if run.status in (Run.Status.QUEUED, Run.Status.RUNNING):
+        # Told, not guessed. A client polling as fast as it can manage is how a
+        # long run becomes a denial of service against its own backend.
+        response["Retry-After"] = "2"
+    return response
+
+
+@require_GET
+def run_result(request: HttpRequest, run_id: str) -> JsonResponse:
+    """The numbers, once the run has succeeded.
+
+    409 rather than 404 while it is still running: the run exists, it simply has
+    no result yet, and a 404 would send the client looking for a wrong id.
+    """
+    run = Run.objects.filter(pk=run_id).first()
+    if run is None:
+        return _problem(f'No run "{run_id}".', status=404)
+
+    if run.status != Run.Status.SUCCEEDED:
+        return _problem(
+            f'Run "{run_id}" has not succeeded; it is {run.status}.',
+            status=409,
+            runStatus=run.status,
+            runError=run.error,
+            statusUrl=f"/api/v1/runs/{run_id}",
+        )
+
+    return JsonResponse(
+        {
+            "runId": run.run_id,
+            "config": run.config,
+            "generatedAt": run.ended_at.isoformat() if run.ended_at else None,
+            **(run.result or {}),
         }
     )

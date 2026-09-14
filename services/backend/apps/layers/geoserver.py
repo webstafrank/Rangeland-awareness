@@ -574,8 +574,31 @@ def parse_describe_coverage(xml: bytes, coverage_id: str) -> CoverageGrid:
     upper = _find_local(envelope, "upperCorner")
     if lower is None or upper is None or not lower.text or not upper.text:
         raise GeoServerError(f"{coverage_id} has no envelope corners")
-    minx, miny = (float(v) for v in lower.text.split()[:2])
-    maxx, maxy = (float(v) for v in upper.text.split()[:2])
+
+    low_a, low_b = (float(v) for v in lower.text.split()[:2])
+    high_a, high_b = (float(v) for v in upper.text.split()[:2])
+
+    # Axis order, which is not a detail and is not consistent across coverages
+    # on the same server.
+    #
+    # GML 3.2 orders a geographic envelope by the CRS's own axis definition,
+    # and EPSG:4326 defines latitude first. A projected CRS like EPSG:32637 is
+    # easting first. This deployment publishes both: TanaRiver_Slope is
+    # EPSG:32637 and reads (E, N), while TanaRiver_LULC is EPSG:4326 and reads
+    # (lat, lon) — its envelope is (-3.1, 38.4) to (-0.0, 40.7), which as (x, y)
+    # would put the Tana basin in the Atlantic.
+    #
+    # `axisLabels` is authoritative when present; the CRS is the fallback.
+    labels = (envelope.get("axisLabels") or "").split()
+    latitude_first = (
+        labels[0].lower() in ("lat", "latitude")
+        if labels
+        else _is_geographic(crs)
+    )
+    if latitude_first:
+        miny, minx, maxy, maxx = low_a, low_b, high_a, high_b
+    else:
+        minx, miny, maxx, maxy = low_a, low_b, high_a, high_b
 
     grid_low = _find_local(root, "low")
     grid_high = _find_local(root, "high")
@@ -584,7 +607,13 @@ def parse_describe_coverage(xml: bytes, coverage_id: str) -> CoverageGrid:
     low = [int(v) for v in grid_low.text.split()[:2]]
     high = [int(v) for v in grid_high.text.split()[:2]]
     # +1 because GridEnvelope/high is the last index, not the count.
-    size = (high[0] - low[0] + 1, high[1] - low[1] + 1)
+    #
+    # The grid envelope follows the same axis order as the spatial one, so a
+    # latitude-first coverage reports (rows, columns) here. Swapping keeps
+    # `size` meaning (width, height) whatever the CRS, which is what every
+    # caller assumes and what `resolution` divides by.
+    counts = (high[0] - low[0] + 1, high[1] - low[1] + 1)
+    size = (counts[1], counts[0]) if latitude_first else counts
 
     bands = tuple(
         field_node.get("name", "")
