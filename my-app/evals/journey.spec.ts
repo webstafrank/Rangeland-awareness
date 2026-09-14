@@ -1246,6 +1246,146 @@ test.describe("topic steps", () => {
   });
 });
 
+/* ---------------------------------------------------------------- fits screen */
+
+test.describe("fits the screen", () => {
+  /**
+   * How much vertical space the app's own furniture takes before a step's
+   * content starts: the header, the topic band, the step rail and the sticky
+   * action bar.
+   */
+  async function chromeHeight(page: Page) {
+    return page.evaluate(() => {
+      const h = (el: Element | null | undefined) =>
+        el ? Math.round(el.getBoundingClientRect().height) : 0;
+      const band = document.querySelector("main section.band-chrome");
+      const rail = document
+        .querySelector("[data-testid='step-rail']")
+        ?.closest("div.border-b");
+      const bar = document
+        .querySelector("[data-testid='request-receipt']")
+        ?.closest("div.sticky");
+      return h(document.querySelector("header")) + h(band) + h(rail) + h(bar);
+    });
+  }
+
+  const pageHeight = (page: Page) =>
+    page.evaluate(() => ({
+      doc: Math.round(document.documentElement.scrollHeight),
+      viewport: window.innerHeight,
+    }));
+
+  test("the chrome leaves the content most of the screen", async ({
+    page,
+  }, testInfo) => {
+    /*
+     * The number this whole pass was about. The first version of the split
+     * spent 385px of a desktop viewport, and 522px of a 640px phone, on the
+     * header, the topic band, the rail and the action bar — so a phone had
+     * about 80px left for the decision the screen exists to make, and the
+     * step's own question started 360px down the page.
+     *
+     * Budgets are set a little above what ships (266 desktop, 303 phone) so
+     * this fails on a regression rather than on a rounding difference.
+     */
+    const budget = testInfo.project.name === "mobile" ? 360 : 300;
+
+    for (const step of STEPS) {
+      await gotoStep(page, "flood-risk", step.id);
+      const chrome = await chromeHeight(page);
+      expect(chrome, `${step.id}: chrome is ${chrome}px`).toBeLessThanOrEqual(
+        budget,
+      );
+    }
+  });
+
+  test("the two set-once steps need no scrolling at all", async ({
+    page,
+  }, testInfo) => {
+    // Scope and model are one question and a handful of cards. Making the
+    // reader scroll for that is the clearest sign the furniture has grown.
+    test.skip(testInfo.project.name !== "desktop", "measured on desktop");
+
+    for (const step of ["scope", "model"] as const) {
+      await gotoStep(page, "flood-risk", step);
+      const { doc, viewport } = await pageHeight(page);
+      expect(doc, `${step}: ${doc}px in a ${viewport}px viewport`).toBeLessThanOrEqual(
+        viewport,
+      );
+    }
+  });
+
+  test("both scope cards are above the fold on a phone", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "narrow viewport only");
+    await gotoStep(page, "flood-risk", "scope");
+
+    // The choice is the entire point of this screen, so neither option may
+    // start below the fold or behind the sticky bar.
+    const barTop = await page.evaluate(() => {
+      const bar = document
+        .querySelector("[data-testid='request-receipt']")
+        ?.closest("div.sticky");
+      return bar ? Math.round(bar.getBoundingClientRect().top) : window.innerHeight;
+    });
+
+    for (const name of [/single location/i, /multiple location/i]) {
+      const box = await page.getByRole("radio", { name }).boundingBox();
+      expect(box, `${name}`).not.toBeNull();
+      expect((box as { y: number }).y).toBeLessThan(barTop);
+    }
+  });
+
+  test("the step rail stays one row on a phone", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "narrow viewport only");
+    await gotoStep(page, "flood-risk", "scope");
+
+    // Four labelled steps wrapped to two rows and cost 125px of a 640px
+    // viewport. All four labels still ship; they are just sized to fit.
+    const tops = await page.evaluate(() =>
+      Array.from(
+        document.querySelectorAll("[data-testid='step-rail'] li"),
+      ).map((li) => Math.round(li.getBoundingClientRect().top)),
+    );
+    expect(tops).toHaveLength(STEPS.length);
+    expect(new Set(tops).size, `rail rows: ${new Set(tops).size}`).toBe(1);
+  });
+
+  test("the map fits the viewport and stays put while the tools scroll", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "two-column layout is lg+");
+    await gotoStep(page, "flood-risk", "areas");
+
+    const height = async () =>
+      (await page.getByTestId("aoi-map").boundingBox())?.height ?? 0;
+
+    /*
+     * Derived from the viewport, not fixed at 620px: a 768px laptop gets
+     * 448px of map, a 1080px monitor gets the full 620. Bounded both ways so
+     * neither a tall monitor nor a short window produces something silly.
+     */
+    const mapHeight = await height();
+    const viewport = page.viewportSize()?.height ?? 0;
+    expect(mapHeight).toBeGreaterThanOrEqual(360);
+    expect(mapHeight).toBeLessThanOrEqual(620);
+    expect(mapHeight).toBeLessThan(viewport);
+
+    // And it is sticky: scrolling the tool column past it leaves the map
+    // fully on screen, so a selection can never move a viewport the analyst
+    // cannot see. That was the whole reason the tools moved beside it.
+    await page.evaluate(() => window.scrollTo(0, 500));
+    await page.waitForTimeout(300);
+
+    const box = await page.getByTestId("aoi-map").boundingBox();
+    expect(box).not.toBeNull();
+    const { y, height: h } = box as { y: number; height: number };
+    expect(y, "map top is off screen").toBeGreaterThanOrEqual(0);
+    expect(y + h, "map bottom is off screen").toBeLessThanOrEqual(viewport);
+  });
+});
+
 /* -------------------------------------------------------------------- budget */
 
 test.describe("measurable outcome", () => {

@@ -41,14 +41,14 @@ export default function StepRail({
 
   return (
     <nav aria-label="Analysis steps" data-testid="step-rail">
-      <ol className="flex flex-wrap items-stretch gap-2 sm:gap-3">
+      <ol className="flex items-stretch gap-1.5 sm:flex-wrap sm:gap-3">
         {STEPS.map((step, index) => {
           const isCurrent = step.id === current;
           const isDone = index < currentIndex;
           const reachable = isStepReachable(step.id, canReview);
 
           const marker = [
-            "grid h-6 w-6 shrink-0 place-items-center rounded-full border font-mono text-[11px] font-bold",
+            "grid h-5 w-5 shrink-0 place-items-center rounded-full border font-mono text-[10px] font-bold sm:h-6 sm:w-6 sm:text-[11px]",
             isCurrent
               ? "border-action bg-action text-white"
               : isDone
@@ -65,17 +65,21 @@ export default function StepRail({
                     what is still ahead of you, the tick is what is behind. */}
                 {isDone ? "✓" : index + 1}
               </span>
-              <span className="whitespace-nowrap text-[13px] font-semibold tracking-tight">
+              <span className="whitespace-nowrap text-[11px] font-semibold tracking-tight sm:text-[13px]">
                 {step.label}
               </span>
             </>
           );
 
+          // Sized so four of these fit one row at 360px. At the previous size
+          // the rail wrapped to two rows on a phone and cost 125px of a 640px
+          // viewport; all four labels still ship, because a numbered pill with
+          // no word next to it tells you where you are and not what it is.
           const shell =
-            "flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors";
+            "flex items-center justify-center gap-1.5 rounded-lg border px-1.5 py-1.5 transition-colors sm:gap-2 sm:px-3 sm:py-2";
 
           return (
-            <li key={step.id} className="flex-1 sm:flex-none">
+            <li key={step.id} className="min-w-0 flex-1 sm:flex-none">
               {isCurrent ? (
                 <span
                   aria-current="step"

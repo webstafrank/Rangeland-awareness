@@ -186,6 +186,41 @@ step supplies only its content.
 it did on the single page: an analyst can no longer scroll up to check which
 model they picked, because the model is on another URL.
 
+**The furniture is on a budget, and the budget is measured.** The header, the
+topic band, the rail and the sticky bar are the four things that repeat on
+every step, so every pixel they take is taken four times. Measured before and
+after the fit pass:
+
+| | desktop chrome | phone chrome | scope step @1280x900 | areas map |
+| --- | --- | --- | --- | --- |
+| first cut | 385px | 522px | 978px, scrolls | fixed 620px |
+| now | 266px | 303px | 900px, no scroll | 360-620px, from the viewport |
+
+What moved: the topic band went from three rows (breadcrumb, name, question) to
+one; the rail fits four labelled steps in a single row at 360px; the spacer
+above the sticky bar is sized to the bar instead of to 112px; and the step
+heading dropped one size. Nothing was removed from any screen. `evals/journey.spec.ts`
+has a `fits the screen` block that fails if the chrome grows past 300px on
+desktop or 360px on a phone, or if the scope and model steps ever need
+scrolling on a 900px viewport.
+
+**The areas step puts its tools beside the map, not above it.** In a row across
+the top, that step was 1737px tall — 969px of scrolling on a 1366x768 laptop —
+and the map was never on screen at the same time as the controls that drive it,
+so every selection moved a viewport the analyst could not see. On `lg` and up
+the three methods and the running list stack in a 340px column, the map takes
+the rest, and the map is `sticky` so the column scrolls past it. Below `lg`
+they stay stacked: a phone has no second column to give.
+
+This is not the arrangement the old single page rejected. That one put eight
+controls in a narrow rail, including the scope and the model; those have their
+own screens now, so the column holds three panels and a list.
+
+The map's height comes from the viewport (`clamp(360px, 100svh - 320px, 620px)`)
+rather than a fixed 620, so it fits the screen it is on. The `sticky` only
+works because the grid does **not** set `items-start`: that would size the map
+column to the map, leaving it nothing to travel inside.
+
 **Only the CONTENT narrows; the frame never does.** The rail, the heading and
 the footer sit at the same x on all four steps, and only the areas step's
 content column runs the full band, because a decision has a reading width and a

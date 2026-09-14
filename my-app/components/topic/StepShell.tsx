@@ -116,7 +116,7 @@ export default function StepShell({
       {/* The rail sits on the page ground, directly under the topic band, so
           it reads as a property of the topic rather than of this one step. */}
       <div className="border-b border-edge bg-surface">
-        <div className={`${container} py-4`}>
+        <div className={`${container} py-2.5 lg:py-3`}>
           <StepRail
             topic={topic.slug}
             current={step}
@@ -126,37 +126,46 @@ export default function StepShell({
         </div>
       </div>
 
-      <div className={`${container} pt-10 lg:pt-12`}>
+      <div className={`${container} pt-6 lg:pt-8`}>
         <div className={column}>
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="text-2xl font-semibold tracking-tight outline-none lg:text-3xl"
+            className="text-xl font-semibold tracking-tight outline-none lg:text-2xl"
           >
             {spec.title}
           </h2>
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink-muted">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted lg:text-[15px]">
             {spec.hint}
           </p>
 
-          <div className="mt-8">{children}</div>
+          <div className="mt-6">{children}</div>
         </div>
       </div>
 
-      {/* Spacer, so the sticky bar cannot sit on top of the last control. */}
-      <div aria-hidden="true" className="h-28" />
+      {/*
+        Spacer, so the sticky bar cannot sit on top of the last control. Sized
+        to the bar rather than to a round number: at h-28 it was 112px and made
+        the scope step scroll on a 900px viewport for the sake of two radio
+        cards.
+      */}
+      <div aria-hidden="true" className="h-16" />
 
       {/*
-        py-2.5 below lg, not py-4. Measured at 360x640: the bar was 139px of a
-        640px viewport, which pushed the scope step's second radio card off the
-        fold on the one screen where the choice is the whole point. The receipt
-        is what makes it two rows on a phone, and it is worth keeping — the
-        other three decisions are on other URLs now — so the padding gives way
-        instead.
+        The bar is kept short on purpose, and the receipt is what makes that
+        hard. Measured at 360x640 it was 125px of a 640px viewport — the
+        receipt wrapping to two lines, then the buttons under it — which pushed
+        the scope step's second radio card off the fold on the one screen where
+        the choice is the whole point.
+
+        The receipt stays, because the other three decisions live on other URLs
+        now and this is the only place all four are readable at once. What
+        gives way is the padding, and the receipt's own wrapping: see
+        RequestReceipt, which is one scrollable line below `sm`.
       */}
       <div className="sticky bottom-0 z-action-bar mt-auto border-t border-edge bg-surface shadow-lifted">
         <div
-          className={`${container} flex flex-col gap-2.5 py-2.5 lg:flex-row lg:items-center lg:gap-6 lg:py-4`}
+          className={`${container} flex flex-col gap-2 py-2 lg:flex-row lg:items-center lg:gap-6 lg:py-3`}
         >
           <RequestReceipt
             topic={topic}
@@ -170,7 +179,7 @@ export default function StepShell({
             {back !== null && (
               <Link
                 href={stepHref(topic.slug, back, query)}
-                className="rounded-lg border border-edge-strong bg-surface px-4 py-2.5 text-sm font-semibold text-ink-muted hover:bg-sunken hover:text-ink"
+                className="rounded-lg border border-edge-strong bg-surface px-4 py-2 text-sm font-semibold text-ink-muted hover:bg-sunken hover:text-ink"
               >
                 <span aria-hidden="true">&larr;</span> {back.label}
               </Link>
@@ -182,7 +191,7 @@ export default function StepShell({
                   <Link
                     href={stepHref(topic.slug, forward, query)}
                     data-testid="step-continue"
-                    className="rounded-lg bg-action px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover"
+                    className="rounded-lg bg-action px-6 py-2 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover"
                   >
                     Continue <span aria-hidden="true">&rarr;</span>
                   </Link>
@@ -201,7 +210,7 @@ export default function StepShell({
                       type="button"
                       disabled
                       data-testid="step-continue"
-                      className="order-1 cursor-not-allowed rounded-lg bg-sunken px-6 py-2.5 text-sm font-semibold text-ink-faint lg:order-2"
+                      className="order-1 cursor-not-allowed rounded-lg bg-sunken px-6 py-2 text-sm font-semibold text-ink-faint lg:order-2"
                     >
                       Continue <span aria-hidden="true">&rarr;</span>
                     </button>

@@ -137,54 +137,109 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
         </div>
       )}
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <Panel
-          title="On the map"
-          hint={
-            atCapacity
-              ? `Holding ${spec.maxAreas} areas, the maximum. Adding another will ask you to remove one.`
-              : activeToolHint
-          }
-        >
-          <RadioCards
-            legend="Map tool"
-            hideLegend
-            name="selection-tool"
-            value={tool}
-            options={MAP_TOOL_SPECS.map((t) => ({ id: t.id, label: t.label }))}
-            onChange={setTool}
-            compact
-            layout="stack"
-          />
-        </Panel>
+      {/*
+        The tools beside the map, not above it.
 
-        <Panel
-          title="By coordinate"
-          hint="Paste a latitude and longitude. Radius 0 is the exact point."
-        >
-          <CoordinateEntry
-            onAreas={(areas) => dispatch({ type: "addAreas", areas })}
-          />
-        </Panel>
+        Measured: methods in a row across the top, then the map below, made
+        this step 1737px tall — 969px of scrolling on a 1366x768 laptop, and
+        the map and the controls that drive it were never on screen together.
+        Every selection then moved a viewport the analyst could not see.
 
-        <Panel
-          title="From a shapefile"
-          hint="A .zip holding .shp, .shx, .dbf and .prj. Polygons only."
-        >
-          <ShapefileUpload
-            onAreas={(areas) => dispatch({ type: "addAreas", areas })}
-          />
-        </Panel>
-      </div>
+        So on lg and up the three input methods and the running list stack in
+        one 340px column and the map takes the rest, which is the layout a map
+        tool has for the reason this one now has it. Below lg they stay
+        stacked: a 360px phone has no second column to give.
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="overflow-hidden rounded-xl border border-edge bg-surface shadow-card">
+        This is not the arrangement the old single page rejected. That one put
+        EIGHT controls in a narrow rail, including the scope and the model.
+        Those live on their own screens now, so this column holds three panels
+        and a list.
+      */}
+      {/*
+        No `items-start` on this grid, deliberately. It would size each column
+        to its own content, and the map column would then be exactly as tall as
+        the map — leaving the sticky map nothing to travel inside, so it would
+        scroll away like any other element. Stretching the column to the row's
+        height is what gives `sticky` its range.
+      */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <div className="flex flex-col gap-4">
+          <Panel
+            title="On the map"
+            hint={
+              atCapacity
+                ? `Holding ${spec.maxAreas} areas, the maximum. Adding another will ask you to remove one.`
+                : activeToolHint
+            }
+          >
+            <RadioCards
+              legend="Map tool"
+              hideLegend
+              name="selection-tool"
+              value={tool}
+              options={MAP_TOOL_SPECS.map((t) => ({ id: t.id, label: t.label }))}
+              onChange={setTool}
+              compact
+              layout="stack"
+            />
+          </Panel>
+
+          <Panel
+            title="By coordinate"
+            hint="Paste a latitude and longitude. Radius 0 is the exact point."
+          >
+            <CoordinateEntry
+              onAreas={(areas) => dispatch({ type: "addAreas", areas })}
+            />
+          </Panel>
+
+          <Panel
+            title="From a shapefile"
+            hint="A .zip holding .shp, .shx, .dbf and .prj. Polygons only."
+          >
+            <ShapefileUpload
+              onAreas={(areas) => dispatch({ type: "addAreas", areas })}
+            />
+          </Panel>
+
+          {/*
+            The running list, under the tools that fill it. It is as tall as
+            its contents and no taller: as a stretched grid item it filled the
+            map's height, which made the largest thing on the page an empty
+            white box in the state every session starts in.
+          */}
+          <div className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card">
+            <SelectedAreas
+              areas={state.areas}
+              emptyHint={
+                "Nothing selected yet. Use a panel above: click or draw on the " +
+                "map, paste a coordinate, or upload a shapefile."
+              }
+              onFocus={(id) => dispatch({ type: "focusArea", id })}
+              onFitAll={() => dispatch({ type: "focusAll" })}
+              onRemove={(id) => dispatch({ type: "removeArea", id })}
+              onClear={() => dispatch({ type: "clearAreas" })}
+            />
+          </div>
+        </div>
+
+        {/*
+          The map sticks while the tool column scrolls past it, so a long
+          selection list never takes the map off screen.
+        */}
+        <div className="h-fit overflow-hidden rounded-xl border border-edge bg-surface shadow-card lg:sticky lg:top-20">
           <MapSizeStepper size={mapSize} onChange={setStoredMapSize} />
           <div
-            /* The size class only applies below lg. Tailwind emits variant
-               utilities after unprefixed ones, so lg:h-[620px] wins on a
-               specificity tie without needing !important. */
-            className={`relative w-full ${MAP_SIZES[mapSize].className} lg:h-[620px] lg:min-h-0`}
+            /*
+             * Below lg the remembered stop from MapSizeStepper decides. At lg
+             * and up the height comes from the viewport instead of a fixed
+             * 620px, so the map fits the screen it is on: 448px on a 768px
+             * laptop, 620px on a 1080px monitor, never under 360px however
+             * short the window. Tailwind emits variant utilities after
+             * unprefixed ones, so the lg class wins on a specificity tie
+             * without !important.
+             */
+            className={`relative w-full ${MAP_SIZES[mapSize].className} lg:h-[clamp(360px,calc(100svh-320px),620px)] lg:min-h-0`}
           >
             <MapPanel
               areas={state.areas}
@@ -195,28 +250,6 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
               onDrawFinished={() => setTool("point")}
             />
           </div>
-        </div>
-
-        {/*
-          self-start, so the panel is as tall as its contents rather than
-          stretching to match the map. As a plain grid item it filled the full
-          620px, which meant the largest element on the page was an empty white
-          box in the state every session starts in. It still grows with the
-          list, and caps at the map's height so a long selection scrolls inside
-          the panel instead of past the map.
-        */}
-        <div className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card lg:max-h-[calc(620px+2.25rem)] lg:self-start">
-          <SelectedAreas
-            areas={state.areas}
-            emptyHint={
-              "Nothing selected yet. Use a panel above: click or draw on the " +
-              "map, paste a coordinate, or upload a shapefile."
-            }
-            onFocus={(id) => dispatch({ type: "focusArea", id })}
-            onFitAll={() => dispatch({ type: "focusAll" })}
-            onRemove={(id) => dispatch({ type: "removeArea", id })}
-            onClear={() => dispatch({ type: "clearAreas" })}
-          />
         </div>
       </div>
     </StepShell>
