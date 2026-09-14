@@ -30,37 +30,55 @@ export default async function TopicLayout({
 
   return (
     <div className="flex flex-1 flex-col">
-      <section className="band-chrome">
-        <div className="mx-auto w-full max-w-band px-gutter py-7 lg:px-gutter-lg lg:py-9">
-          <nav aria-label="Breadcrumb" className="text-xs text-on-chrome-muted">
-            <Link
-              href="/"
-              className="rounded font-medium hover:text-white hover:underline"
-            >
-              All topics
-            </Link>
-            <span aria-hidden="true" className="px-2">
-              /
-            </span>
-            <span>{topic.name}</span>
-          </nav>
+      {/*
+        One row, not three.
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <span
-              aria-hidden="true"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/25 bg-white/10 text-xs font-bold tracking-tight text-white"
+        This band repeats on all four steps, so every pixel it takes is taken
+        four times. Measured at 170px tall (205 on a phone) when the
+        breadcrumb, the glyph, the name and the question each had their own
+        line: with the header and the rail above the fold too, the step's own
+        question started 360px down the page and a 640px phone had about 80px
+        left for the actual decision.
+
+        So the breadcrumb runs inline with the name, and the question sits
+        beside it on a wide screen rather than under it. Nothing was removed —
+        the same four things are on screen, on one line instead of three.
+      */}
+      <section className="band-chrome">
+        <div className="mx-auto flex w-full max-w-band flex-wrap items-center gap-x-5 gap-y-2 px-gutter py-3.5 lg:px-gutter-lg lg:py-4">
+          <span
+            aria-hidden="true"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/25 bg-white/10 text-[11px] font-bold tracking-tight text-white"
+          >
+            {topic.glyph}
+          </span>
+
+          <div className="min-w-0">
+            <nav
+              aria-label="Breadcrumb"
+              className="text-[11px] leading-tight text-on-chrome-muted"
             >
-              {topic.glyph}
-            </span>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">
-                {topic.name}
-              </h1>
-              <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-on-chrome-muted lg:text-[15px]">
-                {topic.question}
-              </p>
-            </div>
+              <Link
+                href="/"
+                className="rounded font-medium hover:text-white hover:underline"
+              >
+                All topics
+              </Link>
+              <span aria-hidden="true" className="px-1.5">
+                /
+              </span>
+              <span>{topic.name}</span>
+            </nav>
+            <h1 className="text-lg font-semibold leading-tight tracking-tight lg:text-xl">
+              {topic.name}
+            </h1>
           </div>
+
+          {/* The question. Beside the name where there is room, under it where
+              there is not, and never a third row on its own. */}
+          <p className="min-w-0 basis-full text-[13px] leading-snug text-on-chrome-muted sm:basis-auto sm:border-l sm:border-white/20 sm:pl-5">
+            {topic.question}
+          </p>
         </div>
       </section>
 

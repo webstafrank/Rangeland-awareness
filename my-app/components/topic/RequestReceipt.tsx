@@ -47,9 +47,19 @@ export default function RequestReceipt({
   );
 
   return (
+    /*
+     * One line below `sm`, wrapping above it.
+     *
+     * Wrapping on a phone cost a second row in a sticky bar that already eats
+     * a fifth of a 640px viewport. `overflow-x-auto` with `whitespace-nowrap`
+     * keeps every one of the four decisions reachable — nothing is truncated
+     * away, it scrolls — while the bar stays one row tall. `min-w-0` is what
+     * lets it actually shrink inside the bar's flex row rather than forcing
+     * the bar wider than the screen.
+     */
     <p
       data-testid="request-receipt"
-      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-edge bg-surface px-3 py-2 text-xs text-ink-muted"
+      className="flex min-w-0 items-center gap-x-1.5 gap-y-1 overflow-x-auto whitespace-nowrap rounded-lg border border-edge bg-surface px-3 py-1.5 text-xs text-ink-muted sm:flex-wrap sm:overflow-visible sm:whitespace-normal lg:py-2"
     >
       {chip("topic", topic.name)}
       <span aria-hidden="true" className="text-ink-faint">
