@@ -13,7 +13,8 @@ export default function NotFound() {
   return (
     <section className="mx-auto flex w-full max-w-band flex-1 flex-col justify-center px-gutter py-20 lg:px-gutter-lg lg:py-28">
       <div className="max-w-2xl">
-        <p className="font-mono text-xs font-medium uppercase tracking-[0.14em] text-accent">
+        <p className="flex items-center gap-3 font-mono text-xs font-medium uppercase tracking-[0.14em] text-action">
+          <span aria-hidden="true" className="h-[3px] w-8 bg-action" />
           Error 404
         </p>
         <h1 className="mt-5 text-3xl font-semibold tracking-tight lg:text-5xl">
@@ -40,7 +41,7 @@ export default function NotFound() {
               >
                 <span
                   aria-hidden="true"
-                  className={`grid h-9 w-9 place-items-center rounded-lg border text-[11px] font-bold tracking-tight ${topic.accent.tile} ${topic.accent.border} ${topic.accent.text}`}
+                  className={`grid h-9 w-9 place-items-center rounded-lg border text-[11px] font-bold tracking-tight ${topic.accent.tile} ${topic.accent.border} ${topic.accent.tileText}`}
                 >
                   {topic.glyph}
                 </span>

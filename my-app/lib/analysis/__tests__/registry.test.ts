@@ -66,11 +66,36 @@ describe("topic registry", () => {
     }
   });
 
-  it("gives every topic a text, tile and border accent", () => {
+  it("gives every topic a text, tile, border and glyph accent", () => {
     for (const topic of TOPICS) {
       expect(topic.accent.text).toMatch(/^text-/);
       expect(topic.accent.tile).toMatch(/^bg-/);
       expect(topic.accent.border).toMatch(/^border-/);
+      expect(topic.accent.tileText).toMatch(/^text-/);
+    }
+  });
+
+  it("inverts the glyph on a solid tile and keeps it dark on a wash", () => {
+    // The four topics are separated by treatment as well as hue — navy solid,
+    // red solid, navy wash, red wash — because a four-colour palette has no
+    // fifth hue to hand out. That only works if the glyph flips on the two
+    // solid tiles: a navy glyph on a navy tile is an empty square.
+    for (const topic of TOPICS) {
+      const solid =
+        topic.accent.tile === "bg-accent" || topic.accent.tile === "bg-action";
+      expect(
+        topic.accent.tileText === "text-white",
+        `${topic.slug}: ${topic.accent.tileText} on ${topic.accent.tile}`,
+      ).toBe(solid);
+    }
+  });
+
+  it("names the topic in a colour that is legible on a white card", () => {
+    // accent.text is printed on --color-surface, so it has to be one of the
+    // two tokens palette.test.ts grades as text on a panel. A tileText value
+    // leaking into this field (text-white) would be invisible.
+    for (const topic of TOPICS) {
+      expect(["text-accent", "text-action"]).toContain(topic.accent.text);
     }
   });
 

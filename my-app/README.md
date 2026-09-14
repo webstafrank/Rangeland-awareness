@@ -1,7 +1,8 @@
 # Rangeland Awareness
 
 Earth observation analysis for Kenya's rangelands. An analyst picks a topic,
-selects one area or several to compare, chooses a model, and runs it.
+then walks four steps, one screen each: the scope, the model, the areas, and a
+review before the run.
 
 Four topics: flood risk, drought monitoring, rangeland dynamics, food security
 assessment. Three models: Random Forest, XGBoost, Combined.
@@ -72,13 +73,18 @@ frozen.
 ```
 app/                      routes only, no business logic
   page.tsx                homepage, server component, four topic cards
-  topics/[topic]/         the workbench route, server component
+  topics/[topic]/         the four step routes, all server components
+    layout.tsx            the topic band, shared by every step
+    page.tsx              step 1, scope. The topic URL IS step one
+    model/page.tsx        step 2
+    areas/page.tsx        step 3, the only one carrying the map
+    review/page.tsx       step 4, review and run
   not-found.tsx           the 404, same design language as the homepage
   layout.tsx              shell, header, footer, skip link
   globals.css             the whole design system, as one Tailwind @theme block
 components/               UI. See components/README.md
   map/                    everything that touches Leaflet
-  topic/                  the request bands and their controls
+  topic/                  the four steps, the rail, and their controls
 lib/
   analysis/               topics, models, the AOI state machine, the request
                           contract, URL state. See lib/analysis/README.md
@@ -134,7 +140,19 @@ check twice, under a light and a dark OS preference, and asserts the same light
 result both times, plus that no `prefers-color-scheme` rule ships in the parsed
 stylesheets.
 
-**The topic route is server-rendered on demand, not prerendered.** It reads a
+**The flow is four routes, not four sections of one page.** Each decision gets
+the screen to itself, and a rail across the top keeps the other three one click
+away. The registry in `lib/analysis/steps.ts` is the single description of that
+sequence: `steps.test.ts` reads `app/topics/[topic]/` off disk and fails if a
+step has no route, or a route has no step. The selection itself lives in
+`lib/analysis/selection-store.ts`, an external store read through
+`useSyncExternalStore`, which is what lets it survive a navigation between
+steps and a full reload without a hydration mismatch. A context in the layout
+was the obvious alternative and was rejected: a layout cannot read
+`searchParams`, so a bookmarked configuration could only be applied in an
+effect, which is a flash of the defaults on every shared link.
+
+**The topic routes are server-rendered on demand, not prerendered.** They read a
 search param, and outside partial prerendering you cannot read one and keep a
 static shell. The trade is deliberate: a correct 404 status, no flash of default
 choices, and the query validated on the server before first paint, against
@@ -143,9 +161,20 @@ reasoning is in `app/topics/[topic]/page.tsx`.
 
 **Type and model live in the URL**, areas do not.
 `/topics/drought-monitoring?type=comparison&model=combined` is bookmarkable, so
-a repeat user starts two decisions ahead. Areas are excluded deliberately: a
-drawn polygon is kilobytes, and it gives a shared link the right meaning, "my
-configuration, your areas".
+a repeat user starts two decisions ahead, and every step link threads the query
+through so Continue can never silently reset it. Areas are excluded
+deliberately: a drawn polygon is kilobytes, and the exclusion gives a shared
+link the right meaning, "my configuration, your areas". Areas persist in
+`sessionStorage` instead, keyed to the topic, so a reload keeps them and
+opening a different topic does not inherit them.
+
+**The palette is four colours: navy blue, white, red and dark blue.** Navy is
+what the app is built out of (links, selected state, the focus ring, the chrome
+bands); white is the panel tier; red is reserved for the single control that
+advances the flow, which is why Continue and Run are red and nothing else is;
+dark blue is navy under pressure, and the ground of the header, footer and
+hero. `lib/theme/palette.ts` is the source and `lib/theme/__tests__/palette.test.ts`
+grades all 61 declared pairs and fails if `app/globals.css` disagrees with it.
 
 ## Known gaps
 

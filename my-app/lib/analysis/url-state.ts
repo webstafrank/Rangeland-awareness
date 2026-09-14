@@ -59,6 +59,31 @@ export function readUrlSelection(
 }
 
 /**
+ * The same read, from Next's resolved `searchParams` shape.
+ *
+ * Next hands a param that appeared twice as an array, and every step route
+ * needs the same flattening before `readUrlSelection` can look at it. Four
+ * copies of that dance is four chances for one of them to be written slightly
+ * differently, so it lives here beside the parser it feeds.
+ *
+ * The first occurrence wins on a repeat, which is the same rule
+ * URLSearchParams.get follows, so `?model=a&model=b` means the same thing
+ * whichever side reads it.
+ */
+export function readSearchParamSelection(
+  query: Readonly<Record<string, string | string[] | undefined>>,
+): UrlSelection {
+  return readUrlSelection(
+    Object.fromEntries(
+      Object.entries(query).map(([key, value]) => [
+        key,
+        Array.isArray(value) ? value[0] : value,
+      ]),
+    ),
+  );
+}
+
+/**
  * The query string for a selection, or "" when it is all defaults.
  *
  * Defaults are omitted so a fresh page keeps a clean URL and only a

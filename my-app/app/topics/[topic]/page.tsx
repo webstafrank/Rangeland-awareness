@@ -1,16 +1,21 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { TOPICS, getTopic } from "@/lib/analysis/topics";
-import { readUrlSelection } from "@/lib/analysis/url-state";
-import TopicWorkbench from "@/components/topic/TopicWorkbench";
+import { readSearchParamSelection } from "@/lib/analysis/url-state";
+import ScopeStep from "@/components/topic/ScopeStep";
 
 /**
- * The topic analysis route. A server component: it resolves the slug, 404s on
- * anything unknown, and hands the topic to the client workbench.
+ * Step 1 of the analysis flow, and the topic's own URL.
+ *
+ * The first step has no path segment of its own (see lib/analysis/steps.ts),
+ * so a link from the homepage lands directly on the first decision instead of
+ * on a redirect. The remaining three are sibling routes under this one, and
+ * they all share app/topics/[topic]/layout.tsx.
  *
  * Nothing here imports Leaflet, directly or transitively. The map is loaded
- * with ssr:false from inside a client component, which is the only legal place
- * for it, so this route renders on the server without touching `window`.
+ * with ssr:false from inside the areas step, which is the only legal place for
+ * it, so every route in this segment renders on the server without touching
+ * `window`.
  */
 
 /**
@@ -65,7 +70,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function TopicPage({
+export default async function ScopePage({
   params,
   searchParams,
 }: PageProps<"/topics/[topic]">) {
@@ -77,15 +82,7 @@ export default async function TopicPage({
   // correct on the first paint rather than flashing the defaults and then
   // correcting itself in an effect. Unrecognised values are dropped, not
   // treated as errors: a stale bookmark should still open the page.
-  const query = await searchParams;
-  const initial = readUrlSelection(
-    Object.fromEntries(
-      Object.entries(query).map(([key, value]) => [
-        key,
-        Array.isArray(value) ? value[0] : value,
-      ]),
-    ),
-  );
+  const initial = readSearchParamSelection(await searchParams);
 
-  return <TopicWorkbench topic={topic} initial={initial} />;
+  return <ScopeStep topic={topic} initial={initial} />;
 }

@@ -186,6 +186,31 @@ describe("the palette module is coherent", () => {
     ).toBeLessThan(4.5);
   });
 
+  it("keeps the action red clear of the danger red", () => {
+    // Note 4 in palette.ts, as an assertion rather than a paragraph. The brand
+    // red means "go": Continue, Run, the current step. An upload failure
+    // painted in the colour of the button the reader just pressed is a design
+    // bug, and it is the kind that arrives as a one-hex "tidy up the reds"
+    // edit. 25 is well above the 10 the pixel budget needs and well below the
+    // 40.5 these two actually sit at, so it fails on a deliberate merge of the
+    // two and not on a retune of either.
+    const value = (name: string) =>
+      parseColor(
+        (PALETTE.find((t) => t.name === name) as { value: string }).value,
+      ) as Rgb;
+    const action = value("--color-action");
+    const danger = value("--color-danger");
+    const distance = Math.hypot(
+      action.r - danger.r,
+      action.g - danger.g,
+      action.b - danger.b,
+    );
+    expect(
+      distance,
+      "the forward action and a failure must not be the same red",
+    ).toBeGreaterThanOrEqual(25);
+  });
+
   it("keeps the strong edge darker than the default edge", () => {
     // The ordering guard. Contrast ratios cannot catch these two being
     // swapped: both would still clear BORDER_FLOOR, the grade sheet would be

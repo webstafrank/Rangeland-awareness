@@ -16,6 +16,8 @@ dispatch its actions; they do not own any of these rules.
 | `selection.ts` | The area-of-interest state machine: add, remove, cap, focus, analysis-type transitions, undo. |
 | `request.ts` | The `AnalysisRequest` contract crossing to a future model backend, and its validator. |
 | `url-state.ts` | Reading and writing the `type` and `model` query params. |
+| `steps.ts` | The four steps of the flow: their order, their route segments, the href builder, and what unlocks the last one. |
+| `selection-store.ts` | The selection shared across the four step routes: persistence, subscription, and the URL seed. The only file here that touches a browser API, and it does so behind pure serialise/parse functions. |
 
 ## The registries are the single source of truth
 
@@ -107,6 +109,72 @@ Unrecognised values are dropped rather than rejected, so a stale bookmark from
 before a rename still opens the page on the defaults. Defaults are omitted when
 writing, so a fresh page keeps a clean URL.
 
+Every step link threads the query through (`stepHref` in `steps.ts`), because
+the split made "Continue" a navigation: a link that dropped `?type=` would put
+the analyst back on the default scope one step later, silently.
+
+## The steps
+
+`steps.ts` is the single description of the flow. Two properties are worth
+naming:
+
+**Step one has no segment of its own.** `/topics/flood-risk` IS the scope step,
+so a link from the homepage lands on the first decision rather than on a
+redirect.
+
+**Reachability is not a route guard.** `furthestReachableStep` is what greys a
+rail entry and what disables Continue, but typing `/topics/flood-risk/review`
+with nothing selected still renders the review step, with the gap named and Run
+disabled for a stated reason. A redirect would discard the address the analyst
+typed and explain nothing.
+
+`steps.test.ts` reads `app/topics/[topic]/` off the filesystem and compares it
+to this registry in both directions, because the registry and the route tree
+are two descriptions of one thing and nothing at runtime checks that they
+agree: a renamed segment would otherwise produce links that 404 only when a
+human clicks one.
+
+## The shared selection
+
+`selection-store.ts` holds the state the four routes share. It runs this
+directory's own reducer, so no rule moved: it adds subscription, `sessionStorage`
+persistence and the URL seed, and nothing else.
+
+Four of its decisions are load-bearing:
+
+**Persistence drops the transient fields.** `focus` is a one-shot map
+instruction, and replaying it on reload would yank the viewport for no reason.
+`notice` and `undo` describe something that just happened, and a notice
+restored an hour later is a message about an event the reader has no memory of.
+
+**A payload for a different topic is refused, not migrated.** Areas are chosen
+against a question, so carrying them into another topic would silently answer
+one the analyst did not ask.
+
+**One broken area rejects the whole payload.** A truncated read that restored
+three of five areas would be a comparison quietly answering a different
+question, which is worse than starting clean.
+
+**Restored ids continue from the highest suffix, not from the count.** Ids are
+monotonic and never reused, so removing the first of three leaves a gap:
+`areas.length + 1` lands back inside the range in use, the next area gets an id
+an existing one already has, and pressing Remove on either row deletes both.
+React logs nothing, because the duplicate keys are in the reducer's array
+rather than in one render's children. `selection-store.dom.test.ts` restores a
+gapped set and asserts both halves.
+
+**One storage key per topic.** A single key made the four topics take turns:
+opening a second topic and touching any control overwrote the first topic's
+areas, permanently and silently, and drawn polygons cannot be re-derived.
+
+**The URL wins over storage, through the reducer.** A shared link means "my
+configuration, your areas", so the sender's type and model override a session
+already in progress. Narrowing the scope that way goes through
+`setAnalysisType` rather than being assigned, so a link to `?type=single`
+arriving at a five-area selection drops four areas *with* the notice and the
+undo, exactly as clicking the radio would. Assigning the field directly is the
+silent-truncation bug this directory exists to prevent, one layer up.
+
 ## Tests
 
 ```
@@ -114,6 +182,15 @@ npm test                 # the whole gate lane
 npx vitest run lib/analysis
 ```
 
-Gate lane only: deterministic, node environment, no DOM, budgeted under 2s for
-the whole suite. Browser behaviour belongs in the Playwright journey eval, not
-here.
+Node lane by default: deterministic, no DOM, no globals, budgeted under 2s.
+
+One exception, and it is marked in the filename. `selection-store.dom.test.ts`
+runs in the **dom** lane, because the stateful half of the store needs a real
+`sessionStorage` and a module registry it can reset between tests. That half is
+where the store's first two bugs lived — a shared storage key and a colliding
+`nextId` — and neither was reachable from a pure test, so "the pure half is
+tested" was not good enough. The `.dom.` infix is the opt-in; `vitest.config.mts`
+routes it and excludes it from the node lane, which shares one worker between
+files and would carry a storage global into the pure suites beside it.
+
+Browser behaviour still belongs in the Playwright journey eval, not here.

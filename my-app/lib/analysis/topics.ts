@@ -34,17 +34,25 @@ export interface Topic {
   glyph: string;
   /**
    * Tailwind accent classes, kept here so topic colour is data, not scattered
-   * CSS. Muted on purpose: these are wayfinding, so a reader can tell the four
-   * topics apart at a glance, not branding. The app has one light theme, so
-   * each value is a single class with no variant.
+   * CSS. These are wayfinding, so a reader can tell the four topics apart at a
+   * glance, not branding. The app has one light theme, so each value is a
+   * single class with no variant.
+   *
+   * The palette is four colours, which is fewer than the six a "one hue per
+   * topic" scheme would need, so the four topics are separated by TREATMENT as
+   * well as by hue: navy solid, red solid, navy on its wash, red on its wash.
+   * Two axes, four distinct tiles, and no fifth colour smuggled in to make the
+   * arithmetic work.
    */
   accent: {
-    /** Text colour for the topic name and its icon glyph. */
+    /** Text colour for the topic name. Always a token that passes AA on a panel. */
     text: string;
-    /** Subtle fill behind the icon glyph. */
+    /** Fill behind the icon glyph. Distinct per topic; a test asserts it. */
     tile: string;
     /** Border for the icon tile and the card's hover state. */
     border: string;
+    /** Glyph colour, which has to invert on the two solid tiles. */
+    tileText: string;
   };
 }
 
@@ -58,9 +66,10 @@ export const TOPICS: readonly Topic[] = [
       "A per-pixel flood susceptibility score with the contributing drivers ranked.",
     inputs: ["Rainfall", "Terrain and slope", "Drainage density", "Soil moisture"],
     accent: {
-      text: "text-sky-800",
-      tile: "bg-sky-50",
-      border: "border-sky-200",
+      text: "text-accent",
+      tile: "bg-accent",
+      border: "border-accent",
+      tileText: "text-white",
     },
   },
   {
@@ -77,9 +86,10 @@ export const TOPICS: readonly Topic[] = [
       "Evapotranspiration",
     ],
     accent: {
-      text: "text-amber-800",
-      tile: "bg-amber-50",
-      border: "border-amber-200",
+      text: "text-action",
+      tile: "bg-action",
+      border: "border-action",
+      tileText: "text-white",
     },
   },
   {
@@ -96,9 +106,10 @@ export const TOPICS: readonly Topic[] = [
       "Rainfall seasonality",
     ],
     accent: {
-      text: "text-emerald-800",
-      tile: "bg-emerald-50",
-      border: "border-emerald-200",
+      text: "text-accent",
+      tile: "bg-accent-soft",
+      border: "border-accent-border",
+      tileText: "text-accent",
     },
   },
   {
@@ -115,9 +126,10 @@ export const TOPICS: readonly Topic[] = [
       "Rainfall forecast",
     ],
     accent: {
-      text: "text-rose-800",
-      tile: "bg-rose-50",
-      border: "border-rose-200",
+      text: "text-action",
+      tile: "bg-action-soft",
+      border: "border-action-border",
+      tileText: "text-action",
     },
   },
 ];

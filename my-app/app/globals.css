@@ -9,49 +9,85 @@
  * at the bottom of this file and `bg-surface` / `text-surface` /
  * `border-surface` in markup. One declaration, two uses.
  *
- * The previous version declared every value twice: a `:root` block of raw
- * variables plus an `@theme inline` block re-mapping each one. That shape is
- * only needed when a token's value changes at runtime, which is what a second
- * theme would require. This app commits to one light theme, so the indirection
- * bought nothing and cost about sixty lines that could drift apart.
+ * Four colours, and the discipline is in which one does what:
+ *
+ *   navy blue   (--color-accent)        what the app is built OUT of: links,
+ *                                       selected state, the focus ring, the
+ *                                       chrome bands, drawn geometry.
+ *   white       (--color-surface)       the raised panel tier.
+ *   red         (--color-action)        forward, and brand. Precisely: the
+ *                                       control that advances the flow
+ *                                       (Continue, Run), the current step
+ *                                       marker, the brand rule and logo mark,
+ *                                       and two of the four topic identities.
+ *                                       Never a SECOND interactive colour: no
+ *                                       red secondary button, no red link,
+ *                                       nothing red that a navy control could
+ *                                       have been. That restraint, not
+ *                                       absolute scarcity, is what keeps it
+ *                                       reading as "this way forward".
+ *   dark blue   (--color-accent-hover)  navy under pressure: hover, and the
+ *                                       ground of the header, footer and hero.
+ *
+ * lib/theme/palette.ts declares the same tokens with their measured contrast
+ * notes, and lib/theme/__tests__/palette.test.ts fails if this file and that
+ * one ever disagree.
  */
 @theme {
-  /* Neutrals. One ramp, used for every surface and every piece of text. */
-  --color-page: #f7f8fa;
+  /* Neutrals. One blue-cast ramp, used for every surface and every piece of text. */
+  --color-page: #f3f6fb;
   --color-surface: #ffffff;
-  --color-sunken: #f2f4f7;
-  --color-edge: #e4e7ec;
-  --color-edge-strong: #d0d5dd;
+  --color-sunken: #e7edf7;
+  --color-edge: #d5dfee;
+  --color-edge-strong: #a9bcd8;
 
-  --color-ink: #101828;
-  --color-ink-muted: #475467;
-  --color-ink-faint: #667085;
+  --color-ink: #07162f;
+  --color-ink-muted: #3b5175;
+  --color-ink-faint: #55688c;
+  /* Secondary text inside a chrome band. The three tiers above are graded
+     against light surfaces and every one of them is illegible on dark blue. */
+  --color-on-chrome-muted: #aac2e2;
 
-  /* One accent, for primary actions and selected state. */
-  --color-accent: #0f766e;
-  --color-accent-hover: #115e59;
-  --color-accent-soft: #f0fdfa;
-  --color-accent-border: #5eead4;
+  /* Navy and dark blue. Structure, selection, focus. */
+  --color-accent: #10316b;
+  --color-accent-hover: #071c45;
+  --color-accent-soft: #eaf1fc;
+  --color-accent-border: #9cb9e4;
 
-  /* Status. Upload failures and selection notices only. */
-  --color-danger: #b42318;
-  --color-danger-soft: #fef3f2;
-  --color-danger-border: #fda29b;
-  --color-warn: #b54708;
-  --color-warn-soft: #fffaeb;
-  --color-warn-border: #fec84b;
+  /* Red. Forward and brand: see the header comment for exactly where. */
+  --color-action: #c8102e;
+  --color-action-hover: #9e0a23;
+  --color-action-soft: #fdecef;
+  --color-action-border: #f3a9b3;
 
-  /* Elevation. Two steps, both restrained: this is a data tool, not a deck. */
-  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  /* Status. Upload failures and selection notices only. A deeper, browner red
+     than the action red on purpose: see palette.ts, note 4. */
+  --color-danger: #a4161a;
+  --color-danger-soft: #fdeceb;
+  --color-danger-border: #eda19d;
+  --color-warn: #8a5200;
+  --color-warn-soft: #fdf6e3;
+  --color-warn-border: #e0b04a;
+
+  /* Elevation. Three steps, all restrained: this is a data tool, not a deck.
+     Tinted navy rather than neutral black, so a shadow belongs to the palette
+     instead of greying it. */
+  --shadow-card: 0 1px 2px 0 rgb(7 22 47 / 0.05);
   --shadow-raised:
-    0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+    0 4px 10px -3px rgb(7 22 47 / 0.1), 0 2px 4px -2px rgb(7 22 47 / 0.06);
   /* Used by the sticky action bar, which casts upward. */
-  --shadow-lifted: 0 -2px 8px -4px rgb(16 24 40 / 0.08);
+  --shadow-lifted: 0 -2px 10px -4px rgb(7 22 47 / 0.1);
 
   /* The page gutter and the content ceiling, so every band agrees. */
   --spacing-gutter: 1.5rem;
   --spacing-gutter-lg: 2.5rem;
   --container-band: 1440px;
+  /*
+   * One step's reading width. The wizard is a sequence of decisions, not a
+   * dashboard, so a step's copy and controls are capped well short of the
+   * band. The areas step opts back out to `band`, because a map wants room.
+   */
+  --container-step: 980px;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -80,7 +116,7 @@
    *
    * One name is deliberately absent: `--color-edge`. design/tokens.ts
    * defines a light-ground hairline of its own (#e8eef7), but that name is
-   * already the app's chrome edge above (#e4e7ec), and the app's Leaflet
+   * already the app's chrome edge above (#d5dfee), and the app's Leaflet
    * rules read it. Two declarations of one custom property in a single
    * @theme block is a silent last-wins, so the chart module gives up the
    * name it never read back through CSS and keeps its TS export.
@@ -165,7 +201,7 @@
 }
 
 /*
- * The alternating bands, and the one place the dark ground is legitimate.
+ * The bands, and the places a dark ground is legitimate.
  *
  * A band sets BOTH its background and its ink, so a child never has to know
  * which ground it is standing on. That pairing is the whole point: the auth
@@ -203,6 +239,20 @@
   color: var(--color-ink-light-primary);
 }
 
+/*
+ * The app chrome's own dark band, on the CHROME tokens rather than the chart
+ * ones.
+ *
+ * `band-navy` above belongs to design/tokens.ts and is asserted against it.
+ * The header, the footer and the homepage hero are app chrome, so they have to
+ * move when the chrome accent moves; borrowing a data-viz colour that happens
+ * to look similar today is exactly how the two namespaces drift into one.
+ */
+@utility band-chrome {
+  background: var(--color-accent-hover);
+  color: #ffffff;
+}
+
 /* Scarlet hairline used to open a band. Decorative, never load-bearing. */
 @utility rule-scarlet {
   background: linear-gradient(
@@ -210,6 +260,22 @@
     var(--color-scarlet-mark) 0%,
     var(--color-scarlet-mark) 22%,
     transparent 22%
+  );
+}
+
+/*
+ * The rule that opens a chrome band: red for the first fifth, navy for the
+ * rest. Same idea as rule-scarlet on the chrome tokens, used as a 3px strip
+ * under the header and above the footer, so the four-colour system states
+ * itself before a single word is read. Decorative, never load-bearing.
+ */
+@utility rule-action {
+  background: linear-gradient(
+    90deg,
+    var(--color-action) 0%,
+    var(--color-action) 18%,
+    var(--color-accent) 18%,
+    var(--color-accent) 100%
   );
 }
 
@@ -244,6 +310,16 @@ body {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 3px;
+}
+
+/*
+ * Inside a chrome band the navy ring is invisible against the navy ground, so
+ * it inverts to white there. Scoped to the band rather than made global: the
+ * light page keeps the navy ring the palette actually grades, and only the
+ * region that painted itself dark pays for it.
+ */
+.band-chrome :focus-visible {
+  outline-color: #ffffff;
 }
 
 /* Respect a user who has asked for less motion. A map pans and zooms a lot. */
@@ -354,5 +430,5 @@ body {
 .leaflet-container .marker-icon-middle {
   background: var(--color-surface);
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px rgb(16 24 40 / 0.35);
+  box-shadow: 0 0 0 1px rgb(7 22 47 / 0.35);
 }
