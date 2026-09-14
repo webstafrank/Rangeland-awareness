@@ -10,6 +10,10 @@
  *
  * Rubric T8: the reason is printed on the page, not hidden in a tooltip, so it
  * is available to a screen reader and to anyone who never hovers.
+ *
+ * It renders in the review step's footer, in the slot the other three steps
+ * give to Continue, which is why it carries the same red: one colour for
+ * "forward", all the way through the flow.
  */
 
 import { blockingReason, type ValidationResult } from "@/lib/analysis/request";
@@ -37,7 +41,10 @@ export default function RunAction({ validation, onRun }: RunActionProps) {
         type="button"
         disabled={!validation.ok}
         onClick={onRun}
-        className="order-1 rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-faint disabled:shadow-none lg:order-2"
+        // Red, like Continue: Run is the last step of the same forward
+        // movement, and painting it navy would make the only irreversible
+        // control on the site look like a secondary one.
+        className="order-1 rounded-lg bg-action px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-faint disabled:shadow-none lg:order-2"
       >
         Run analysis
       </button>

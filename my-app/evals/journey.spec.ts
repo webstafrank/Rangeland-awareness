@@ -11,6 +11,7 @@ import {
 } from "../lib/geo/__tests__/fixtures/make-shapefile";
 import { TOPICS } from "../lib/analysis/topics";
 import { MODELS } from "../lib/analysis/models";
+import { STEPS, type StepId } from "../lib/analysis/steps";
 
 /**
  * The journey eval.
@@ -19,6 +20,13 @@ import { MODELS } from "../lib/analysis/models";
  * gate lane (vitest) proves the pure rules; this lane proves the three area
  * selection methods actually work in a browser, that a selection moves the
  * viewport, and that the whole flow fits the stated budget.
+ *
+ * Rewritten when the flow was split across four routes. The rubric did not
+ * change, so neither did the test ids: T1 to T12 still mean what they meant,
+ * and each one now runs against whichever step owns that control. What is new
+ * is the "one flow, four URLs" block, because the split introduced a failure
+ * the single page could not have — a selection that does not survive a
+ * navigation — and that is exactly the kind of thing a unit test cannot see.
  *
  * Every locator here is a role or an accessible name, not a CSS class, so this
  * file is also the DOM contract: it fails if a control loses its label, which
@@ -157,10 +165,36 @@ const selectedAreas = (page: Page) =>
 
 const areaRows = (page: Page) => selectedAreas(page).getByRole("listitem");
 
-async function gotoTopic(page: Page, slug: string) {
-  await page.goto(`/topics/${slug}`);
-  // The map is dynamically imported, so wait for it rather than for load.
-  await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+/** The rail's link to a step, which is how a user moves backwards. */
+const railLink = (page: Page, label: string | RegExp) =>
+  page.getByRole("navigation", { name: /analysis steps/i }).getByRole("link", {
+    name: typeof label === "string" ? new RegExp(label, "i") : label,
+  });
+
+/** The forward control, whether it is a link or a refusing disabled button. */
+const continueControl = (page: Page) => page.getByTestId("step-continue");
+
+/** The URL of a step, built the same way the app builds it. */
+function stepPath(slug: string, step: StepId, query = ""): string {
+  const segment = STEPS.find((s) => s.id === step)?.segment ?? "";
+  const base = `/topics/${slug}`;
+  return `${segment === "" ? base : `${base}/${segment}`}${query}`;
+}
+
+/**
+ * Open one step directly.
+ *
+ * Waits on the thing that proves the step rendered: the map for areas, the
+ * rail for everything else. Waiting on `load` would pass before the
+ * dynamically imported map exists.
+ */
+async function gotoStep(page: Page, slug: string, step: StepId, query = "") {
+  await page.goto(stepPath(slug, step, query));
+  if (step === "areas") {
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+  } else {
+    await expect(page.getByTestId("step-rail")).toBeVisible();
+  }
 }
 
 /* ------------------------------------------------------------------ homepage */
@@ -193,6 +227,19 @@ test.describe("homepage", () => {
     expect(problems).toEqual([]);
   });
 
+  test("H2: the homepage describes the same four steps the app walks", async ({
+    page,
+  }) => {
+    // Read from the registry, so this fails if the marketing copy and the
+    // routes ever describe different flows.
+    await page.goto("/");
+    for (const step of STEPS) {
+      await expect(
+        page.getByRole("heading", { level: 3, name: step.label, exact: true }),
+      ).toBeVisible();
+    }
+  });
+
   test("H4: every topic is keyboard reachable and activates on Enter", async ({
     page,
   }) => {
@@ -201,7 +248,7 @@ test.describe("homepage", () => {
     const reached: string[] = [];
     // Walk the tab order and collect the topic links found, rather than
     // assuming a fixed number of tab stops before them.
-    for (let i = 0; i < 30; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       await page.keyboard.press("Tab");
       const href = await page.evaluate(
         () => document.activeElement?.getAttribute("href") ?? "",
@@ -228,14 +275,285 @@ test.describe("homepage", () => {
   });
 });
 
-/* ----------------------------------------------------------------- topic page */
+/* ------------------------------------------------------- one flow, four URLs */
 
-test.describe("topic page", () => {
+test.describe("the step flow", () => {
+  test("every step is a real URL, and the rail shows where you are", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+
+    for (const step of STEPS) {
+      await gotoStep(page, "flood-risk", step.id);
+      await expect(page).toHaveURL(
+        new RegExp(`${stepPath("flood-risk", step.id).replace(/\//g, "\\/")}$`),
+      );
+
+      const rail = page.getByRole("navigation", { name: /analysis steps/i });
+      await expect(rail).toBeVisible();
+      // All four are always listed, so the flow's length is never a surprise.
+      await expect(rail.getByRole("listitem")).toHaveCount(STEPS.length);
+
+      // The current one is marked for assistive technology, not only in red.
+      await expect(rail.locator("[aria-current='step']")).toContainText(
+        step.label,
+      );
+
+      // The step says what it is asking.
+      await expect(
+        page.getByRole("heading", { level: 2, name: step.title }),
+      ).toBeVisible();
+    }
+
+    expect(problems).toEqual([]);
+  });
+
+  test("review is locked until the areas requirement is met, then unlocks", async ({
+    page,
+  }) => {
+    await gotoStep(page, "flood-risk", "scope");
+
+    const rail = page.getByRole("navigation", { name: /analysis steps/i });
+    // Not a link while it cannot be used, and said out loud rather than
+    // implied by a grey.
+    await expect(railLink(page, "Review")).toHaveCount(0);
+    await expect(rail.getByText(/not yet available/i)).toBeVisible();
+
+    await gotoStep(page, "flood-risk", "areas");
+    await clickMap(page);
+    await expect(areaRows(page)).toHaveCount(1);
+
+    await expect(railLink(page, "Review")).toHaveAttribute(
+      "href",
+      "/topics/flood-risk/review",
+    );
+  });
+
+  test("Continue refuses with a stated reason until the step is satisfied", async ({
+    page,
+  }) => {
+    await gotoStep(page, "flood-risk", "areas");
+
+    await expect(continueControl(page)).toBeDisabled();
+    await expect(page.getByTestId("step-blocked-reason")).toContainText(
+      /select an area|click the map/i,
+    );
+
+    await clickMap(page);
+    await expect(areaRows(page)).toHaveCount(1);
+
+    // Now a real link, not a button: middle-clickable, and visible in the
+    // status bar like any other navigation.
+    await expect(continueControl(page)).toHaveAttribute(
+      "href",
+      "/topics/flood-risk/review",
+    );
+  });
+
+  test("the selection survives every navigation between steps", async ({
+    page,
+  }) => {
+    // The failure the split introduced, and the one a unit test cannot see.
+    const problems = watchConsole(page);
+
+    await gotoStep(page, "drought-monitoring", "scope");
+    await page.getByRole("radio", { name: /multiple location/i }).click();
+
+    await continueControl(page).click();
+    await expect(page).toHaveURL(/\/model/);
+    await page.getByRole("radio", { name: /combined model/i }).click();
+
+    await continueControl(page).click();
+    await expect(page).toHaveURL(/\/areas/);
+    await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
+    await expect(areaRows(page)).toHaveCount(5);
+
+    await continueControl(page).click();
+    await expect(page).toHaveURL(/\/review/);
+
+    // Every decision is still there, three navigations later.
+    const summary = page.getByTestId("review-summary");
+    await expect(summary).toContainText("Drought monitoring");
+    await expect(summary).toContainText("Multiple location comparison");
+    await expect(summary).toContainText("Combined model");
+    await expect(summary).toContainText("5 areas");
+
+    // And walking backwards finds the controls still set, not reset.
+    await railLink(page, "Scope").click();
+    await expect(
+      page.getByRole("radio", { name: /multiple location/i }),
+    ).toBeChecked();
+
+    expect(problems).toEqual([]);
+  });
+
+  test("the selection survives a full reload of a step", async ({ page }) => {
+    await gotoStep(page, "food-security", "areas");
+    await page.getByLabel(/upload shapefile/i).setInputFiles(singleCounty);
+    await expect(areaRows(page)).toHaveCount(1);
+
+    await page.reload();
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+
+    // Restored from sessionStorage, with its label and its geometry: the row
+    // still names the county the .dbf supplied.
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(areaRows(page).first()).toContainText("Isiolo");
+    // And drawn on the map, not merely listed.
+    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(1);
+  });
+
+  test("two topics keep separate selections, and neither eats the other", async ({
+    page,
+  }) => {
+    // Areas answer a question, so carrying them to a different topic would
+    // silently answer one the analyst did not ask. The other half matters just
+    // as much and is easier to get wrong: opening a second topic to check
+    // something must not destroy the first topic's work. One storage key for
+    // the whole app would do exactly that, with nothing reporting the loss.
+    await gotoStep(page, "flood-risk", "areas");
+    await page.getByLabel(/upload shapefile/i).setInputFiles(singleCounty);
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(areaRows(page).first()).toContainText("Isiolo");
+
+    await gotoStep(page, "rangeland-dynamics", "areas");
+    await expect(areaRows(page)).toHaveCount(0);
+
+    // Select something else here, which is what would overwrite a shared key.
+    await clickMap(page);
+    await expect(areaRows(page)).toHaveCount(1);
+
+    await gotoStep(page, "flood-risk", "areas");
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(areaRows(page).first()).toContainText("Isiolo");
+  });
+
+  test("review is reachable directly, and explains what is missing", async ({
+    page,
+  }) => {
+    // A redirect would throw away the address the analyst typed and explain
+    // nothing. The page renders, with the gap named.
+    await gotoStep(page, "flood-risk", "review");
+
+    await expect(page.getByTestId("review-summary")).toContainText(
+      /nothing selected yet/i,
+    );
+    await expect(page.getByRole("button", { name: /run analysis/i })).toBeDisabled();
+    await expect(page.getByTestId("run-blocked-reason")).toContainText(
+      /select an area|click the map/i,
+    );
+  });
+
+  test("Start over clears the topic and returns to step one", async ({ page }) => {
+    await gotoStep(page, "drought-monitoring", "scope");
+    await page.getByRole("radio", { name: /multiple location/i }).click();
+    await gotoStep(page, "drought-monitoring", "model");
+    await page.getByRole("radio", { name: /xgboost/i }).click();
+    await gotoStep(page, "drought-monitoring", "areas");
+    await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
+    await expect(areaRows(page)).toHaveCount(5);
+
+    await continueControl(page).click();
+    await page.getByTestId("start-over").click();
+
+    // Back on step one, on the defaults, with nothing selected.
+    await expect(page).toHaveURL(/\/topics\/drought-monitoring$/);
+    await expect(page.getByRole("radio", { name: /single location/i })).toBeChecked();
+    await expect(page.getByTestId("request-receipt")).toContainText("0 areas");
+    await expect(page.getByTestId("request-receipt")).toContainText(
+      "Random Forest",
+    );
+
+    await gotoStep(page, "drought-monitoring", "areas");
+    await expect(areaRows(page)).toHaveCount(0);
+  });
+
+  test("Start over clears only the topic it was pressed on", async ({ page }) => {
+    await gotoStep(page, "flood-risk", "areas");
+    await page.getByLabel(/upload shapefile/i).setInputFiles(singleCounty);
+    await expect(areaRows(page)).toHaveCount(1);
+
+    await gotoStep(page, "food-security", "areas");
+    await clickMap(page);
+    await expect(areaRows(page)).toHaveCount(1);
+    await continueControl(page).click();
+    await page.getByTestId("start-over").click();
+    await expect(page).toHaveURL(/\/topics\/food-security$/);
+
+    // Flood risk is untouched.
+    await gotoStep(page, "flood-risk", "areas");
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(areaRows(page).first()).toContainText("Isiolo");
+  });
+
+  test("Back lands on the right step, with the configuration intact", async ({
+    page,
+  }) => {
+    /*
+     * The step split put Next's own history writer and this app's URL sync on
+     * the same history entry, and getting that wrong is invisible everywhere
+     * except here. Writing the URL with a null history state discarded Next's
+     * route tree: the entry then described one route and carried another's
+     * markers, so pressing Back changed the address to /topics/flood-risk
+     * while the MODEL step stayed on screen. Every unit test passed through
+     * all of it.
+     *
+     * So this asserts all three at once: the address, the step actually
+     * rendered, and the choice.
+     */
+    await gotoStep(page, "flood-risk", "scope");
+    await railLink(page, "Model").click();
+    await page.getByRole("radio", { name: /xgboost/i }).click();
+    await expect(page).toHaveURL(/\/model\?model=xgboost/);
+
+    await page.goBack();
+
+    // The step the URL names is the step on screen.
+    await expect(page).toHaveURL(/\/topics\/flood-risk\?/);
+    await expect(
+      page.getByRole("heading", { level: 2, name: /what is the scope/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("radio", { name: /single location/i })).toBeChecked();
+
+    // And the configuration survived, in the store and in the address bar.
+    await expect(page.getByTestId("request-receipt")).toContainText("XGBoost");
+    await expect(page).toHaveURL(/model=xgboost/);
+    await expect(continueControl(page)).toHaveAttribute(
+      "href",
+      "/topics/flood-risk/model?model=xgboost",
+    );
+  });
+
+  test("every step restates the whole request in the bar", async ({ page }) => {
+    await gotoStep(page, "food-security", "scope");
+    await page.getByRole("radio", { name: /multiple location/i }).click();
+    await gotoStep(page, "food-security", "model");
+    await page.getByRole("radio", { name: /xgboost/i }).click();
+    await gotoStep(page, "food-security", "areas");
+    await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
+    await expect(areaRows(page)).toHaveCount(5);
+
+    // The receipt is what replaces "scroll up to check": the other three
+    // decisions are on other URLs now.
+    for (const step of STEPS) {
+      await gotoStep(page, "food-security", step.id);
+      const receipt = page.getByTestId("request-receipt");
+      await expect(receipt).toContainText("Food security assessment");
+      await expect(receipt).toContainText("Multiple location comparison");
+      await expect(receipt).toContainText("XGBoost");
+      await expect(receipt).toContainText("5 areas");
+    }
+  });
+});
+
+/* ----------------------------------------------------------------- the steps */
+
+test.describe("topic steps", () => {
   test("T1: every topic slug is a real, reloadable URL titled with its topic", async ({
     page,
   }) => {
     for (const topic of TOPICS) {
-      await gotoTopic(page, topic.slug);
+      await gotoStep(page, topic.slug, "scope");
       await expect(page.getByRole("heading", { level: 1 })).toContainText(
         topic.name,
       );
@@ -262,25 +580,41 @@ test.describe("topic page", () => {
     }
   });
 
-  test("T2: analysis type is selectable and changes what the page permits", async ({
+  test("C4: an unknown slug 404s on every step route, not just the first", async ({
+    page,
+  }) => {
+    // The layout resolves the topic too, so a bad slug must not render the
+    // topic band above a 404.
+    for (const step of STEPS.slice(1)) {
+      const response = await page.goto(
+        `/topics/not-a-real-topic/${step.segment}`,
+      );
+      expect(response?.status(), step.segment).toBe(404);
+    }
+  });
+
+  test("T2: analysis type is selectable and changes what the flow permits", async ({
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "drought-monitoring");
+    await gotoStep(page, "drought-monitoring", "scope");
 
     const single = page.getByRole("radio", { name: /single location/i });
     const comparison = page.getByRole("radio", { name: /multiple location/i });
     await expect(single).toBeChecked();
 
     // Single caps at one area: a second click replaces rather than accumulates.
+    await gotoStep(page, "drought-monitoring", "areas");
     await clickMap(page);
     await expect(areaRows(page)).toHaveCount(1);
     await clickMap(page, { x: 0.35, y: 0.6 });
     await expect(areaRows(page)).toHaveCount(1);
 
     // Comparison accumulates.
+    await gotoStep(page, "drought-monitoring", "scope");
     await comparison.click();
     await expect(comparison).toBeChecked();
+    await gotoStep(page, "drought-monitoring", "areas");
     await clickMap(page, { x: 0.65, y: 0.35 });
     await expect(areaRows(page)).toHaveCount(2);
 
@@ -290,7 +624,7 @@ test.describe("topic page", () => {
   test("T3: exactly one model is active, and all three are offered", async ({
     page,
   }) => {
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "model");
 
     for (const model of MODELS) {
       await expect(
@@ -311,7 +645,7 @@ test.describe("topic page", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "areas");
 
     const before = await readView(page);
     await clickMap(page);
@@ -335,7 +669,7 @@ test.describe("topic page", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "rangeland-dynamics");
+    await gotoStep(page, "rangeland-dynamics", "areas");
 
     const before = await readView(page);
     await page.getByRole("radio", { name: /draw a box/i }).click();
@@ -361,7 +695,7 @@ test.describe("topic page", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "food-security");
+    await gotoStep(page, "food-security", "areas");
 
     const before = await readView(page);
     await page.getByLabel(/upload shapefile/i).setInputFiles(singleCounty);
@@ -381,9 +715,10 @@ test.describe("topic page", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "drought-monitoring");
-
+    await gotoStep(page, "drought-monitoring", "scope");
     await page.getByRole("radio", { name: /multiple location/i }).click();
+
+    await gotoStep(page, "drought-monitoring", "areas");
     await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
 
     await expect(areaRows(page)).toHaveCount(5);
@@ -394,8 +729,9 @@ test.describe("topic page", () => {
   });
 
   test("T6: every selected area is individually removable", async ({ page }) => {
-    await gotoTopic(page, "drought-monitoring");
+    await gotoStep(page, "drought-monitoring", "scope");
     await page.getByRole("radio", { name: /multiple location/i }).click();
+    await gotoStep(page, "drought-monitoring", "areas");
     await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
     await expect(areaRows(page)).toHaveCount(5);
 
@@ -414,17 +750,21 @@ test.describe("topic page", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "flood-risk");
-
+    await gotoStep(page, "flood-risk", "scope");
     await page.getByRole("radio", { name: /multiple location/i }).click();
+
+    await gotoStep(page, "flood-risk", "areas");
     await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
     await expect(areaRows(page)).toHaveCount(5);
 
+    // Back to the step that owns the choice, which is where the consequence
+    // has to appear: the analyst's cursor is on the card they just clicked.
+    await railLink(page, "Scope").click();
     await page.getByRole("radio", { name: /single location/i }).click();
 
     // One area kept, and an explicit notice naming the loss. Silent truncation
     // is the failure this checks for.
-    await expect(areaRows(page)).toHaveCount(1);
+    await expect(page.getByTestId("request-receipt")).toContainText("1 area");
     const notice = page.getByTestId("selection-notice");
     await expect(notice).toBeVisible();
     await expect(notice).toContainText(/4 earlier areas were removed/i);
@@ -436,13 +776,14 @@ test.describe("topic page", () => {
     await expect(restore).toBeVisible();
     await restore.click();
 
-    await expect(areaRows(page)).toHaveCount(5);
     await expect(
       page.getByRole("radio", { name: /multiple location/i }),
     ).toBeChecked();
     await expect(page.getByTestId("selection-notice")).toBeHidden();
 
     // Restored in the original build order, so a comparison is not reordered.
+    await gotoStep(page, "flood-risk", "areas");
+    await expect(areaRows(page)).toHaveCount(5);
     await expect(areaRows(page).first()).toContainText("Marsabit");
     await expect(areaRows(page).last()).toContainText("Garissa");
 
@@ -450,10 +791,12 @@ test.describe("topic page", () => {
   });
 
   test("T7: the pre-warning is announced, not only shown", async ({ page }) => {
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "scope");
     await page.getByRole("radio", { name: /multiple location/i }).click();
+    await gotoStep(page, "flood-risk", "areas");
     await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
     await expect(areaRows(page)).toHaveCount(5);
+    await railLink(page, "Scope").click();
 
     // The consequence has to reach a screen reader before the click, which
     // means the unselected radio must be described by the warning text.
@@ -475,7 +818,7 @@ test.describe("topic page", () => {
   test("T8: run is disabled with a stated reason until the request is complete", async ({
     page,
   }) => {
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "review");
 
     const run = page.getByRole("button", { name: /run analysis/i });
     await expect(run).toBeDisabled();
@@ -484,12 +827,17 @@ test.describe("topic page", () => {
       /click the map|select an area/i,
     );
 
+    await gotoStep(page, "flood-risk", "areas");
     await clickMap(page);
     await expect(areaRows(page)).toHaveCount(1);
+
+    await gotoStep(page, "flood-risk", "review");
     await expect(run).toBeEnabled();
 
     // Comparison needs two, so switching back to an incomplete state re-blocks.
+    await gotoStep(page, "flood-risk", "scope");
     await page.getByRole("radio", { name: /multiple location/i }).click();
+    await gotoStep(page, "flood-risk", "review");
     await expect(run).toBeDisabled();
     await expect(page.getByTestId("run-blocked-reason")).toContainText(
       /at least 2 areas/i,
@@ -500,12 +848,14 @@ test.describe("topic page", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "rangeland-dynamics");
-
+    await gotoStep(page, "rangeland-dynamics", "model");
     await page.getByRole("radio", { name: /xgboost/i }).click();
+
+    await gotoStep(page, "rangeland-dynamics", "areas");
     await clickMap(page);
     await expect(areaRows(page)).toHaveCount(1);
 
+    await continueControl(page).click();
     await page.getByRole("button", { name: /run analysis/i }).click();
 
     const payload = page.getByTestId("analysis-request");
@@ -529,10 +879,11 @@ test.describe("topic page", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "scope");
+    await page.getByRole("radio", { name: /multiple location/i }).click();
+    await gotoStep(page, "flood-risk", "areas");
 
     // Establish a selection that must survive every failed upload below.
-    await page.getByRole("radio", { name: /multiple location/i }).click();
     await page.getByLabel(/upload shapefile/i).setInputFiles(singleCounty);
     await expect(areaRows(page)).toHaveCount(1);
 
@@ -571,84 +922,109 @@ test.describe("topic page", () => {
   test("T9: a bare .shp is read, with a warning that it has no names", async ({
     page,
   }) => {
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "areas");
     await page.getByLabel(/upload shapefile/i).setInputFiles(bareShapefile);
 
     await expect(areaRows(page)).toHaveCount(1);
-    await expect(page.getByRole("status").filter({ hasText: /geometry only/i })).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: /geometry only/i }),
+    ).toBeVisible();
   });
 
-  test("T10: the route renders server-side without Leaflet touching window", async ({
+  test("T10: every step renders server-side without Leaflet touching window", async ({
     request,
   }) => {
     // Fetched without a browser runtime, so an SSR crash shows up as a 500.
-    const response = await request.get("/topics/flood-risk");
-    expect(response.status()).toBe(200);
-    const html = await response.text();
-    expect(html).toContain("Flood risk");
+    for (const step of STEPS) {
+      const response = await request.get(stepPath("flood-risk", step.id));
+      expect(response.status(), step.id).toBe(200);
+      const html = await response.text();
+      // The topic band comes from the shared layout, so it is on every step.
+      expect(html, step.id).toContain("Flood risk");
 
-    // Leaflet must not have rendered on the server. Asserted on Leaflet's own
-    // container class rather than on the test id: the test id sits on a plain
-    // wrapper that IS server-rendered, and only the Leaflet subtree inside it
-    // is ssr:false. leaflet-container is the class Leaflet adds when it
-    // initialises, so its absence is the real signal.
-    expect(html).not.toContain("leaflet-container");
-    // The loading fallback is what stands in for it server-side.
-    expect(html).toContain("Loading map");
+      // Leaflet must not have rendered on the server. Asserted on Leaflet's own
+      // container class rather than on the test id: the test id sits on a plain
+      // wrapper that IS server-rendered, and only the Leaflet subtree inside it
+      // is ssr:false. leaflet-container is the class Leaflet adds when it
+      // initialises, so its absence is the real signal.
+      expect(html, step.id).not.toContain("leaflet-container");
+    }
+
+    // Only the areas step ships the map at all, and its server render is the
+    // loading fallback rather than nothing.
+    const areas = await (await request.get(stepPath("flood-risk", "areas"))).text();
+    expect(areas).toContain("Loading map");
   });
 
   test("T11: every control has an accessible name", async ({ page }) => {
-    await gotoTopic(page, "flood-risk");
-
     // Radio groups are named, so a screen reader announces what the choice is.
+    // One per step now, which is the point of the split.
+    await gotoStep(page, "flood-risk", "scope");
     await expect(
       page.getByRole("radiogroup", { name: /analysis type/i }),
     ).toBeVisible();
+
+    await gotoStep(page, "flood-risk", "model");
     await expect(page.getByRole("radiogroup", { name: /model/i })).toBeVisible();
+
+    await gotoStep(page, "flood-risk", "areas");
     await expect(
       page.getByRole("radiogroup", { name: /map tool/i }),
     ).toBeVisible();
 
-    // No control anywhere on the page is left unnamed.
-    const unnamed = await page.evaluate(() => {
-      const controls = Array.from(
-        document.querySelectorAll("button, input, select, textarea, a[href]"),
-      );
-      return controls
-        .filter((el) => {
-          const element = el as HTMLElement;
-          if (element.offsetParent === null && element.tagName !== "INPUT") {
-            return false;
-          }
-          const text = (element.textContent ?? "").trim();
-          const label =
-            element.getAttribute("aria-label") ??
-            element.getAttribute("title") ??
-            (element.id
-              ? document.querySelector(`label[for="${element.id}"]`)?.textContent
-              : null) ??
-            element.closest("label")?.textContent ??
-            "";
-          return text === "" && (label ?? "").trim() === "";
-        })
-        .map((el) => `${el.tagName}.${(el as HTMLElement).className}`);
-    });
-    expect(unnamed).toEqual([]);
+    // No control anywhere in the flow is left unnamed.
+    for (const step of STEPS) {
+      await gotoStep(page, "flood-risk", step.id);
+      const unnamed = await page.evaluate(() => {
+        const controls = Array.from(
+          document.querySelectorAll("button, input, select, textarea, a[href]"),
+        );
+        return controls
+          .filter((el) => {
+            const element = el as HTMLElement;
+            if (element.offsetParent === null && element.tagName !== "INPUT") {
+              return false;
+            }
+            const text = (element.textContent ?? "").trim();
+            const label =
+              element.getAttribute("aria-label") ??
+              element.getAttribute("title") ??
+              (element.id
+                ? document.querySelector(`label[for="${element.id}"]`)?.textContent
+                : null) ??
+              element.closest("label")?.textContent ??
+              "";
+            return text === "" && (label ?? "").trim() === "";
+          })
+          .map((el) => `${el.tagName}.${(el as HTMLElement).className}`);
+      });
+      expect(unnamed, step.id).toEqual([]);
+    }
   });
 
   test("T11: the flow completes with the keyboard, without touching the map", async ({
     page,
   }) => {
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "model");
+
+    await page.getByRole("radio", { name: /combined model/i }).focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByRole("radio", { name: /combined model/i })).toBeChecked();
+
+    // Continue is a link, so Enter on it navigates like any other link.
+    await continueControl(page).focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/areas/);
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
 
     // Upload is the keyboard-accessible selection path, so it must be enough
     // on its own to reach a runnable request.
     await page.getByLabel(/upload shapefile/i).setInputFiles(singleCounty);
     await expect(areaRows(page)).toHaveCount(1);
 
-    await page.getByRole("radio", { name: /combined model/i }).focus();
-    await page.keyboard.press("Space");
-    await expect(page.getByRole("radio", { name: /combined model/i })).toBeChecked();
+    await continueControl(page).focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/review/);
 
     const run = page.getByRole("button", { name: /run analysis/i });
     await run.focus();
@@ -656,11 +1032,46 @@ test.describe("topic page", () => {
     await expect(page.getByTestId("analysis-request")).toBeVisible();
   });
 
+  test("T11: a step navigation puts focus on the new step's heading", async ({
+    page,
+  }) => {
+    /*
+     * The split turned every Continue into a navigation, which resets focus to
+     * <body>: a keyboard user would have to tab back in from the skip link on
+     * every one of four screens. That is a regression the single page could
+     * not have had, so it is checked here rather than reasoned about.
+     *
+     * And NOT on a cold load, where taking focus out of the address bar is its
+     * own bug.
+     */
+    await gotoStep(page, "flood-risk", "scope");
+    expect(
+      await page.evaluate(() => document.activeElement?.tagName ?? ""),
+    ).toBe("BODY");
+
+    await continueControl(page).click();
+    await expect(page).toHaveURL(/\/model/);
+
+    const focused = await page.evaluate(() => ({
+      tag: document.activeElement?.tagName ?? "",
+      text: document.activeElement?.textContent ?? "",
+    }));
+    expect(focused.tag).toBe("H2");
+    expect(focused.text).toMatch(/which model should run/i);
+
+    // From there, one Tab reaches the first control rather than the skip link.
+    await page.keyboard.press("Tab");
+    const next = await page.evaluate(
+      () => document.activeElement?.getAttribute("name") ?? "",
+    );
+    expect(next).toBe("model");
+  });
+
   test("T4d and T11: a typed coordinate adds a real polygon and zooms to it", async ({
     page,
   }) => {
     const problems = watchConsole(page);
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "areas");
 
     const before = await readView(page);
 
@@ -685,7 +1096,7 @@ test.describe("topic page", () => {
   });
 
   test("T9: a bad coordinate explains itself and adds nothing", async ({ page }) => {
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "areas");
 
     await page.getByLabel(/^coordinates$/i).fill("Marsabit");
     await page.getByLabel(/^coordinates$/i).press("Enter");
@@ -699,7 +1110,7 @@ test.describe("topic page", () => {
   test("a coordinate outside Kenya warns but is still accepted", async ({
     page,
   }) => {
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "areas");
 
     // A cross-border catchment is a real analysis, so this must not be blocked.
     await page.getByLabel(/^coordinates$/i).fill("9.03, 38.74");
@@ -716,66 +1127,67 @@ test.describe("topic page", () => {
   }) => {
     // A bookmarked configuration must be correct on the first paint, not after
     // a flash of the defaults.
-    await page.goto("/topics/drought-monitoring?type=comparison&model=combined");
-    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
-
+    await gotoStep(
+      page,
+      "drought-monitoring",
+      "scope",
+      "?type=comparison&model=combined",
+    );
     await expect(
       page.getByRole("radio", { name: /multiple location/i }),
     ).toBeChecked();
+
+    // And it is carried into the next step by the rail and by Continue, rather
+    // than being dropped at the first navigation.
+    await expect(railLink(page, "Model")).toHaveAttribute(
+      "href",
+      "/topics/drought-monitoring/model?type=comparison&model=combined",
+    );
+    await railLink(page, "Model").click();
     await expect(page.getByRole("radio", { name: /combined model/i })).toBeChecked();
 
-    // And changing a choice updates the URL without adding history entries.
+    // Changing a choice updates the URL without adding history entries.
     await page.getByRole("radio", { name: /xgboost/i }).click();
     await expect(page).toHaveURL(/model=xgboost/);
     await page.goBack();
-    // Back leaves the topic rather than walking through each radio click.
-    await expect(page).not.toHaveURL(/\/topics\/drought-monitoring/);
+    // Back leaves the model step rather than walking through each radio click.
+    await expect(page).not.toHaveURL(/\/model/);
   });
 
   test("T1: a stale bookmark with unknown values still opens on the defaults", async ({
     page,
   }) => {
-    await page.goto("/topics/flood-risk?type=both&model=catboost");
-    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
-
+    await gotoStep(page, "flood-risk", "scope", "?type=both&model=catboost");
     await expect(page.getByRole("radio", { name: /single location/i })).toBeChecked();
+
+    await gotoStep(page, "flood-risk", "model", "?type=both&model=catboost");
     await expect(
       page.getByRole("radio", { name: /random forest/i }),
     ).toBeChecked();
-  });
-
-  test("the receipt restates the whole request at any scroll position", async ({
-    page,
-  }) => {
-    await gotoTopic(page, "food-security");
-    await page.getByRole("radio", { name: /multiple location/i }).click();
-    await page.getByRole("radio", { name: /xgboost/i }).click();
-    await page.getByLabel(/upload shapefile/i).setInputFiles(counties);
-    await expect(areaRows(page)).toHaveCount(5);
-
-    const receipt = page.getByTestId("request-receipt");
-    await expect(receipt).toContainText("Food security assessment");
-    await expect(receipt).toContainText("Multiple location comparison");
-    await expect(receipt).toContainText("XGBoost");
-    await expect(receipt).toContainText("5 areas");
   });
 
   test("T12: usable at 360px with no horizontal scroll", async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "narrow viewport only");
-    await gotoTopic(page, "flood-risk");
 
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+    for (const step of STEPS) {
+      await gotoStep(page, "flood-risk", step.id);
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow, step.id).toBeLessThanOrEqual(1);
+    }
 
     // The map must still have real height, not be squeezed to nothing.
+    await gotoStep(page, "flood-risk", "areas");
     const box = await page.getByTestId("aoi-map").boundingBox();
     expect(box?.height ?? 0).toBeGreaterThan(220);
 
     // And the controls must still be reachable and operable.
+    await gotoStep(page, "flood-risk", "scope");
     await page.getByRole("radio", { name: /multiple location/i }).click();
     await expect(
       page.getByRole("radio", { name: /multiple location/i }),
@@ -786,7 +1198,7 @@ test.describe("topic page", () => {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "mobile control only");
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "areas");
 
     const stepper = page.getByTestId("map-size-stepper");
     await expect(stepper).toBeVisible();
@@ -815,7 +1227,7 @@ test.describe("topic page", () => {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "mobile control only");
-    await gotoTopic(page, "flood-risk");
+    await gotoStep(page, "flood-risk", "areas");
 
     const height = async () =>
       (await page.getByTestId("aoi-map").boundingBox())?.height ?? 0;
@@ -837,11 +1249,25 @@ test.describe("topic page", () => {
 /* -------------------------------------------------------------------- budget */
 
 test.describe("measurable outcome", () => {
-  test("cold homepage to a validated request in under 6 clicks and 60s", async ({
+  test("cold homepage to a validated request in under 10 clicks and 60s", async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop", "budget measured on desktop");
 
+    /*
+     * The budget moved from 6 clicks to 10 when the flow was split across four
+     * routes, and that is a deliberate trade rather than a regression:
+     *
+     *   6 clicks   every control on one screen, eight of them competing for
+     *              one viewport beside a 620px map, and the model's trade-off
+     *              text small enough that it was skipped.
+     *   10 clicks  the same six decisions plus three Continues and nothing
+     *              else, each decision alone on a screen with room to read
+     *              it, and the rail keeping the other three one click away.
+     *
+     * Three of the four extra clicks are Continue. If that number ever grows
+     * past 10, something other than a step has been added to the flow.
+     */
     const problems = watchConsole(page);
     let clicks = 0;
     const click = async (fn: () => Promise<void>) => {
@@ -854,20 +1280,24 @@ test.describe("measurable outcome", () => {
 
     // 1: choose the topic.
     await click(() => topicCard(page, "drought monitoring").click());
+    await expect(page.getByTestId("step-rail")).toBeVisible();
+
+    // 2: comparison. 3: on to the model.
+    await click(() => page.getByRole("radio", { name: /multiple location/i }).click());
+    await click(() => continueControl(page).click());
+
+    // 4: the model. 5: on to the areas.
+    await click(() => page.getByRole("radio", { name: /combined model/i }).click());
+    await click(() => continueControl(page).click());
     await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
 
-    // 2: comparison.
-    await click(() => page.getByRole("radio", { name: /multiple location/i }).click());
-
-    // 3 and 4: two areas on the map.
+    // 6 and 7: two areas on the map. 8: on to the review.
     await click(() => clickMap(page, { x: 0.45, y: 0.4 }));
     await click(() => clickMap(page, { x: 0.6, y: 0.55 }));
     await expect(areaRows(page)).toHaveCount(2);
+    await click(() => continueControl(page).click());
 
-    // 5: the model.
-    await click(() => page.getByRole("radio", { name: /combined model/i }).click());
-
-    // 6: run.
+    // 9: run.
     await click(() => page.getByRole("button", { name: /run analysis/i }).click());
     await expect(page.getByTestId("analysis-request")).toBeVisible();
 
@@ -880,7 +1310,7 @@ test.describe("measurable outcome", () => {
       description: `${clicks} clicks, ${elapsed}ms`,
     });
 
-    expect(clicks).toBeLessThanOrEqual(6);
+    expect(clicks).toBeLessThanOrEqual(10);
     expect(elapsed).toBeLessThan(60_000);
     expect(problems).toEqual([]);
   });
@@ -888,22 +1318,30 @@ test.describe("measurable outcome", () => {
   test("no page reload anywhere in the flow", async ({ page }) => {
     await page.goto("/");
 
-    // A full navigation between topic and result would lose selections, so
-    // count real document loads after the first.
+    // This is the assertion that proves the split did not cost what splits
+    // usually cost. Four routes, three navigations between them, and not one
+    // document load: every step is a client-side transition and the selection
+    // lives in a store that outlives each page.
     let loads = 0;
     page.on("load", () => {
       loads += 1;
     });
 
     await topicCard(page, "flood risk").click();
+    await expect(page.getByTestId("step-rail")).toBeVisible();
+
+    await continueControl(page).click();
+    await expect(page).toHaveURL(/\/model/);
+
+    await continueControl(page).click();
     await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
     await clickMap(page);
     await expect(areaRows(page)).toHaveCount(1);
+
+    await continueControl(page).click();
     await page.getByRole("button", { name: /run analysis/i }).click();
     await expect(page.getByTestId("analysis-request")).toBeVisible();
 
-    // Client-side navigation only: the topic link is a Next Link, and running
-    // the analysis is local state.
     expect(loads).toBe(0);
   });
 });

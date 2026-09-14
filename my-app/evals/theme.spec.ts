@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { TOPICS } from "../lib/analysis/topics";
+import { STEPS } from "../lib/analysis/steps";
 
 /**
  * Theme eval.
@@ -50,6 +51,18 @@ const PAGES = [
   ...TOPICS.map((topic) => ({ name: topic.name, path: `/topics/${topic.slug}` })),
 ];
 
+/** Every step of one topic, so the check covers the four routes, not just the first. */
+const STEP_PAGES = STEPS.map((step) => ({
+  name: `flood-risk ${step.id}`,
+  path:
+    step.segment === ""
+      ? "/topics/flood-risk"
+      : `/topics/flood-risk/${step.segment}`,
+}));
+
+/** Where the map lives now that the flow is split. */
+const AREAS_PATH = "/topics/flood-risk/areas";
+
 for (const scheme of ["light", "dark"] as const) {
   test.describe(`OS preference: ${scheme}`, () => {
     test.use({ colorScheme: scheme });
@@ -96,28 +109,60 @@ for (const scheme of ["light", "dark"] as const) {
       expect(painted).toBe(true);
     });
 
-    for (const target of PAGES) {
+    for (const target of [...PAGES, ...STEP_PAGES]) {
       test(`${target.name}: text on a surface stays readable`, async ({ page }) => {
         await page.goto(target.path);
         await expect(page.locator("header").first()).toBeVisible();
 
-        const surface = await luminance(page, "header", "background-color");
-        const text = await luminance(page, "body", "color");
+        /*
+         * The header is its own band now: a dark blue ground carrying white
+         * type, rather than a white bar inheriting the body's ink. So it is
+         * graded against ITS OWN colour, which is the pairing a reader
+         * actually sees.
+         *
+         * The earlier version compared the header's background against the
+         * BODY's colour. That passed only while the header happened to be
+         * white, and it would now fail on a band that is perfectly legible: a
+         * test measuring a pair that never appears on screen.
+         */
+        const headerGround = await luminance(page, "header", "background-color");
+        const headerInk = await luminance(page, "header", "color");
+        expect(headerGround).not.toBeNull();
+        expect(headerInk).not.toBeNull();
+        expect(
+          contrast(headerGround as number, headerInk as number),
+        ).toBeGreaterThan(4.5);
 
-        expect(surface).not.toBeNull();
-        // 4.5:1 is WCAG AA for body text.
-        expect(contrast(surface as number, text as number)).toBeGreaterThan(4.5);
+        // And the page body, which is the light half of the same system.
+        const bodyGround = await luminance(page, "body", "background-color");
+        const bodyInk = await luminance(page, "body", "color");
+        expect(contrast(bodyGround as number, bodyInk as number)).toBeGreaterThan(7);
+
+        // The two grounds must genuinely differ, or the band is not a band.
+        expect(
+          Math.abs((headerGround as number) - (bodyGround as number)),
+        ).toBeGreaterThan(0.1);
       });
     }
 
     test("the primary action has readable contrast against its label", async ({
       page,
     }) => {
-      await page.goto("/topics/flood-risk");
+      // Run lives on the review step now, and it is only painted red once the
+      // request is runnable. A disabled button is a grey well, so measuring
+      // that would measure nothing: select an area first, then continue.
+      await page.goto(AREAS_PATH);
       await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+      await page.getByLabel(/^coordinates$/i).fill("2.4512, 36.8203");
+      await page.getByLabel(/^coordinates$/i).press("Enter");
+      await expect(
+        page.getByRole("region", { name: /selected areas/i }).getByRole("listitem"),
+      ).toHaveCount(1);
+      await page.getByTestId("step-continue").click();
+      await expect(page.getByRole("button", { name: /run analysis/i })).toBeEnabled();
 
-      // The run button is white on the accent, which is the one place the app
-      // relies on a saturated colour carrying text.
+      // The run button is white on the action red, which is the one place the
+      // app relies on a saturated colour carrying text.
       const ratio = await page.evaluate(() => {
         const button = Array.from(document.querySelectorAll("button")).find(
           (b) => (b.textContent ?? "").trim() === "Run analysis",
@@ -149,7 +194,7 @@ for (const scheme of ["light", "dark"] as const) {
     test("no tile filter is applied, so the basemap renders as published", async ({
       page,
     }) => {
-      await page.goto("/topics/flood-risk");
+      await page.goto(AREAS_PATH);
       await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
 
       // The two-theme build inverted OpenStreetMap tiles for dark mode. With
@@ -188,7 +233,7 @@ for (const scheme of ["light", "dark"] as const) {
     });
 
     test("selected geometry is drawn and not colour-shifted", async ({ page }) => {
-      await page.goto("/topics/flood-risk");
+      await page.goto(AREAS_PATH);
       await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
 
       await page.getByLabel(/^coordinates$/i).fill("2.4512, 36.8203");

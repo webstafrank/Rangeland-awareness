@@ -49,7 +49,13 @@ export default defineConfig({
           // Browser-dependent behaviour is verified by the Playwright evals,
           // not here.
           environment: "node",
+          // `.dom.test.ts` is the opt-out: those need jsdom and a resettable
+          // module registry, so they run in the dom lane instead. Excluded
+          // here rather than left to overlap, because this lane shares one
+          // worker between files (isolate: false) and a test that installs a
+          // storage global would leak into the pure suites beside it.
           include: ["lib/**/__tests__/**/*.test.ts"],
+          exclude: ["lib/**/__tests__/**/*.dom.test.ts"],
 
           // Threads rather than the default forks, and workers reused across
           // files rather than one spawned per file. Measured on the same 193
@@ -89,6 +95,22 @@ export default defineConfig({
            */
           include: [
             "{app,components,contracts,design,services}/**/*.{test,spec}.{ts,tsx}",
+            /*
+             * And the one kind of lib test that cannot run in the node lane.
+             *
+             * `lib/` is pure by rule, with exactly one exception:
+             * lib/analysis/selection-store.ts has to touch `sessionStorage`,
+             * because persistence is what lets a selection survive a step
+             * navigation. Its pure half is tested in the node lane beside
+             * everything else; its stateful half needs a real storage object
+             * and a module registry it can reset, which is what this lane has.
+             *
+             * The `.dom.` infix is the opt-in, so a lib test lands here only
+             * by being named for it. Without this the store's stateful half
+             * would be the untested part of the most load-bearing new module,
+             * which is exactly where its first two bugs lived.
+             */
+            "lib/**/*.dom.{test,spec}.{ts,tsx}",
           ],
           // A gate test that needs longer than this is not a gate test.
           testTimeout: 2000,

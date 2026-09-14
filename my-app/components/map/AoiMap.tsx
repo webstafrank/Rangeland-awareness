@@ -35,6 +35,7 @@ import {
   draftAreaFromGeometry,
 } from "@/lib/analysis/selection";
 import { KENYA_BOUNDS, type MapTool } from "@/components/map/tools";
+import { token } from "@/lib/theme/palette";
 
 export interface AoiMapProps {
   areas: readonly AreaOfInterest[];
@@ -54,15 +55,24 @@ export interface AoiMapProps {
  * property the utilities are generated from is what keeps this from becoming a
  * second palette that drifts from globals.css.
  *
- * The fallback is the current value of --color-accent, used only if the
- * property is missing, which in practice means the stylesheet has not loaded.
+ * The fallback comes from lib/theme/palette.ts rather than being typed as a
+ * hex, and that is the point of it: a hardcoded fallback is a second palette
+ * with a one-commit lifespan. The teal that used to sit here outlived the move
+ * to navy, because nothing on screen could show it. `token()` throws on a name
+ * that no longer exists, so a renamed accent breaks the build instead of
+ * drawing last season's colour on the map.
+ *
+ * It is only reached when the property is missing, which in practice means the
+ * stylesheet has not loaded.
  */
+const ACCENT_FALLBACK = token("--color-accent");
+
 function accentColor(): string {
-  if (typeof window === "undefined") return "#0f766e";
+  if (typeof window === "undefined") return ACCENT_FALLBACK;
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue("--color-accent")
     .trim();
-  return value === "" ? "#0f766e" : value;
+  return value === "" ? ACCENT_FALLBACK : value;
 }
 
 /** Style for selected geometry. Readable on street tiles and on imagery. */
@@ -73,7 +83,7 @@ function areaStyle(): L.PathOptions {
     weight: 2,
     opacity: 1,
     // Same hue as the stroke at low opacity, so the fill cannot drift to a
-    // different teal from the outline that contains it.
+    // different navy from the outline that contains it.
     fillColor: accent,
     fillOpacity: 0.18,
   };

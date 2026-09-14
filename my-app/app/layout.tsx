@@ -48,7 +48,10 @@ export const metadata: Metadata = {
  * before first paint.
  */
 export const viewport: Viewport = {
-  themeColor: token("--color-page"),
+  // The header, not the page. This paints the browser's own bar, which sits
+  // directly above the header band; matching the page instead would put a pale
+  // strip above a dark blue one and make the app look like it starts at a seam.
+  themeColor: token("--color-accent-hover"),
   colorScheme: "light",
 };
 
@@ -74,37 +77,50 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
 
-        <header className="sticky top-0 z-header border-b border-edge bg-surface">
+        {/*
+          The header is a dark blue band, not a white bar. Two reasons, and
+          neither is taste: the app's content is white panels on a pale ground,
+          so a white header has nothing separating it from the page it is
+          pinned over; and the four-colour system has to be stated somewhere
+          before the analyst meets it as a button, which is what the red mark
+          in the wordmark and the red-and-navy rule underneath are for.
+        */}
+        <header className="band-chrome sticky top-0 z-header">
           <div className="mx-auto flex h-16 w-full max-w-band items-center gap-4 px-gutter lg:px-gutter-lg">
             <Link href="/" className="flex items-center gap-3 rounded-lg">
               <span
                 aria-hidden="true"
-                className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-[13px] font-bold tracking-tight text-white"
+                className="relative grid h-9 w-9 place-items-center rounded-lg bg-white text-[13px] font-bold tracking-tight text-accent"
               >
                 RA
+                {/* The red mark. Decorative: the wordmark beside it carries the
+                    name, so nothing is lost if this does not render. */}
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-action ring-2 ring-[var(--color-accent-hover)]" />
               </span>
               <span className="flex flex-col leading-tight">
-                <span className="text-[15px] font-semibold tracking-tight">
+                <span className="text-[15px] font-semibold tracking-tight text-white">
                   Rangeland Awareness
                 </span>
-                <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
+                <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-on-chrome-muted">
                   Kenya Space Agency
                 </span>
               </span>
             </Link>
 
-            <span className="ml-auto hidden text-xs text-ink-faint sm:block">
+            <span className="ml-auto hidden text-xs text-on-chrome-muted sm:block">
               Earth observation decision support
             </span>
           </div>
+          <div aria-hidden="true" className="rule-action h-[3px] w-full" />
         </header>
 
         <main id="main" className="flex flex-1 flex-col">
           {children}
         </main>
 
-        <footer className="mt-auto border-t border-edge bg-surface">
-          <div className="mx-auto flex w-full max-w-band flex-col gap-1 px-gutter py-6 text-xs leading-relaxed text-ink-faint lg:px-gutter-lg">
+        <footer className="band-chrome mt-auto">
+          <div aria-hidden="true" className="rule-action h-[3px] w-full" />
+          <div className="mx-auto flex w-full max-w-band flex-col gap-1 px-gutter py-8 text-xs leading-relaxed text-on-chrome-muted lg:px-gutter-lg">
             <p>
               Earth observation analysis for Kenya&apos;s rangelands. Model
               outputs are decision support, not a forecast of record.
