@@ -46,8 +46,9 @@ missing; it needs `sudo apt install python3-venv`). Serializers and a browsable
 API would be nice; they are not worth a dependency that cannot currently be
 installed.
 
-**No rasterio, scipy or geopandas.** The original plan in `services/analysis`
-pinned Python to `>=3.12,<3.14` because those three are compiled and their
+**No rasterio, scipy or geopandas.** The original plan, in a `services/analysis`
+FastAPI skeleton that has since been deleted, pinned Python to `>=3.12,<3.14`
+because those three are compiled and their
 wheels lag a new CPython by months — and this machine runs 3.14, so none of them
 install. They turned out to be unnecessary: `osgeo.gdal` is already here and
 does all of it, generally by calling the same C++ the others wrap.

@@ -1,5 +1,5 @@
 {
-  "$comment": "Shared AHP conformance fixtures. The TypeScript implementation in my-app/lib/ahp and the Python one in services/analysis/app/domain/ahp.py are both tested against this file, so they cannot disagree about a weight or a consistency ratio. Tolerances are absolute. Adding a case here obliges both sides.",
+  "$comment": "Shared AHP conformance fixtures. The TypeScript implementation in my-app/lib/ahp and the Python one in services/backend/apps/analysis/domain/ahp.py are both tested against this file, so they cannot disagree about a weight or a consistency ratio. Tolerances are absolute. Adding a case here obliges both sides.",
   "version": 1,
   "tolerance": 0.0005,
   "cases": [

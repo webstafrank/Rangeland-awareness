@@ -2,7 +2,8 @@
  * Conformance against the shared fixtures.
  *
  * `contracts/ahp-fixtures.json` is imported by BOTH implementations: this one
- * and the Python one in services/analysis. Weights derived in the browser to
+ * and the Python one in services/backend/apps/analysis/domain/ahp.py. Weights
+ * derived in the browser to
  * keep the pairwise form responsive, and weights the service re-derives before
  * it will accept a run, have to be the same numbers. Two AHP implementations
  * that quietly disagree would mean the map was computed with weights the

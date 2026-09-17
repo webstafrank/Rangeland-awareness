@@ -3,11 +3,12 @@
 Version 1. The boundary between the Next.js app (`my-app/`) and the Django
 backend (`services/backend/`). Both sides import this; neither reaches past it.
 
-This supersedes [`analysis-api.md`](./analysis-api.md), which described a
-FastAPI service whose GeoServer half was never written because GeoServer was
-unreachable at the time. It is reachable now, the service is Django, and the
-shapes below are what actually ships. The old document is kept only until the
-app stops referring to it.
+This replaced `analysis-api.md`, which described a FastAPI service whose
+GeoServer half was never written because GeoServer was unreachable at the time.
+That document and its service are deleted: GeoServer is reachable, the service
+is Django, and the shapes below are what actually ships. The FastAPI plan also
+pinned rasterio, geopandas and scipy, none of which install on this machine's
+Python 3.14, while Django, osgeo.gdal and numpy are already present.
 
 ## The division of labour
 
@@ -241,8 +242,9 @@ are tested against `contracts/ahp-fixtures.json`.
 }
 ```
 
-**Reciprocals must be exact to 1e-6.** `analysis-api.md` documented this example
-with `0.3333`, which cannot validate: 3 × 0.3333 is 0.9999. A client building
+**Reciprocals must be exact to 1e-6.** The superseded `analysis-api.md`
+documented this example with `0.3333`, which cannot validate: 3 × 0.3333 is
+0.9999. A client building
 the matrix from an upper triangle computes `1/v` in full precision and is fine;
 a hand-written one must not truncate. `400` names every offending cell.
 
