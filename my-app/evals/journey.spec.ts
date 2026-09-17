@@ -858,6 +858,11 @@ test.describe("topic steps", () => {
     await continueControl(page).click();
     await page.getByRole("button", { name: /run analysis/i }).click();
 
+    // Run now hands off to the results route rather than expanding a section
+    // in place. The configuration travels in the query and the areas travel in
+    // sessionStorage, paired by the id in ?run=.
+    await expect(page).toHaveURL(/\/topics\/rangeland-dynamics\/results\?.*\brun=/);
+
     const payload = page.getByTestId("analysis-request");
     await expect(payload).toBeVisible();
 
@@ -1387,6 +1392,115 @@ test.describe("fits the screen", () => {
 });
 
 /* -------------------------------------------------------------------- budget */
+
+/* ------------------------------------------------------------------- results */
+
+/**
+ * The results route.
+ *
+ * Not a step, so it has no rail pill. Reached only by running, and it holds the
+ * one property the previous version of this screen got wrong: the map has to
+ * move to the areas the analyst picked. That version passed [[0,0],[0,0]] for
+ * every area, so the viewport never moved and would have flown to the Gulf of
+ * Guinea the moment it did. Rubric T5 applies here, not only on the areas step.
+ */
+test.describe("results", () => {
+  /** Walk a real run, and return the view the analyst had when they picked. */
+  async function runTo(page: Page, slug: string) {
+    await gotoStep(page, slug, "areas");
+    await clickMap(page);
+    await expect(areaRows(page)).toHaveCount(1);
+    const picked = await readView(page);
+
+    await continueControl(page).click();
+    await page.getByRole("button", { name: /run analysis/i }).click();
+    await expect(page).toHaveURL(/\/results\?.*\brun=/);
+    return picked;
+  }
+
+  test("T5: the results map moves to the selected area, not to null island", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    const picked = await runTo(page, "flood-risk");
+
+    // The map is dynamically imported, so give it the same budget the areas
+    // step gets, and let the flyTo settle before reading the viewport.
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(async () => (await readView(page)).zoom, { timeout: 15_000 })
+      .toBeGreaterThan(5);
+
+    const shown = await readView(page);
+
+    // The specific regression: 0,0 is off the coast of west Africa. Kenya is
+    // nowhere near it, so this fails loudly on the old behaviour.
+    expect(Math.abs(shown.lat) + Math.abs(shown.lng)).toBeGreaterThan(1);
+    // And it is actually where the analyst clicked.
+    expect(Math.abs(shown.lat - picked.lat)).toBeLessThan(1.5);
+    expect(Math.abs(shown.lng - picked.lng)).toBeLessThan(1.5);
+
+    expect(problems).toEqual([]);
+  });
+
+  test("restates the request, and lists every area with its real size", async ({
+    page,
+  }) => {
+    await runTo(page, "flood-risk");
+
+    await expect(page.getByTestId("results-summary")).toContainText(/flood risk/i);
+    await expect(
+      page.getByTestId("results-areas").getByRole("listitem"),
+    ).toHaveCount(1);
+    // "Area unknown" would mean the size was dropped in the handoff, the same
+    // class of bug as the dropped bounds.
+    await expect(page.getByTestId("results-areas")).not.toContainText(/unknown/i);
+  });
+
+  test("says plainly that no model has run", async ({ page }) => {
+    // The one thing this screen must never do is look like a result. A
+    // government tool that renders a convincing non-answer is worse than one
+    // that renders nothing.
+    await runTo(page, "flood-risk");
+    await expect(page.getByText(/no model has run/i)).toBeVisible();
+  });
+
+  test("refuses to pair areas with a configuration they were not chosen for", async ({
+    page,
+  }) => {
+    await runTo(page, "flood-risk");
+    const url = new URL(page.url());
+
+    // Edit the configuration in the address bar, exactly as a curious user
+    // would. The stored areas belong to the previous id, so they must not be
+    // rendered beside these settings.
+    url.searchParams.set("model", "xgboost");
+    await page.goto(url.toString());
+
+    const problem = page.getByTestId("handoff-problem");
+    await expect(problem).toBeVisible();
+    await expect(problem).toHaveAttribute("data-reason", "mismatch");
+    await expect(page.getByTestId("analysis-request")).toHaveCount(0);
+  });
+
+  test("explains itself when opened cold, with a way back", async ({ page }) => {
+    // A bookmark from yesterday, or a link pasted to a colleague. The config is
+    // valid; the areas are simply not in this browser session.
+    await page.goto("/topics/flood-risk/results?run=deadbeef123");
+
+    const problem = page.getByTestId("handoff-problem");
+    await expect(problem).toBeVisible();
+    await expect(problem).toHaveAttribute("data-reason", "missing");
+    await expect(page.getByRole("link", { name: /select areas/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /back to review/i })).toBeVisible();
+  });
+
+  test("is not in the step rail, because it is not a decision", async ({ page }) => {
+    await gotoStep(page, "flood-risk", "review");
+    const rail = page.getByRole("navigation", { name: /analysis steps/i });
+    await expect(rail.getByText(/results/i)).toHaveCount(0);
+  });
+});
 
 test.describe("measurable outcome", () => {
   test("cold homepage to a validated request in under 10 clicks and 60s", async ({

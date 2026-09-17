@@ -159,3 +159,43 @@ export function isStepReachable(step: StepId, canReview: boolean): boolean {
 export function stepForSegment(segment: string): Step | undefined {
   return STEPS.find((step) => step.segment === segment);
 }
+
+/**
+ * Routes under /topics/<slug> that are NOT steps.
+ *
+ * `results` is where a run lands. It is deliberately not in STEPS, and that is
+ * a product decision rather than a technical one:
+ *
+ *   - The rail is a map of decisions still to make. Results is not a decision,
+ *     it is the consequence of all four, so a fifth pill would invite a click
+ *     to somewhere there is nothing to configure.
+ *   - The rail is sized so four pills fit one row at 360px. A fifth wraps, and
+ *     the eval that asserts the single row is the one that would catch it.
+ *   - The homepage says "four steps, one screen each" and reads the count off
+ *     STEPS. A fifth entry rewrites that copy as a side effect.
+ *
+ * It is listed here rather than left implicit so the on-disk check below still
+ * has both directions covered: every route is either a step or a declared
+ * terminal, and anything else is a leftover that still answers requests.
+ */
+export const TERMINAL_SEGMENTS = ["results"] as const;
+export type TerminalSegment = (typeof TERMINAL_SEGMENTS)[number];
+
+/** True when `segment` is a declared non-step route under /topics/<slug>. */
+export function isTerminalSegment(segment: string): segment is TerminalSegment {
+  return (TERMINAL_SEGMENTS as readonly string[]).includes(segment);
+}
+
+/**
+ * The href for a terminal route. Same contract as stepHref, including the
+ * single cast: the segment comes from TERMINAL_SEGMENTS and the slug from
+ * TOPIC_SLUGS, and steps.test.ts checks the produced href against the routes
+ * that exist on disk.
+ */
+export function terminalHref(
+  topic: TopicSlug,
+  segment: TerminalSegment,
+  query = "",
+): Route {
+  return `/topics/${topic}/${segment}${query}` as Route;
+}

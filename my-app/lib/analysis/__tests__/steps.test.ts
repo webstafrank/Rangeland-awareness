@@ -5,14 +5,17 @@ import { describe, expect, it } from "vitest";
 import {
   STEPS,
   STEP_IDS,
+  TERMINAL_SEGMENTS,
   furthestReachableStep,
   getStep,
   isStepReachable,
+  isTerminalSegment,
   nextStep,
   previousStep,
   stepForSegment,
   stepHref,
   stepIndex,
+  terminalHref,
 } from "@/lib/analysis/steps";
 import { TOPICS } from "@/lib/analysis/topics";
 
@@ -159,19 +162,57 @@ describe("the registry matches the routes on disk", () => {
   );
 
   it("has a directory for every step segment except the first", () => {
-    const expected = STEPS.map((step) => step.segment).filter((s) => s !== "");
+    const expected = [
+      ...STEPS.map((step) => step.segment).filter((s) => s !== ""),
+      ...TERMINAL_SEGMENTS,
+    ];
     expect(routeSegments.sort()).toEqual(expected.sort());
   });
 
-  it("has no route directory that no step points at", () => {
+  it("has no route directory that is neither a step nor a declared terminal", () => {
     // The other direction. A leftover route from a renamed step is dead code
     // that still answers requests, which is worse than a 404.
+    //
+    // Terminal routes count as declared: `results` is a real route that is
+    // deliberately not a step (see TERMINAL_SEGMENTS). Accepting it here is not
+    // a loosening — a route still has to be named in one of the two registries,
+    // so an undeclared directory fails exactly as it did before.
     for (const segment of routeSegments) {
       expect(
-        stepForSegment(segment),
-        `app/topics/[topic]/${segment} has no step`,
-      ).toBeDefined();
+        stepForSegment(segment) !== undefined || isTerminalSegment(segment),
+        `app/topics/[topic]/${segment} is neither a step nor a terminal route`,
+      ).toBe(true);
     }
+  });
+
+  it("has a route directory for every declared terminal segment", () => {
+    for (const segment of TERMINAL_SEGMENTS) {
+      expect(
+        routeSegments,
+        `TERMINAL_SEGMENTS names "${segment}" but app/topics/[topic]/${segment} does not exist`,
+      ).toContain(segment);
+    }
+  });
+
+  it("keeps steps and terminals disjoint", () => {
+    // A segment in both registries would make stepForSegment and
+    // isTerminalSegment disagree about what the route is for.
+    for (const segment of TERMINAL_SEGMENTS) {
+      expect(stepForSegment(segment)).toBeUndefined();
+    }
+  });
+
+  it("produces a href for every topic and terminal segment", () => {
+    for (const topic of TOPICS) {
+      for (const segment of TERMINAL_SEGMENTS) {
+        const href = terminalHref(topic.slug, segment);
+        expect(href).toBe(`/topics/${topic.slug}/${segment}`);
+        expect(href).not.toMatch(/\/\//);
+      }
+    }
+    expect(terminalHref("flood-risk", "results", "?type=comparison")).toBe(
+      "/topics/flood-risk/results?type=comparison",
+    );
   });
 
   it("has a page.tsx in every step route", () => {
