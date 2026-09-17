@@ -5,7 +5,7 @@
  *
  * Deliberately not a step. The rail is a map of decisions still to make, and
  * this is the consequence of all four of them, so it has no pill and no
- * Continue. See TERMINAL_SEGMENTS in lib/analysis/steps.ts.
+ * Continue. See TERMINAL_SEGMENTS in services/analysis/steps.ts.
  *
  * The configuration arrives in the URL and the areas arrive in sessionStorage,
  * paired by the id in `?run=`. That pairing is checked twice, and both checks
@@ -27,19 +27,19 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import RequestResult from "@/components/topic/RequestResult";
 import { Eyebrow } from "@/components/ui/Eyebrow";
-import { buildRequest } from "@/lib/analysis/request";
-import { RUN_PARAM, requestId } from "@/lib/analysis/request-id";
-import { resetSelection } from "@/lib/analysis/selection-store";
-import { stepHref } from "@/lib/analysis/steps";
-import { HANDOFF_MESSAGE, clearAreas, readAreas } from "@/lib/handoff/areas";
-import type { HandoffFailure } from "@/lib/handoff/areas";
-import { getAnalysisType, getModel } from "@/lib/analysis/models";
-import { formatArea } from "@/lib/geo/area";
-import { padBounds, unionBounds } from "@/lib/geo/bounds";
-import type { AnalysisRequest, RequestArea } from "@/lib/analysis/request";
-import type { Topic } from "@/lib/analysis/topics";
-import type { UrlSelection } from "@/lib/analysis/url-state";
-import type { FocusRequest } from "@/lib/analysis/selection";
+import { buildRequest } from "@/services/analysis/request";
+import { RUN_PARAM, requestId } from "@/services/analysis/request-id";
+import { resetSelection } from "@/services/analysis/selection-store";
+import { stepHref } from "@/services/analysis/steps";
+import { HANDOFF_MESSAGE, clearAreas, readAreas } from "@/services/handoff/areas";
+import type { HandoffFailure } from "@/services/handoff/areas";
+import { getAnalysisType, getModel } from "@/services/analysis/models";
+import { formatArea } from "@/services/geo/area";
+import { padBounds, unionBounds } from "@/services/geo/bounds";
+import type { AnalysisRequest, RequestArea } from "@/services/analysis/request";
+import type { Topic } from "@/services/analysis/topics";
+import type { UrlSelection } from "@/services/analysis/url-state";
+import type { FocusRequest } from "@/services/analysis/selection";
 
 /* ------------------------------------------------------------------ map ---- */
 

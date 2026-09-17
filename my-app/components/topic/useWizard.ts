@@ -24,17 +24,17 @@ import {
   loadSelection,
   serverSelection,
   subscribeSelection,
-} from "@/lib/analysis/selection-store";
+} from "@/services/analysis/selection-store";
 import {
   initialSelectionState,
   type SelectionAction,
   type SelectionState,
-} from "@/lib/analysis/selection";
-import { buildRequest, type ValidationResult } from "@/lib/analysis/request";
-import { getAnalysisType, getModel } from "@/lib/analysis/models";
-import type { AnalysisType, ModelChoice } from "@/lib/analysis/models";
-import type { TopicSlug } from "@/lib/analysis/topics";
-import { writeUrlSelection, type UrlSelection } from "@/lib/analysis/url-state";
+} from "@/services/analysis/selection";
+import { buildRequest, type ValidationResult } from "@/services/analysis/request";
+import { getAnalysisType, getModel } from "@/services/analysis/models";
+import type { AnalysisType, ModelChoice } from "@/services/analysis/models";
+import type { TopicSlug } from "@/services/analysis/topics";
+import { writeUrlSelection, type UrlSelection } from "@/services/analysis/url-state";
 
 /** What the URL omits, so a default configuration keeps a clean address. */
 export const URL_DEFAULTS = {

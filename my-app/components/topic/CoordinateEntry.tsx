@@ -9,7 +9,7 @@
  *
  * One field, not two, because coordinates arrive as one string: "2.4512,
  * 36.8203". Splitting that across two inputs makes the user retype what they
- * could have pasted. The parsing lives in lib/geo/box.ts and is gate-tested.
+ * could have pasted. The parsing lives in services/geo/box.ts and is gate-tested.
  */
 
 import { useId, useState } from "react";
@@ -18,8 +18,8 @@ import {
   isOutsideKenya,
   labelForCoordinate,
   parseCoordinatePair,
-} from "@/lib/geo/box";
-import { draftAreaFromGeometry, type DraftArea } from "@/lib/analysis/selection";
+} from "@/services/geo/box";
+import { draftAreaFromGeometry, type DraftArea } from "@/services/analysis/selection";
 
 export interface CoordinateEntryProps {
   onAreas: (areas: DraftArea[]) => void;

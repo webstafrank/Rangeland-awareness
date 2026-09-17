@@ -20,19 +20,19 @@ import { useRouter } from "next/navigation";
 import RunAction from "@/components/topic/RunAction";
 import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
-import { resetSelection } from "@/lib/analysis/selection-store";
-import { stepHref, terminalHref } from "@/lib/analysis/steps";
-import { RUN_PARAM, requestId } from "@/lib/analysis/request-id";
-import { writeAreas } from "@/lib/handoff/areas";
-import { formatArea } from "@/lib/geo/area";
-import type { AnalysisRequest } from "@/lib/analysis/request";
-import type { Topic, TopicSlug } from "@/lib/analysis/topics";
-import type { UrlSelection } from "@/lib/analysis/url-state";
+import { resetSelection } from "@/services/analysis/selection-store";
+import { stepHref, terminalHref } from "@/services/analysis/steps";
+import { RUN_PARAM, requestId } from "@/services/analysis/request-id";
+import { writeAreas } from "@/services/handoff/areas";
+import { formatArea } from "@/services/geo/area";
+import type { AnalysisRequest } from "@/services/analysis/request";
+import type { Topic, TopicSlug } from "@/services/analysis/topics";
+import type { UrlSelection } from "@/services/analysis/url-state";
 
 /**
  * Hand the request over to the results route.
  *
- * The split is deliberate and is the one lib/handoff exists to express: the
+ * The split is deliberate and is the one services/handoff exists to express: the
  * configuration goes in the URL, where it is shareable, and the areas go to
  * sessionStorage, because one drawn polygon is kilobytes of coordinates.
  *

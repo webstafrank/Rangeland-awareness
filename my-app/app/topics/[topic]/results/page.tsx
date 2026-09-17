@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getTopic } from "@/lib/analysis/topics";
-import { readSearchParamSelection } from "@/lib/analysis/url-state";
+import { getTopic } from "@/services/analysis/topics";
+import { readSearchParamSelection } from "@/services/analysis/url-state";
 import ResultsStep from "@/components/results/ResultsStep";
 
 /**

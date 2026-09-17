@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTopic } from "@/lib/analysis/topics";
+import { getTopic } from "@/services/analysis/topics";
 
 /**
  * The topic band, shared by all four steps.
@@ -10,7 +10,7 @@ import { getTopic } from "@/lib/analysis/topics";
  * genuinely still on screen during a Continue rather than being torn down and
  * rebuilt identically.
  *
- * It holds no state. The selection lives in lib/analysis/selection-store.ts,
+ * It holds no state. The selection lives in services/analysis/selection-store.ts,
  * which is what lets it survive these navigations without a layout that has to
  * be a client component. A layout also cannot read searchParams, so putting
  * the selection here would have meant applying a bookmarked configuration in

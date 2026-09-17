@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { TOPICS } from "@/lib/analysis/topics";
+import { TOPICS } from "@/services/analysis/topics";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 
 export const metadata: Metadata = {

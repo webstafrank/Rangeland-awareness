@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { TOPICS } from "@/lib/analysis/topics";
-import { MODELS } from "@/lib/analysis/models";
-import { STEPS } from "@/lib/analysis/steps";
+import { TOPICS } from "@/services/analysis/topics";
+import { MODELS } from "@/services/analysis/models";
+import { STEPS } from "@/services/analysis/steps";
 
 /**
  * The homepage.
@@ -16,7 +16,7 @@ import { STEPS } from "@/lib/analysis/steps";
  * type, red rule, red call to action.
  *
  * The cards and the step list are driven entirely by the registries, so adding
- * a topic to lib/analysis/topics.ts or a step to lib/analysis/steps.ts changes
+ * a topic to services/analysis/topics.ts or a step to services/analysis/steps.ts changes
  * this page with no edit to it.
  */
 

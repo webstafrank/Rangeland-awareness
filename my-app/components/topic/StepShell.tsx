@@ -26,8 +26,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import RequestReceipt from "@/components/topic/RequestReceipt";
 import StepRail from "@/components/topic/StepRail";
-import { getStep, nextStep, previousStep, stepHref, type StepId } from "@/lib/analysis/steps";
-import type { Topic } from "@/lib/analysis/topics";
+import { getStep, nextStep, previousStep, stepHref, type StepId } from "@/services/analysis/steps";
+import type { Topic } from "@/services/analysis/topics";
 import type { Wizard } from "@/components/topic/useWizard";
 
 export interface StepShellProps {

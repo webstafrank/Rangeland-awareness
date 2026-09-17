@@ -8,25 +8,45 @@ import { defineConfig } from "vitest/config";
  *
  * Measured, so the budget is a fact rather than an aspiration:
  *
- *   node  966 tests, 34 files   1.8s
- *   dom   497 tests, 20 files   8.2s
+ *   node  1137 tests, 41 files   2.4s
+ *   dom    126 tests,  4 files   2.7s
+ *   both  1263 tests, 45 files   4.9s
  *
- * The node lane holds the original sub-2s budget. The dom lane does not and
- * cannot: jsdom construction is roughly half its wall clock even pooled, and
- * that is the standing price of testing components rather than asserting
- * about them. Both still beat a browser round-trip by an order of magnitude,
- * which is the comparison that matters. If the dom lane grows past ~15s,
- * split the slowest files into a nightly lane rather than deleting coverage.
+ * Re-measured after `lib/` folded into `services/` and the dead TypeScript
+ * analysis and catalog services were deleted. The whole run got roughly 2.4x
+ * faster (11.9s to 4.9s) and that is not a tuning win: those suites were being
+ * collected by the dom lane's `services/**` glob and paying for a jsdom they
+ * never touched. Moving the boundary to purity rather than directory put them
+ * where they belong.
+ *
+ * The dom lane is now 4 files and still spends 72% of its wall clock building
+ * jsdom, which is the standing price of testing components rather than
+ * asserting about them. If it grows past ~15s, split the slowest files into a
+ * nightly lane rather than deleting coverage.
  *
  * Two projects rather than one config, because the two halves of this repo
  * genuinely need different environments and merging them into a single run
  * would mean paying jsdom's startup for the pure-function suites:
  *
- *   node  — lib/**, the analysis engine, AHP, criteria, WMS, theme. Pure
- *           functions over their arguments, no DOM, no globals.
- *   dom   — app/, components/, contracts/, design/, services/. React
- *           components and the service layer, which need jsdom and the
- *           testing-library matchers wired up in vitest.setup.ts.
+ *   node  — the services and lib/theme. Pure functions over their arguments,
+ *           no DOM, no globals.
+ *   dom   — app/, components/, contracts/, design/. React components, which
+ *           need jsdom and the testing-library matchers wired up in
+ *           vitest.setup.ts.
+ *
+ * THE SPLIT IS PURITY, NOT DIRECTORY. It used to be readable off the path,
+ * because `lib/` meant pure and everything else did not. Folding `lib/` into
+ * `services/` removed that signal, so the rule is now carried by the filename:
+ * a suite that needs a DOM is named `*.dom.test.ts` and lands in the dom lane
+ * wherever it lives. That convention already existed as the opt-out for
+ * selection-store; it is now the whole boundary.
+ *
+ * This matters more than it looks. The node lane runs `isolate: false`, one
+ * worker shared across every file, which is only safe because nothing in it
+ * touches a global. A suite that installs `sessionStorage` and is NOT named
+ * `.dom.` would leak into the pure suites beside it and fail something
+ * unrelated, in a different file, depending on execution order. If you add a
+ * test that needs a global, the `.dom.` infix is not a style preference.
  *
  * Each project keeps the settings its half was tuned with, so neither
  * inherits a constraint written for the other. Run one lane on its own with
@@ -36,10 +56,25 @@ import { defineConfig } from "vitest/config";
  * warns on the ESM syntax.
  */
 
-/** One alias, shared, so `@/lib/...` resolves identically in both lanes. */
+/** One alias, shared, so `@/...` resolves identically everywhere. */
 const alias = { "@": fileURLToPath(new URL("./", import.meta.url)) };
 
 export default defineConfig({
+  /*
+   * Also at the top level, not only inside the two projects.
+   *
+   * vitest reads the per-project alias; `vite-node` does not, and reads this
+   * one. Without it the regeneration command that scripts/export-criteria.ts
+   * documents in its own header —
+   * `npx vite-node -c vitest.config.mts scripts/export-criteria.ts` — dies on
+   * `Cannot find package '@/services/criteria/export'`. That has been broken
+   * since this config was split into projects, and it only surfaced when the
+   * artifact next needed regenerating, which is the worst possible moment to
+   * find out: the staleness gate is red and the tool that fixes it does not
+   * run. The projects still declare their own, so this changes nothing for
+   * either lane.
+   */
+  resolve: { alias },
   test: {
     projects: [
       {
@@ -54,8 +89,8 @@ export default defineConfig({
           // here rather than left to overlap, because this lane shares one
           // worker between files (isolate: false) and a test that installs a
           // storage global would leak into the pure suites beside it.
-          include: ["lib/**/__tests__/**/*.test.ts"],
-          exclude: ["lib/**/__tests__/**/*.dom.test.ts"],
+          include: ["{lib,services}/**/__tests__/**/*.test.ts"],
+          exclude: ["{lib,services}/**/__tests__/**/*.dom.test.ts"],
 
           // Threads rather than the default forks, and workers reused across
           // files rather than one spawned per file. Measured on the same 193
@@ -68,9 +103,9 @@ export default defineConfig({
           // Startup dominated the run, not the tests, and 1.77s left no
           // headroom under the 2s gate budget: a concurrent Playwright run
           // pushed it to 2.56s. Both settings are safe here because every test
-          // in this lane is a pure function over its arguments. Nothing under
-          // lib/ holds module-level mutable state, so sharing a worker between
-          // test files changes nothing.
+          // in this lane is a pure function over its arguments. No service in
+          // this lane holds module-level mutable state, so sharing a worker
+          // between test files changes nothing.
           //
           // If a future test ever needs a fresh module registry or mutates a
           // global, it gets `isolate: true` in its own file rather than
@@ -94,23 +129,25 @@ export default defineConfig({
            * no suite.
            */
           include: [
-            "{app,components,contracts,design,services}/**/*.{test,spec}.{ts,tsx}",
+            "{app,components,contracts,design}/**/*.{test,spec}.{ts,tsx}",
             /*
-             * And the one kind of lib test that cannot run in the node lane.
+             * And the suites under lib/ or services/ that cannot run in the
+             * node lane, named for it.
              *
-             * `lib/` is pure by rule, with exactly one exception:
-             * lib/analysis/selection-store.ts has to touch `sessionStorage`,
-             * because persistence is what lets a selection survive a step
-             * navigation. Its pure half is tested in the node lane beside
-             * everything else; its stateful half needs a real storage object
-             * and a module registry it can reset, which is what this lane has.
+             * The services are pure by rule, with exactly one exception:
+             * services/analysis/selection-store.ts has to touch
+             * `sessionStorage`, because persistence is what lets a selection
+             * survive a step navigation. Its pure half is tested in the node
+             * lane beside everything else; its stateful half needs a real
+             * storage object and a module registry it can reset, which is what
+             * this lane has.
              *
-             * The `.dom.` infix is the opt-in, so a lib test lands here only
-             * by being named for it. Without this the store's stateful half
-             * would be the untested part of the most load-bearing new module,
+             * The `.dom.` infix is the opt-in, so a service test lands here
+             * only by being named for it. Without this the store's stateful
+             * half would be the untested part of the most load-bearing module,
              * which is exactly where its first two bugs lived.
              */
-            "lib/**/*.dom.{test,spec}.{ts,tsx}",
+            "{lib,services}/**/*.dom.{test,spec}.{ts,tsx}",
           ],
           // A gate test that needs longer than this is not a gate test.
           testTimeout: 2000,

@@ -223,7 +223,7 @@ criteria list, so the app can show the right screen rather than an empty form.
 
 ## `POST /api/v1/weights/derive`
 
-AHP. Implemented here *and* in `my-app/lib/ahp` — the form must respond without
+AHP. Implemented here *and* in `my-app/services/ahp` — the form must respond without
 a round trip, and this service will not accept weights it has not checked. Both
 are tested against `contracts/ahp-fixtures.json`.
 

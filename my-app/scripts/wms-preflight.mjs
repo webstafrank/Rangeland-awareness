@@ -2,7 +2,7 @@
 /**
  * Ask a WMS server what it actually publishes.
  *
- * Step 2 of the swap procedure in lib/wms/README.md. Registering a layer name
+ * Step 2 of the swap procedure in services/wms/README.md. Registering a layer name
  * that the server does not have is the failure this exists to prevent: an
  * out-of-extent or unknown layer comes back HTTP 200 with an empty PNG, so the
  * map renders nothing and looks like a bug in this app rather than a bad name.
@@ -15,7 +15,7 @@
  *   node scripts/wms-preflight.mjs --json > /tmp/layers.json
  *
  * With no argument it reads NEXT_PUBLIC_WMS_ENDPOINT, falling back to the
- * internal GeoServer address compiled into lib/wms/source.ts.
+ * internal GeoServer address compiled into services/wms/source.ts.
  */
 
 const DEFAULT_ENDPOINT = "http://192.168.0.40:8080/geoserver/wms";
@@ -136,6 +136,6 @@ for (const layer of layers) {
 }
 
 console.log(
-  "\nNext: add the ones you want to KSA_LAYERS in lib/wms/layers.ts, copying\n" +
+  "\nNext: add the ones you want to KSA_LAYERS in services/wms/layers.ts, copying\n" +
     "`time` verbatim into `timeExtent` and stamping `verifiedOn` with today.",
 );

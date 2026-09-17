@@ -31,10 +31,10 @@ import {
 } from "@/components/topic/map-size-store";
 import { MAP_TOOL_SPECS, type MapTool } from "@/components/map/tools";
 import { useWizard } from "@/components/topic/useWizard";
-import { undoRestoreCount } from "@/lib/analysis/selection";
-import { blockingReason } from "@/lib/analysis/request";
-import type { Topic } from "@/lib/analysis/topics";
-import type { UrlSelection } from "@/lib/analysis/url-state";
+import { undoRestoreCount } from "@/services/analysis/selection";
+import { blockingReason } from "@/services/analysis/request";
+import type { Topic } from "@/services/analysis/topics";
+import type { UrlSelection } from "@/services/analysis/url-state";
 
 export interface AreasStepProps {
   topic: Topic;

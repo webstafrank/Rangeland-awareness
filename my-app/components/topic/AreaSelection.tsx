@@ -5,7 +5,7 @@
  *
  * Lifted out of TopicWorkbench so the new pre-analysis page can render it as a
  * slot without inheriting the rest of that page's layout. Every rule it appears
- * to enforce still lives in lib/analysis/selection.ts — this file dispatches and
+ * to enforce still lives in services/analysis/selection.ts — this file dispatches and
  * renders, and there is deliberately no `if` about area caps or analysis types
  * anywhere in it.
  *
@@ -30,12 +30,12 @@ import {
   subscribeMapSize,
 } from "@/components/topic/map-size-store";
 import { MAP_TOOL_SPECS, type MapTool } from "@/components/map/tools";
-import { getAnalysisType } from "@/lib/analysis/models";
+import { getAnalysisType } from "@/services/analysis/models";
 import {
   type SelectionAction,
   type SelectionState,
   undoRestoreCount,
-} from "@/lib/analysis/selection";
+} from "@/services/analysis/selection";
 
 export interface AreaSelectionProps {
   state: SelectionState;

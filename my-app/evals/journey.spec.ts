@@ -8,10 +8,10 @@ import {
   makePolygonShapefileZip,
   makeZip,
   rect,
-} from "../lib/geo/__tests__/fixtures/make-shapefile";
-import { TOPICS } from "../lib/analysis/topics";
-import { MODELS } from "../lib/analysis/models";
-import { STEPS, type StepId } from "../lib/analysis/steps";
+} from "../services/geo/__tests__/fixtures/make-shapefile";
+import { TOPICS } from "../services/analysis/topics";
+import { MODELS } from "../services/analysis/models";
+import { STEPS, type StepId } from "../services/analysis/steps";
 
 /**
  * The journey eval.
@@ -95,7 +95,7 @@ test.beforeAll(() => {
 
   notAShapefile = write("rainfall.csv", Buffer.from("station,mm\nMarsabit,212\n"));
 
-  // The input that used to hang the parser. See lib/geo/zip.ts.
+  // The input that used to hang the parser. See services/geo/zip.ts.
   corruptZip = write("corrupt.zip", Buffer.from("PK and then nothing valid at all"));
 
   bareShapefile = write("block.shp", bareShp([rect(37.9, 2.2, 38.1, 2.4)]));

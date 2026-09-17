@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { TOPICS, getTopic } from "@/lib/analysis/topics";
-import { readSearchParamSelection } from "@/lib/analysis/url-state";
+import { TOPICS, getTopic } from "@/services/analysis/topics";
+import { readSearchParamSelection } from "@/services/analysis/url-state";
 import ScopeStep from "@/components/topic/ScopeStep";
 
 /**
  * Step 1 of the analysis flow, and the topic's own URL.
  *
- * The first step has no path segment of its own (see lib/analysis/steps.ts),
+ * The first step has no path segment of its own (see services/analysis/steps.ts),
  * so a link from the homepage lands directly on the first decision instead of
  * on a redirect. The remaining three are sibling routes under this one, and
  * they all share app/topics/[topic]/layout.tsx.
@@ -20,7 +20,7 @@ import ScopeStep from "@/components/topic/ScopeStep";
 
 /**
  * The four known topic slugs. The registry is the source, so a topic added to
- * lib/analysis/topics.ts gets a route with no edit here.
+ * services/analysis/topics.ts gets a route with no edit here.
  *
  * Note that this route still reports as dynamic, not static, because the page
  * reads searchParams (see below). Outside partial prerendering there is no way

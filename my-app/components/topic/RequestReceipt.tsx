@@ -12,9 +12,9 @@
  * so the gap is pointed at here as well as stated under the button.
  */
 
-import type { ValidationResult } from "@/lib/analysis/request";
-import type { AnalysisType, ModelChoice } from "@/lib/analysis/models";
-import type { Topic } from "@/lib/analysis/topics";
+import type { ValidationResult } from "@/services/analysis/request";
+import type { AnalysisType, ModelChoice } from "@/services/analysis/models";
+import type { Topic } from "@/services/analysis/topics";
 
 export interface RequestReceiptProps {
   topic: Topic;

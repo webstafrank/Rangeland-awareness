@@ -19,8 +19,8 @@
  */
 
 import Link from "next/link";
-import { STEPS, isStepReachable, stepHref, stepIndex, type StepId } from "@/lib/analysis/steps";
-import type { TopicSlug } from "@/lib/analysis/topics";
+import { STEPS, isStepReachable, stepHref, stepIndex, type StepId } from "@/services/analysis/steps";
+import type { TopicSlug } from "@/services/analysis/topics";
 
 export interface StepRailProps {
   topic: TopicSlug;
