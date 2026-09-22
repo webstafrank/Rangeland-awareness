@@ -22,7 +22,8 @@ import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
 import { resetSelection } from "@/services/analysis/selection-store";
 import { stepHref, terminalHref } from "@/services/analysis/steps";
-import { RUN_PARAM, requestId } from "@/services/analysis/request-id";
+import { REQUEST_PARAM, requestId } from "@/services/analysis/request-id";
+import { isOverlayTopic } from "@/services/criteria";
 import { writeAreas } from "@/services/handoff/areas";
 import { formatArea } from "@/services/geo/area";
 import type { AnalysisRequest } from "@/services/analysis/request";
@@ -30,7 +31,7 @@ import type { Topic, TopicSlug } from "@/services/analysis/topics";
 import type { UrlSelection } from "@/services/analysis/url-state";
 
 /**
- * Hand the request over to the results route.
+ * Hand the request over to whichever route can actually do something with it.
  *
  * The split is deliberate and is the one services/handoff exists to express: the
  * configuration goes in the URL, where it is shareable, and the areas go to
@@ -43,9 +44,25 @@ import type { UrlSelection } from "@/services/analysis/url-state";
  * rendering nothing.
  *
  * `writeAreas` returns false rather than throwing when storage is full or
- * blocked. We navigate anyway: the results route already has a designed path
+ * blocked. We navigate anyway: both destinations already have a designed path
  * for absent areas, and that is strictly better than an exception thrown on
  * the way out of a form the analyst has just filled in.
+ *
+ * WHERE it navigates depends on whether the topic has a method behind it, and
+ * that question is answered here, locally, from the same criteria registry the
+ * backend's artifact is generated from:
+ *
+ *   overlay topic   /running, which creates the run and watches it. Today that
+ *                   is flood risk and only flood risk.
+ *   model topic     /results, which shows the validated request and says
+ *                   plainly that nothing has been computed. Unchanged.
+ *
+ * Asking the service instead would be more authoritative and would cost a round
+ * trip inside a click handler, with a spinner on the Run button while it
+ * resolved. The registry and the service cannot disagree (export-sync.test.ts
+ * fails when contracts/criteria.json drifts from this registry), and the
+ * running screen re-checks with the service anyway: a topic the service says it
+ * cannot run falls back to the receipt with the service's own sentence.
  */
 function handOff(
   request: AnalysisRequest,
@@ -56,11 +73,17 @@ function handOff(
   const id = requestId(request);
   writeAreas(id, request.areas);
 
-  // The wizard's own query (type, model) is threaded through so the results
-  // page renders the same configuration the review page was showing, and so a
+  // The wizard's own query (type, model) is threaded through so the next page
+  // renders the same configuration the review page was showing, and so a
   // shared link carries it.
   const separator = query === "" ? "?" : "&";
-  router.push(terminalHref(topic.slug, "results", `${query}${separator}${RUN_PARAM}=${id}`));
+  const search = `${query}${separator}${REQUEST_PARAM}=${id}`;
+
+  router.push(
+    isOverlayTopic(topic.slug)
+      ? terminalHref(topic.slug, "running", search)
+      : terminalHref(topic.slug, "results", search),
+  );
 }
 
 export interface ReviewStepProps {

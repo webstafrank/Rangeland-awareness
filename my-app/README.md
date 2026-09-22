@@ -14,22 +14,36 @@ service that owns GeoServer and runs the weighted overlay. It has produced a
 real flood-risk result over a Tana River area, a 928x922 grid at 30m in
 EPSG:32637 with Jenks breaks computed from its own distribution.
 
-**The app is not wired to it yet.** Running an analysis here still validates the
-request and shows the exact `AnalysisRequest` payload the service will receive.
-Connecting the two is the next piece of work.
+**The app is wired to it.** Pressing Run on flood risk creates a real run,
+`/topics/flood-risk/running` watches it stage by stage, and
+`/topics/flood-risk/results` renders what came back: the class table, the Jenks
+breaks, the per-criterion contribution and the exports. Verified end to end
+against the live GeoServer on 2026-09-22: run `r_cd8f78af0862`, a 928x922 grid
+at 30m in EPSG:32637, five classes whose shares sum to 1.
 
-Two things the first real run established, both of which the service refuses
-cleanly rather than guessing around:
+The other three topics have no method behind them, so Run still takes them to
+the validated `AnalysisRequest` receipt, which says so in as many words.
 
-- No DEM is published on the KSA GeoServer, so the `elevation` criterion cannot
-  run and a request naming it is refused at creation.
-- `Hazards_Dashboard:TanaRiver_LULC` uses codes 1 to 5 while the shipped class
-  table is ESA WorldCover (10 to 100), so `landcover` cannot be classified until
-  that layer's legend is supplied.
+What this deployment's data will and will not support, all three found by
+running it rather than by reading about it:
 
-Nothing is trained or scored: the method is a weighted overlay, not a model. The
-three model-track topics (drought, rangeland dynamics, food security) have no
-method behind them and say so.
+- **No DEM is published**, so `elevation` cannot run. The criteria endpoint
+  reports it as unavailable and the app drops it and renormalises the remaining
+  weights before it posts.
+- **`Hazards_Dashboard:TanaRiver_LULC` uses codes 1 to 5** while the shipped
+  class table is ESA WorldCover (10 to 100), so `landcover` classifies no pixel
+  and a run including it fails at the reclassify stage with that sentence.
+- **`dist_to_river` classified no pixel** on two Tana River test areas, one of
+  which sat directly on the digitised network. Unexplained, and the next thing
+  to look at in the pipeline; the run that produced the verified result above
+  used slope and rainfall only.
+
+A run is a pure function of its configuration, so a result URL is the whole of
+its persistence: `?run=r_...` re-reads the run from the service and renders the
+same page in a cold browser with no session storage.
+
+Nothing is trained or scored: the method is a weighted overlay, not a model, and
+every screen that shows a number says so.
 
 ## Run it
 
@@ -66,13 +80,22 @@ tree it is committing rather than against whichever checkout the hook file
 happens to live in.
 
 **Eval lane** (`playwright`, `evals/`) drives a real browser at 1280px and
-360px: 64 journey checks and 46 theme checks, 110 in total. It proves the things the gate
-lane structurally cannot: that all four area-selection methods work, that a
-selection moves the map viewport, that a corrupt upload fails fast instead of
-freezing the tab, that every control has an accessible name, that the light
-theme holds under a dark OS preference, and that the journey fits its budget. It uses the system Chrome
-(`channel: "chrome"`), so no browser download is needed, and picks a port from
-the session id so two sessions do not collide.
+360px. It serves the standalone build (`output: "standalone"` is on for the
+container image, and `next start` refuses to run against it), and points the app
+at `evals/stub-backend.ts`, a real HTTP server speaking
+`contracts/backend-api.md` on its own port. The stub rather than Django because
+a real run is minutes of GDAL against one specific LAN; what this lane proves is
+that the app renders what comes back, including the states a healthy service
+never produces.
+
+205 checks across two viewports. It proves the things the gate lane structurally
+cannot: that all four area-selection methods work, that a selection moves the
+map viewport, that a corrupt upload fails fast instead of freezing the tab, that
+every control has an accessible name, that the light theme holds under a dark OS
+preference, that a run's stage list is in the first byte of HTML, that a
+progress bar never goes backwards, and that the journey fits its budget. It uses
+the system Chrome (`channel: "chrome"`), so no browser download is needed, and
+picks its ports from the session id so two sessions do not collide.
 
 Every locator in `evals/journey.spec.ts` is a role or an accessible name, never
 a CSS class, so the file doubles as the DOM contract: it fails if a control
@@ -81,8 +104,10 @@ loses its label, which is the same thing that would break a screen reader.
 The eval prints the journey budget it measured:
 
 ```
-JOURNEY BUDGET: 6 clicks, 1771ms elapsed
+JOURNEY BUDGET: 9 clicks, 3069ms elapsed
 ```
+
+The budget is 10 clicks and 60 seconds.
 
 ## The bar this is held to
 
@@ -103,6 +128,10 @@ app/                      routes only, no business logic
     model/page.tsx        step 2
     areas/page.tsx        step 3, the only one carrying the map
     review/page.tsx       step 4, review and run
+    running/page.tsx      the run: created here, watched here
+    results/page.tsx      the result, or the request receipt for a topic with
+                          no method behind it
+  api/health/route.ts     liveness, plus whether the backend answers
   not-found.tsx           the 404, same design language as the homepage
   layout.tsx              shell, header, footer, skip link
   globals.css             the whole design system, as one Tailwind @theme block
@@ -120,11 +149,16 @@ services/                 every rule. Pure, node-testable, imports nothing
   criteria/ ahp/          the class tables and pairwise weighting, both
                           mirrored by the Django service
   wms/                    WMS capabilities, time and layer selection
+  backend-api/            the client for the Django service, and the polling
+                          state machine. See services/backend-api/README.md
+  run-flow/               turning a wizard selection into a run the service
+                          accepts. See services/run-flow/README.md
   handoff/ preanalysis/   carrying a selection between pages
   auth/                   the session cookie stub. NOT authentication
 lib/theme/                palette and contrast measurement. Build tooling
                           rather than a service, which is why it did not move
-evals/                    journey.spec.ts and theme.spec.ts
+evals/                    journey, theme, auth and run specs, plus the stub
+                          backend the run spec drives
 docs/acceptance-rubric.md the frozen rubric the evals implement
 scripts/pre-commit        the gate lane hook
 ```

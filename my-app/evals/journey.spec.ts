@@ -860,8 +860,12 @@ test.describe("topic steps", () => {
 
     // Run now hands off to the results route rather than expanding a section
     // in place. The configuration travels in the query and the areas travel in
-    // sessionStorage, paired by the id in ?run=.
-    await expect(page).toHaveURL(/\/topics\/rangeland-dynamics\/results\?.*\brun=/);
+    // sessionStorage, paired by the id in ?req=.
+    //
+    // ?req=, not ?run=. The two are different ids since the backend arrived:
+    // ?req= is this app's id for a request nothing has computed yet, ?run= is
+    // the service's id for a real computation. See services/analysis/request-id.ts.
+    await expect(page).toHaveURL(/\/topics\/rangeland-dynamics\/results\?.*\breq=/);
 
     const payload = page.getByTestId("analysis-request");
     await expect(payload).toBeVisible();
@@ -1010,7 +1014,10 @@ test.describe("topic steps", () => {
   test("T11: the flow completes with the keyboard, without touching the map", async ({
     page,
   }) => {
-    await gotoStep(page, "flood-risk", "model");
+    // A model-track topic, so the keyboard walk ends on the request receipt.
+    // Flood risk now ends on /running, which needs a service; the same keyboard
+    // path through the same four steps is what this test is about.
+    await gotoStep(page, "drought-monitoring", "model");
 
     await page.getByRole("radio", { name: /combined model/i }).focus();
     await page.keyboard.press("Space");
@@ -1405,7 +1412,16 @@ test.describe("fits the screen", () => {
  * Guinea the moment it did. Rubric T5 applies here, not only on the areas step.
  */
 test.describe("results", () => {
-  /** Walk a real run, and return the view the analyst had when they picked. */
+  /**
+   * Walk the flow to the request receipt, and return the view the analyst had
+   * when they picked.
+   *
+   * Uses a model-track topic. Flood risk is the one topic with a method behind
+   * it, so Run now sends it to /running, which creates a run against the
+   * service. This lane has no service, and more to the point the receipt is no
+   * longer what flood risk shows. The run flow has its own eval against a stub
+   * in evals/run.spec.ts.
+   */
   async function runTo(page: Page, slug: string) {
     await gotoStep(page, slug, "areas");
     await clickMap(page);
@@ -1414,7 +1430,7 @@ test.describe("results", () => {
 
     await continueControl(page).click();
     await page.getByRole("button", { name: /run analysis/i }).click();
-    await expect(page).toHaveURL(/\/results\?.*\brun=/);
+    await expect(page).toHaveURL(/\/results\?.*\breq=/);
     return picked;
   }
 
@@ -1422,7 +1438,7 @@ test.describe("results", () => {
     page,
   }) => {
     const problems = watchConsole(page);
-    const picked = await runTo(page, "flood-risk");
+    const picked = await runTo(page, "rangeland-dynamics");
 
     // The map is dynamically imported, so give it the same budget the areas
     // step gets, and let the flyTo settle before reading the viewport.
@@ -1446,9 +1462,9 @@ test.describe("results", () => {
   test("restates the request, and lists every area with its real size", async ({
     page,
   }) => {
-    await runTo(page, "flood-risk");
+    await runTo(page, "rangeland-dynamics");
 
-    await expect(page.getByTestId("results-summary")).toContainText(/flood risk/i);
+    await expect(page.getByTestId("results-summary")).toContainText(/rangeland dynamics/i);
     await expect(
       page.getByTestId("results-areas").getByRole("listitem"),
     ).toHaveCount(1);
@@ -1461,14 +1477,14 @@ test.describe("results", () => {
     // The one thing this screen must never do is look like a result. A
     // government tool that renders a convincing non-answer is worse than one
     // that renders nothing.
-    await runTo(page, "flood-risk");
+    await runTo(page, "rangeland-dynamics");
     await expect(page.getByText(/no model has run/i)).toBeVisible();
   });
 
   test("refuses to pair areas with a configuration they were not chosen for", async ({
     page,
   }) => {
-    await runTo(page, "flood-risk");
+    await runTo(page, "rangeland-dynamics");
     const url = new URL(page.url());
 
     // Edit the configuration in the address bar, exactly as a curious user
@@ -1486,7 +1502,7 @@ test.describe("results", () => {
   test("explains itself when opened cold, with a way back", async ({ page }) => {
     // A bookmark from yesterday, or a link pasted to a colleague. The config is
     // valid; the areas are simply not in this browser session.
-    await page.goto("/topics/flood-risk/results?run=deadbeef123");
+    await page.goto("/topics/rangeland-dynamics/results?req=deadbeef123");
 
     const problem = page.getByTestId("handoff-problem");
     await expect(problem).toBeVisible();
@@ -1581,7 +1597,11 @@ test.describe("measurable outcome", () => {
       loads += 1;
     });
 
-    await topicCard(page, "flood risk").click();
+    // A model-track topic, so Run lands on the request receipt. Flood risk now
+    // goes to /running, which is a route that talks to the service and is
+    // evalled against a stub in run.spec.ts; what this test measures is that
+    // the four steps are client-side transitions, which is topic-independent.
+    await topicCard(page, "drought monitoring").click();
     await expect(page.getByTestId("step-rail")).toBeVisible();
 
     await continueControl(page).click();

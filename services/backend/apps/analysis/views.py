@@ -18,6 +18,7 @@ from django.http import HttpRequest, HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 
+from apps.analysis import bindings
 from apps.analysis.domain import ahp, criteria
 from apps.analysis.jobs.runner import submit
 from apps.analysis.jobs.stages import plan_stages
@@ -79,12 +80,31 @@ def topic_criteria(request: HttpRequest, topic: str) -> JsonResponse:
             }
         )
 
-    unfilled = [c.id for c in method.criteria if not c.is_filled]
+    # Two independent reasons a criterion cannot run here, and the app needs
+    # both under one name because it does the same thing about either: drop the
+    # criterion and renormalise the remaining weights.
+    #
+    #   empty class table   the codes belong to a layer this deployment has not
+    #                       published, so nothing can be reclassified
+    #   no binding          no layer on this GeoServer supplies it at all
+    #
+    # Reporting only the first is what this endpoint used to do, and it was a
+    # real bug rather than a nicety. `elevation` has a full class table and no
+    # DEM behind it, so the app was told it was available, sent it in the
+    # weights, and got a 400 from create_run several seconds later. The app
+    # cannot know the bindings, which is the whole point of this service being
+    # authoritative, so the knowledge has to arrive here.
+    unbound = set(bindings.unbound([c.id for c in method.criteria]))
+    unfilled = [c.id for c in method.criteria if not c.is_filled or c.id in unbound]
+
     return JsonResponse(
         {
             "topic": topic,
             "method": method.kind,
-            "criteria": [_criterion_json(c) for c in method.criteria],
+            "criteria": [
+                _criterion_json(c, available=c.is_filled and c.id not in unbound)
+                for c in method.criteria
+            ],
             "defaultWeights": method.default_weights or {},
             # Named rather than silently excluded: a run asking for one of these
             # is refused at creation with a reason, and the app can grey it out
@@ -94,7 +114,7 @@ def topic_criteria(request: HttpRequest, topic: str) -> JsonResponse:
     )
 
 
-def _criterion_json(c: criteria.Criterion) -> dict[str, Any]:
+def _criterion_json(c: criteria.Criterion, *, available: bool | None = None) -> dict[str, Any]:
     scale: dict[str, Any] = {"kind": str(c.scale.kind)}
     if c.scale.kind == criteria.ScaleKind.CONTINUOUS:
         scale["classes"] = [
@@ -117,7 +137,9 @@ def _criterion_json(c: criteria.Criterion) -> dict[str, Any]:
         "direction": c.direction,
         "calibration": str(c.calibration),
         "reference": c.reference,
-        "filled": c.is_filled,
+        # "filled" means runnable here, which is the question the app asks of
+        # it. A full class table with no layer behind it is not runnable.
+        "filled": c.is_filled if available is None else available,
         "source": {
             "kind": str(c.source.kind),
             "hint": c.source.hint,

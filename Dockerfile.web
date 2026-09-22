@@ -1,0 +1,128 @@
+# The Next.js app (my-app/).
+#
+# Build context is the REPOSITORY ROOT, not my-app/, because docker-compose.yml
+# and .dockerignore live here and a context cannot reach above itself. Build it
+# with:
+#
+#   docker build -f Dockerfile.web -t rangeland-web .
+#
+# Three stages, and the split is what keeps the runtime image small and the
+# source tree out of it:
+#
+#   deps    npm ci against the lockfile alone, so a source edit does not
+#           re-download node_modules on every build
+#   builder the actual next build, which produces .next/standalone
+#   runner  standalone + .next/static + public, and nothing else
+#
+# Debian slim rather than Alpine on purpose. Next's SWC binary, Tailwind v4's
+# oxide binary and lightningcss are all native, and their glibc builds are the
+# ones the toolchain tests against. musl builds exist but a wrong one fails at
+# build time with a resolution error that reads like a missing package, and
+# saving 40MB is not worth debugging that on a deploy day.
+
+# ---------------------------------------------------------------------- deps
+
+FROM node:22-bookworm-slim AS deps
+WORKDIR /app
+
+# Just the two manifest files. Docker caches this layer on their content, so
+# editing a component does not invalidate the install.
+COPY my-app/package.json my-app/package-lock.json ./
+
+# `ci` rather than `install`: it obeys the lockfile exactly and fails if
+# package.json and the lockfile disagree, which is the behaviour a build wants.
+# Dev dependencies are needed here, because the build type-checks the app and
+# TypeScript, the Next plugin and the test types all live in devDependencies.
+RUN npm ci
+
+# ------------------------------------------------------------------- builder
+
+FROM node:22-bookworm-slim AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY my-app/ ./
+
+# THE BUILD-TIME/RUNTIME SPLIT. Read this before changing anything below.
+#
+# Next.js inlines every NEXT_PUBLIC_* variable into the browser bundle at BUILD
+# time by textually substituting `process.env.NEXT_PUBLIC_FOO`. Setting one only
+# at runtime does nothing for the browser: the string was already frozen into
+# the JavaScript, and `docker run -e NEXT_PUBLIC_BACKEND_URL=...` cannot change
+# it. This is the single most common way this deployment breaks, and the symptom
+# is vicious: the server renders the page correctly, the browser hydrates, and
+# then every client-side fetch and every map tile goes to whatever URL the build
+# host had (or to the default 127.0.0.1:8000, which on an analyst's laptop is
+# their own machine). The page looks fine and the map is blank.
+#
+# So each NEXT_PUBLIC_* value arrives as a build ARG here AND is set again as a
+# runtime env in docker-compose.yml. The ARG is what the browser gets. The
+# runtime copy matters because server components read the same variable during
+# SSR, and because it keeps the two from drifting silently.
+#
+# The consequence to accept: changing the browser-facing backend URL is a
+# REBUILD, not a restart. BACKEND_URL (server side, internal) is the opposite,
+# it is read per request and is a restart. See my-app/services/backend-api/config.ts.
+ARG NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000
+ARG NEXT_PUBLIC_WMS_SOURCE=""
+ARG NEXT_PUBLIC_WMS_ENDPOINT=""
+ARG APP_VERSION=unknown
+
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
+    NEXT_PUBLIC_WMS_SOURCE=$NEXT_PUBLIC_WMS_SOURCE \
+    NEXT_PUBLIC_WMS_ENDPOINT=$NEXT_PUBLIC_WMS_ENDPOINT \
+    APP_VERSION=$APP_VERSION \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+
+# Fails the build on a type error, which is the point: next build runs the
+# TypeScript check over everything tsconfig.json includes.
+RUN npm run build
+
+# -------------------------------------------------------------------- runner
+
+FROM node:22-bookworm-slim AS runner
+WORKDIR /app
+
+# NEXT_TELEMETRY_DISABLED: telemetry is opt-out and phones home on every build
+# and start. A server in a government network does not make outbound calls
+# nobody asked for.
+#
+# HOSTNAME=0.0.0.0: without it the standalone server binds localhost INSIDE the
+# container, which is not reachable from the docker network. The result is a
+# container that is up, listening, and refuses every connection.
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+# The node image already ships an unprivileged `node` user (uid 1000). Reusing
+# it rather than creating another is one less thing to keep in sync with the
+# volume ownership, and this image writes nothing outside /tmp anyway.
+USER node
+
+# What `output: "standalone"` produces: server.js plus only the node_modules the
+# traced import graph actually reaches. No source tree, no package.json install,
+# no devDependencies, no lockfile. Everything not copied below is absent from
+# the image by construction, which is what makes this small and what keeps the
+# repository out of a running container.
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+# Static assets and public/ are deliberately NOT inside standalone; Next expects
+# them copied alongside. Forgetting either one gives a page with no CSS and 404s
+# on every image, which is the second classic failure of this Dockerfile.
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+
+EXPOSE 3000
+
+# Uses node's own global fetch rather than curl or wget, neither of which is in
+# this image and neither of which is worth installing for one request. The route
+# always answers 200 when the process is alive, and reports a missing backend in
+# its body instead: a web tier serving pages is not unhealthy because the
+# analysis service is down. See my-app/app/api/health/route.ts.
+#
+# start-period covers the standalone server's boot, which is roughly a second.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "server.js"]

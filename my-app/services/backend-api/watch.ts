@@ -68,12 +68,23 @@ export function initialState(
   runId: string,
   status: RunStatus,
   stages: readonly Stage[],
+  /**
+   * The progress the caller already knows, when it knows any.
+   *
+   * Zero is right when the state comes from a POST, which is the moment before
+   * any work has happened. It is wrong when the state comes from a status read
+   * on the server, and the wrongness is visible: a finished run rendered "0%"
+   * next to "10 of 10 stages finished" until the first client poll corrected
+   * it, which is a screen contradicting itself in the server-rendered HTML.
+   * Caught by opening a real finished run, not by a test.
+   */
+  progress = 0,
 ): WatchState {
   return {
     runId,
     status,
     stages,
-    progress: 0,
+    progress: Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0,
     error: null,
     transportFailure: null,
     consecutiveFailures: 0,

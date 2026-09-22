@@ -57,5 +57,35 @@ export function requestId(request: AnalysisRequest): string {
   return hashToId(canonicalRequestString(request));
 }
 
-/** The query parameter the results page reads the id back from. */
+/**
+ * The query parameter carrying the id above: the app's own id for a request
+ * that has not been submitted to anything yet.
+ *
+ * `?req=` and `?run=` are two different ids and the distinction is load
+ * bearing, which is why they are two parameters rather than one with a prefix
+ * convention:
+ *
+ *   ?req=<12 base36>   this id. Derived in the browser from the configuration
+ *                      and the areas, and the key the areas are held under in
+ *                      sessionStorage. It names a request, not a computation.
+ *   ?run=r_<12 hex>    the backend's id, from POST /api/v1/runs. It is a hash
+ *                      of the normalised config the SERVICE received, which is
+ *                      not the same string this app hashes, and it is the only
+ *                      id that can be polled or fetched a result for.
+ *
+ * Telling them apart by looking at them ("does it start with r_") was the other
+ * option and was rejected: it makes the app's URL scheme depend on the
+ * backend's id format, so the day the service switches to a UUID every link in
+ * this app silently reinterprets itself.
+ */
+export const REQUEST_PARAM = "req";
+
+/**
+ * The query parameter carrying the BACKEND's run id.
+ *
+ * Kept as "run" because that is what it has always been in this app's URLs and
+ * what any saved link uses. Its meaning narrowed when the backend arrived: it
+ * used to hold the request id above, and now holds the id of a real
+ * computation.
+ */
 export const RUN_PARAM = "run";

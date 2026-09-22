@@ -57,6 +57,23 @@ describe("the first frame", () => {
     expect(state.settled).toBe(false);
   });
 
+  it("takes the progress the caller already read, rather than showing zero", () => {
+    // The bug this pins, found by opening a real finished run in a browser: a
+    // status read on the server carries `progress`, and ignoring it rendered
+    // "0%" beside "10 of 10 stages finished" in the server HTML until the first
+    // client poll corrected it. A screen that contradicts itself for two
+    // seconds is worse than one that waits.
+    const state = initialState("r_1", "succeeded", STAGES, 1);
+    expect(state.progress).toBe(1);
+  });
+
+  it("clamps a progress it is handed, and defaults to zero after a POST", () => {
+    expect(initialState("r_1", "queued", STAGES).progress).toBe(0);
+    expect(initialState("r_1", "running", STAGES, 1.5).progress).toBe(1);
+    expect(initialState("r_1", "running", STAGES, -1).progress).toBe(0);
+    expect(initialState("r_1", "running", STAGES, Number.NaN).progress).toBe(0);
+  });
+
   it("is already settled when the POST reported a cached, finished run", () => {
     // A 200 with cached: true and status succeeded. Polling it would be a
     // request whose answer is known before it is sent.

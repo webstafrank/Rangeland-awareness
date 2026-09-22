@@ -1,0 +1,178 @@
+# The Django backend (services/backend/).
+#
+# Build context is the REPOSITORY ROOT, because this image needs two directories
+# from it: services/backend and contracts/. Build it with:
+#
+#   docker build -f Dockerfile.backend -t rangeland-backend .
+#
+# Single stage on purpose. There is nothing to compile: the heavy dependency
+# (GDAL, C++ and its Python bindings) arrives prebuilt in the base image, and
+# the three pure-Python packages on top are wheels. A builder stage would add a
+# copy step and save nothing.
+
+# ---------------------------------------------------------------- base image
+#
+# ghcr.io/osgeo/gdal:ubuntu-small-3.12.2 is GDAL's own published image. Verified
+# against the GHCR tag list and the upstream Dockerfile, not assumed:
+#
+#   - the tag exists (ghcr.io/v2/osgeo/gdal/tags/list carries ubuntu-small-3.12.2)
+#   - it is built FROM ubuntu:24.04, so Python is 3.12
+#   - the runner stage installs python3-numpy and copies the built osgeo
+#     bindings into /usr, so `import osgeo.gdal` and `import numpy` work with
+#     no further installation
+#   - curl is present, which is what the HEALTHCHECK below uses
+#
+# 3.12.2 matches the GDAL the development machine runs (services/backend/README.md).
+# Pinning the exact patch rather than ubuntu-small-latest is deliberate: a raster
+# result that changes because a base image floated is a bug nobody can reproduce.
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.12.2
+
+# --------------------------------------------------------------- dependencies
+#
+# Only what the service imports: Django, numpy, requests. No DRF, no Celery, no
+# rasterio/scipy/geopandas. services/backend/README.md explains each absence.
+# gunicorn is the fourth and is not an application dependency, it is how the
+# WSGI app is served.
+#
+# numpy comes from apt, not pip, and that is not laziness. The osgeo bindings in
+# this image were compiled against the distribution's numpy; a pip numpy would
+# install a second copy with a different C ABI and `band.ReadAsArray()` would
+# fail at runtime, deep inside a raster stage, with an error about array
+# interface versions. It is already present in the base image; naming it here
+# makes it a stated dependency rather than an inherited accident.
+#
+# --break-system-packages is required, not a workaround to clean up later.
+# Ubuntu 24.04 marks its system Python as externally managed (PEP 668) and pip
+# refuses to touch it without this flag. A virtualenv is the usual answer and is
+# the wrong one HERE: the GDAL bindings live in the system dist-packages, so a
+# plain venv cannot see them and `--system-site-packages` gives back the same
+# shared environment with an extra layer. The container IS the isolation.
+#
+# (The development machine cannot pip install at all, for this same PEP 668
+# reason plus a missing python3-venv. That constraint is the host's and is not
+# copied into this image: here, pip works.)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3-pip python3-numpy \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --break-system-packages --no-cache-dir \
+        "Django~=5.2.15" \
+        "requests>=2.32,<3" \
+        "gunicorn~=26.2" \
+    && python3 -c "from osgeo import gdal; import numpy, django; print('gdal', gdal.__version__, '| numpy', numpy.__version__, '| django', django.get_version())"
+
+# ------------------------------------------------------------------- the code
+#
+# The repository layout is MIRRORED inside the image (/app/services/backend and
+# /app/contracts) rather than flattened. settings.py computes the repo root as
+# BASE_DIR.parent.parent and reads contracts/criteria.json and
+# contracts/ahp-fixtures.json from it, and apps/analysis/domain/criteria.py
+# walks up the tree looking for a contracts/ directory. Flatten the layout and
+# both land on "/", the artifacts are not found, and the failure is a
+# FileNotFoundError at IMPORT time: the container exits before it serves one
+# request. Mirroring the layout makes both mechanisms resolve exactly as they do
+# in a checkout.
+#
+# CONTRACTS_DIR overrides the search if a deployment ever ships the contracts
+# somewhere else. It is left unset here because the mirrored layout is correct
+# without it, and an env var that restates the default is one more thing to get
+# out of step.
+WORKDIR /app
+COPY contracts/ /app/contracts/
+COPY services/backend/ /app/services/backend/
+WORKDIR /app/services/backend
+
+# ----------------------------------------------------------------- the user
+#
+# Non-root. uid/gid 10001 is above the range any distribution package claims, so
+# it cannot collide with a system account the base image adds later.
+#
+# /data and /workspace are created and chowned HERE, in the image, before they
+# are ever mounted. That is load-bearing: when docker first populates an empty
+# named volume it copies the image directory's contents AND its ownership. Skip
+# this and the volumes arrive owned by root, the unprivileged process cannot
+# write, and the container dies on the first migration with a read-only database
+# error that points at nothing useful.
+#
+# /app is NOT chowned and stays root-owned, so the running process cannot
+# rewrite its own code. Nothing needs it to: PYTHONDONTWRITEBYTECODE stops .pyc
+# files landing beside the source, the database is in /data, run artifacts are
+# in /workspace, and the one test that needs scratch space uses tempfile
+# (apps/analysis/tests/test_raster.py).
+RUN groupadd --gid 10001 rangeland \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin rangeland \
+    && mkdir -p /data /workspace \
+    && chown -R rangeland:rangeland /data /workspace
+
+# SQLITE_PATH and RANGELAND_WORKSPACE default to the two volume mount points, so
+# the image is correct on its own and compose only has to attach the volumes.
+# The database must not live in /app: that is the image, and a database in an
+# image is lost on every deploy.
+#
+# PYTHONUNBUFFERED: without it Python buffers stdout when it is a pipe, and
+# `docker logs` shows nothing during a run that is printing progress.
+ENV DJANGO_SETTINGS_MODULE=rangeland.settings \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/services/backend \
+    SQLITE_PATH=/data/db.sqlite3 \
+    RANGELAND_WORKSPACE=/workspace \
+    GUNICORN_WORKERS=1 \
+    GUNICORN_THREADS=8
+
+VOLUME ["/data", "/workspace"]
+
+# ------------------------------------------------------------------- startup
+#
+# Written into the image rather than kept as a separate file, because the whole
+# start sequence is six lines and a second file is a second thing to keep in
+# sync with this one.
+#
+# `migrate` runs on every start. It is idempotent, it is what makes a fresh
+# volume work with no manual step, and with one replica there is no migration
+# race to worry about. The day this runs behind a replica count above one,
+# migration moves to its own job; that is a deliberate change, not a surprise.
+#
+# Why one gunicorn worker by default (GUNICORN_WORKERS): a run executes on a
+# BACKGROUND THREAD inside the worker process (apps/analysis/jobs/runner.py, no
+# Celery). Run state lives in the database so polling survives a restart, but
+# the thread itself does not: adding workers multiplies the processes a run
+# could be living in while giving SQLite more concurrent writers to fight over.
+# Threads, not processes, are what this service needs to stay responsive while a
+# run is working, hence a high thread count and one worker. Raise
+# GUNICORN_WORKERS when the database is Postgres and the runner is out of
+# process, not before.
+#
+# --timeout 120 is the worker's own ceiling and must stay above GEOSERVER_TIMEOUT
+# (30s by default), or gunicorn kills a worker that is legitimately waiting on a
+# slow GetCapabilities.
+#
+# No collectstatic: django.contrib.admin is not installed, no STATIC_ROOT is
+# configured, and nothing serves a static file from this service. Running it
+# would fail on the missing setting for no benefit.
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    'echo "[entrypoint] applying migrations"' \
+    'python3 manage.py migrate --noinput' \
+    'echo "[entrypoint] serving on 0.0.0.0:8000"' \
+    'exec gunicorn rangeland.wsgi:application --bind 0.0.0.0:8000 --workers "${GUNICORN_WORKERS:-1}" --threads "${GUNICORN_THREADS:-8}" --timeout 120 --access-logfile - --error-logfile -' \
+    > /usr/local/bin/rangeland-entrypoint \
+    && chmod 0755 /usr/local/bin/rangeland-entrypoint
+
+USER rangeland
+EXPOSE 8000
+
+# --timeout=40s, which is longer than it looks like it should be, on purpose.
+# /api/v1/health probes GeoServer before answering and that probe waits up to
+# GEOSERVER_TIMEOUT (30s) before reporting `reachable: false`. With docker's
+# default 30s timeout, a perfectly healthy backend whose GeoServer is off the
+# network would be killed and restarted in a loop: the orchestrator would be
+# treating "the LAN is down" as "this container is broken". 40s lets the
+# endpoint answer 200 with `status: degraded`, which is the true state.
+#
+# start-period covers migrate on a cold volume. Failures during it do not count
+# against retries.
+HEALTHCHECK --interval=30s --timeout=40s --start-period=60s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:8000/api/v1/health > /dev/null || exit 1
+
+ENTRYPOINT ["/usr/local/bin/rangeland-entrypoint"]

@@ -1,0 +1,180 @@
+# The deployment unit: the Django backend and the Next.js app.
+#
+#   cp .env.example .env     # then fill it in
+#   docker compose up --build
+#
+# Everything host-specific and everything secret is read from the environment.
+# `docker compose` loads .env from this directory automatically; .env is
+# gitignored and .dockerignore keeps it out of both images.
+#
+# The variables written in the `VAR:?message` form have NO default and compose
+# refuses to start without them, printing the message. That is deliberate. Every
+# one of them is a value whose wrong answer is silent: a default secret key that
+# nobody notices is in production, an ALLOWED_HOSTS of `*`, a backend URL that
+# only resolves on the machine that built the image. Refusing to boot is the
+# only failure mode of those that is loud enough.
+#
+# No GeoServer service is defined here. GeoServer is existing infrastructure at
+# whatever GEOSERVER_URL names, usually 192.168.0.40:8080 on the KSA LAN, owned
+# by someone else and holding data this compose file has no business creating.
+# It is a dependency, not part of this unit.
+
+name: rangeland
+
+services:
+  # ------------------------------------------------------------------ backend
+  #
+  # Owns GeoServer, the database and every calculation. It is the thing that
+  # must be up before the app is worth serving.
+  backend:
+    build:
+      # Repository root, because the image needs services/backend AND
+      # contracts/ (settings.py reads criteria.json and ahp-fixtures.json from
+      # the repo root and raises at import time without them).
+      context: .
+      dockerfile: Dockerfile.backend
+    image: rangeland-backend:${APP_VERSION:-dev}
+    restart: unless-stopped
+
+    environment:
+      # -- security ------------------------------------------------------
+      #
+      # No default, on purpose. settings.py falls back to
+      # "dev-only-not-a-secret", which is fine on a laptop and a disaster in
+      # production; this is the gate that stops that fallback ever being used
+      # by a deployment.
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?generate one and put it in .env, see .env.example}"
+
+      # Hardcoded, not read from the environment. A debug switch that can be
+      # flipped by exporting a variable is one typo away from serving stack
+      # traces, the SQL of every query and the settings module to the internet.
+      # Turning it on is an edit to a compose override file, which is a visible
+      # act. settings.py reads the string "1" as on, so "0" is off.
+      DJANGO_DEBUG: "0"
+
+      # Explicit, never `*`. The default in settings.py IS `*`, which accepts
+      # any Host header and makes cache poisoning and password-reset-style host
+      # spoofing possible. Comma separated, no spaces, no scheme.
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:?comma separated hostnames this backend answers to, e.g. ra.ksa.go.ke,backend}"
+
+      # Explicit, never `*`. This is what lets the analyst's BROWSER call the
+      # tile proxy and poll a run, so it lists the app's public origins with
+      # scheme and port, not the backend's own.
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:?comma separated app origins with scheme, e.g. https://ra.ksa.go.ke}"
+
+      # -- GeoServer -----------------------------------------------------
+      #
+      # The one place the upstream is named. /api/v1/health reports this value
+      # back, so "which server is this pointed at" is answerable from the
+      # running system.
+      GEOSERVER_URL: "${GEOSERVER_URL:?the GeoServer base URL, e.g. http://192.168.0.40:8080/geoserver}"
+      # Optional. An anonymous GeoServer needs neither; a secured one needs
+      # both, and they stay server side because the browser never addresses
+      # GeoServer directly.
+      GEOSERVER_USER: "${GEOSERVER_USER:-}"
+      GEOSERVER_PASSWORD: "${GEOSERVER_PASSWORD:-}"
+      GEOSERVER_TIMEOUT: "${GEOSERVER_TIMEOUT:-30}"
+      GEOSERVER_COVERAGE_TIMEOUT: "${GEOSERVER_COVERAGE_TIMEOUT:-300}"
+      GEOSERVER_CAPABILITIES_TTL: "${GEOSERVER_CAPABILITIES_TTL:-300}"
+
+      # -- storage -------------------------------------------------------
+      #
+      # Both point at the named volumes below. Restated here rather than left
+      # to the image's defaults so that reading this file tells you where the
+      # state is, which is the question a backup answers.
+      SQLITE_PATH: /data/db.sqlite3
+      RANGELAND_WORKSPACE: /workspace
+      # Postgres instead of SQLite: set DATABASE_URL to a postgres:// URL and
+      # add the service. settings.py switches on the scheme, no code change.
+      DATABASE_URL: "${DATABASE_URL:-}"
+
+      # -- process -------------------------------------------------------
+      GUNICORN_WORKERS: "${GUNICORN_WORKERS:-1}"
+      GUNICORN_THREADS: "${GUNICORN_THREADS:-8}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+
+    ports:
+      # Published to the host because the analyst's BROWSER talks to this
+      # service directly: every map tile and every run poll is a client-side
+      # fetch to NEXT_PUBLIC_BACKEND_URL. Only the web tier's own calls go over
+      # the internal network.
+      #
+      # This service has no authentication of any kind. On anything facing a
+      # network wider than the office LAN, put a reverse proxy with TLS and
+      # access control in front of it and bind this to 127.0.0.1 by setting
+      # BACKEND_BIND=127.0.0.1.
+      - "${BACKEND_BIND:-0.0.0.0}:${BACKEND_PORT:-8000}:8000"
+
+    volumes:
+      # Run rows, stages and results. Small, and the thing to back up.
+      - backend-data:/data
+      # Fetched coverages and computed GeoTIFFs. Hundreds of megabytes per run,
+      # which is exactly why it is a volume and not a directory in the image.
+      # Disposable: losing it costs a re-run, not a record.
+      - backend-workspace:/workspace
+
+    # No healthcheck block here. The one in Dockerfile.backend is the authority
+    # (curl /api/v1/health, 40s timeout because the GeoServer probe can take
+    # 30s), and compose reads it from the image. Restating it here would create
+    # two copies to keep in step.
+
+  # ---------------------------------------------------------------------- web
+  #
+  # The Next.js app. Renders what the backend returns and computes nothing.
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        # BUILD TIME. Next inlines every NEXT_PUBLIC_* into the browser bundle
+        # during `next build`, so this value is frozen into the JavaScript the
+        # analyst downloads. Changing it later requires `docker compose build
+        # web`, not a restart. It must be an address the analyst's BROWSER can
+        # resolve: "http://backend:8000" works only inside this network and
+        # produces a page that renders perfectly and then fails every fetch
+        # after hydration.
+        NEXT_PUBLIC_BACKEND_URL: "${NEXT_PUBLIC_BACKEND_URL:?the backend URL as the BROWSER sees it, e.g. https://ra.ksa.go.ke:8000}"
+        NEXT_PUBLIC_WMS_SOURCE: "${NEXT_PUBLIC_WMS_SOURCE:-}"
+        NEXT_PUBLIC_WMS_ENDPOINT: "${NEXT_PUBLIC_WMS_ENDPOINT:-}"
+        APP_VERSION: "${APP_VERSION:-dev}"
+    image: rangeland-web:${APP_VERSION:-dev}
+    restart: unless-stopped
+
+    environment:
+      # RUN TIME, and a different address from the one above. This is what the
+      # Next server process uses for server-side rendering and for
+      # /api/health, and it goes over the internal compose network where
+      # `backend` is a DNS name. It is read per request, so changing it is a
+      # restart rather than a rebuild.
+      BACKEND_URL: "http://backend:8000"
+
+      # Restated at runtime as well as baked at build time. Server components
+      # read the same variable during SSR, and having one source for both
+      # halves is what stops the two drifting into the bug described above.
+      NEXT_PUBLIC_BACKEND_URL: "${NEXT_PUBLIC_BACKEND_URL:?the backend URL as the BROWSER sees it}"
+      NEXT_PUBLIC_WMS_SOURCE: "${NEXT_PUBLIC_WMS_SOURCE:-}"
+      NEXT_PUBLIC_WMS_ENDPOINT: "${NEXT_PUBLIC_WMS_ENDPOINT:-}"
+
+      APP_VERSION: "${APP_VERSION:-dev}"
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    ports:
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-3000}:3000"
+
+    depends_on:
+      backend:
+        # service_healthy, not service_started. Started means the process
+        # exists; the backend spends its first seconds running migrations and
+        # answers nothing. Without this the app comes up during that window,
+        # the first analyst to load a page sees "the analysis service did not
+        # answer", and the logs show two healthy containers.
+        condition: service_healthy
+
+volumes:
+  # Named, not bind mounts. A named volume is portable across hosts, survives
+  # `docker compose down` (it takes `down -v` to destroy it, which is the point)
+  # and does not inherit a host directory's ownership, which is what makes the
+  # non-root uid 10001 in Dockerfile.backend work.
+  backend-data:
+  backend-workspace:

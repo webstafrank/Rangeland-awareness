@@ -103,3 +103,24 @@ export function writeUrlSelection(
   const query = params.toString();
   return query === "" ? "" : `?${query}`;
 }
+
+/**
+ * The query string that carries a selection ONWARD, unchanged.
+ *
+ * Not the same job as writeUrlSelection, which is about what a step's own URL
+ * should look like and therefore omits defaults to keep it clean. This one is
+ * for the pages after the wizard: they did not make the selection, they are
+ * passing it along, and they have no defaults to compare against because they
+ * never rendered the controls. Whatever the URL carried in comes back out.
+ *
+ * Both exist on purpose. Threading a link through writeUrlSelection would need
+ * the defaults at every call site, and a caller that guessed them wrong would
+ * silently drop a parameter from every link on the page.
+ */
+export function carryUrlSelection(selection: UrlSelection): string {
+  const params = new URLSearchParams();
+  if (selection.analysisType) params.set(TYPE_PARAM, selection.analysisType);
+  if (selection.modelId) params.set(MODEL_PARAM, selection.modelId);
+  const query = params.toString();
+  return query === "" ? "" : `?${query}`;
+}

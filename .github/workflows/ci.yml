@@ -1,0 +1,172 @@
+# CI: the gate lane for the app, and the Django suite for the backend.
+#
+# Two services, two independent jobs, run in parallel. That mirrors the
+# architecture rule this repository is built on (a change in one service must
+# not require running the other's suite) and it means a backend failure and an
+# app failure are reported separately instead of one masking the other.
+#
+# Neither job builds a docker image. A `docker build` here would pull the GDAL
+# base (about a gigabyte) and install node_modules on every push to prove
+# something the two suites already prove. The compose job at the bottom checks
+# the deployment description itself, which is the part that can silently rot.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# A second push to the same branch cancels the first run. Nothing here has a
+# side effect, so an in-flight run of an old commit is only burning minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------- app
+  #
+  # The gate lane from my-app/package.json: typecheck, lint, test. Written as
+  # three steps rather than one `npm run gate` so the summary says WHICH of the
+  # three failed without opening the log.
+  app:
+    name: app (gate lane)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # The app is in my-app/, not at the repository root. Every npm command
+        # below runs there.
+        working-directory: my-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the runtime in Dockerfile.web. A CI that passes on a
+          # different major than the image ships is testing something else.
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: my-app/package-lock.json
+
+      # `ci`, not `install`: it installs exactly the lockfile and fails if
+      # package.json and the lockfile have drifted apart, which is a real bug
+      # and not something to paper over in CI.
+      - name: install
+        run: npm ci
+
+      # Runs `next typegen` first, which generates the typed-route and PageProps
+      # helper types that typedRoutes: true makes the rest of the code depend
+      # on. Without it, tsc fails on types that do not exist yet.
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: lint
+        run: npm run lint
+
+      # vitest, single pass. The playwright eval lane is deliberately NOT here:
+      # it needs browsers and a running backend, it is the "before ship and
+      # nightly" budget, and putting it on every push makes the gate slow and
+      # flaky. Gate tests are the free, deterministic, sub-two-second lane.
+      - name: test
+        run: npm test
+
+  # ------------------------------------------------------------------ backend
+  #
+  # Runs INSIDE the same GDAL image the backend ships, which is the only honest
+  # way to run this suite. apps/analysis/tests/test_raster.py imports
+  # apps/analysis/pipeline/raster.py, which imports osgeo.gdal at module level,
+  # so `manage.py test` needs GDAL present; there is no meaningful subset that
+  # skips it, and running only the non-raster suites would leave the raster code
+  # (the part most likely to break on a GDAL upgrade) untested.
+  #
+  # Using the deployment's own base image rather than pip-installing a GDAL
+  # wheel means CI and production exercise the same GDAL build. A version skew
+  # there shows up as a raster result that differs between the two, which is the
+  # worst class of bug to debug.
+  #
+  # The suite needs no network: the GeoServer tests read a recorded capabilities
+  # document from apps/layers/tests/fixtures/.
+  backend:
+    name: backend (django suite)
+    runs-on: ubuntu-latest
+    container:
+      # Same pinned tag as Dockerfile.backend. These two must move together.
+      image: ghcr.io/osgeo/gdal:ubuntu-small-3.12.2
+    defaults:
+      run:
+        working-directory: services/backend
+
+    steps:
+      # git is not in the GDAL image. actions/checkout notices and falls back to
+      # downloading a tarball through the REST API, which is all this job needs;
+      # it prints a warning about the fallback, and that warning is expected.
+      - uses: actions/checkout@v4
+
+      # Same three packages, same flags and the same reasons as
+      # Dockerfile.backend: numpy from apt so it matches the ABI the osgeo
+      # bindings were compiled against, and --break-system-packages because
+      # Ubuntu 24.04 marks its system Python externally managed (PEP 668) and a
+      # virtualenv cannot see the system-installed GDAL bindings.
+      #
+      # gunicorn is not installed: it serves the app, the suite does not use it.
+      - name: install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3-pip python3-numpy
+          pip install --break-system-packages --no-cache-dir \
+            "Django~=5.2.15" "requests>=2.32,<3"
+
+      # Proves the base image is what it claims before blaming the suite for a
+      # failure that is actually a missing binding.
+      - name: check the imports the suite depends on
+        run: python3 -c "from osgeo import gdal; import numpy, django; print('gdal', gdal.__version__, '| numpy', numpy.__version__, '| django', django.get_version())"
+
+      # No CONTRACTS_DIR: the checkout is the repository, so settings.py finds
+      # contracts/criteria.json by walking up exactly as it does on a laptop.
+      # --verbosity 2 names each test, which turns a red X into a diagnosis
+      # without re-running anything.
+      - name: django test suite
+        run: python3 manage.py test --verbosity 2
+
+  # ------------------------------------------------------------------- compose
+  #
+  # A third job, and a cheap one: seconds, no image pull beyond the runner's
+  # preinstalled docker. It exists because docker-compose.yml is the one file
+  # here that nothing else executes, so a typo in it is found at deploy time on
+  # someone's worst day. `config` parses the file, resolves every interpolation
+  # and validates the schema.
+  #
+  # It runs with .env.example copied to .env, which also proves the claim that
+  # matters most about that file: that the template is COMPLETE. Every
+  # `${VAR:?...}` in the compose file has no default, so a variable missing from
+  # .env.example fails this job with the name of the variable.
+  compose:
+    name: compose (deployment description)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: the example environment must satisfy every required variable
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          echo "docker-compose.yml parses and .env.example covers every required variable"
+
+      # The template is a template. A real secret committed here would be
+      # readable by everyone with the repository, so the check is explicit
+      # rather than left to review.
+      - name: .env.example must not carry a real secret
+        run: |
+          if ! grep -qx 'DJANGO_SECRET_KEY=replace-me-with-64-random-characters' .env.example; then
+            echo "DJANGO_SECRET_KEY in .env.example is no longer the placeholder"
+            exit 1
+          fi
+          if grep -qE '^(GEOSERVER_PASSWORD|GEOSERVER_USER)=.+' .env.example; then
+            echo "a GeoServer credential is filled in in .env.example"
+            exit 1
+          fi
+          echo ".env.example carries no real credential"

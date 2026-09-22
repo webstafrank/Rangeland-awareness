@@ -1,0 +1,89 @@
+# What never enters a build context.
+#
+# One file, two images: Dockerfile.web and Dockerfile.backend both build from
+# the repository root, so every rule here applies to both. Two effects, and the
+# second is the one that matters:
+#
+#   speed   the context is tarred and sent to the daemon before the first
+#           instruction runs. node_modules and .next are hundreds of megabytes
+#           of files that are rebuilt inside the image anyway.
+#   safety  a file that is not in the context cannot be COPYed in by accident,
+#           not by a future `COPY . .`, not by a careless edit. An image layer
+#           is readable by anyone who can pull the image, and deleting a secret
+#           in a later layer does not remove it from the earlier one.
+
+# ---- secrets. See "Safety" in my-app/CLAUDE.md. --------------------------
+#
+# .env carries DJANGO_SECRET_KEY and GEOSERVER_PASSWORD. It is read by
+# `docker compose` on the HOST at run time and must never be inside an image.
+# .env.example is the template and is deliberately still allowed in, since it
+# holds no real value.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+id_rsa
+id_rsa.*
+secrets/
+
+# ---- version control and agent state -------------------------------------
+.git
+.gitignore
+.github
+.claude
+
+# ---- node ----------------------------------------------------------------
+#
+# node_modules is reinstalled by `npm ci` from the lockfile inside the image.
+# Copying the host's copy in would also bring the host's platform-specific
+# native binaries (SWC, Tailwind oxide, lightningcss), which is how a build on a
+# Mac produces an image that cannot start on Linux.
+**/node_modules
+my-app/.next
+my-app/out
+my-app/build
+my-app/coverage
+my-app/test-results
+my-app/playwright-report
+my-app/blob-report
+my-app/*.tsbuildinfo
+npm-debug.log*
+
+# ---- python --------------------------------------------------------------
+#
+# .pyc files are compiled for one interpreter version. The image's Python is
+# 3.12 and this repository's machine runs 3.14, so copying them in ships
+# bytecode that is silently ignored at best.
+**/__pycache__
+**/*.py[cod]
+**/.venv
+**/venv
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.coverage
+**/htmlcov
+
+# ---- local state that is not the application -----------------------------
+#
+# A developer's SQLite database and workspace must not be baked in: the image
+# would ship someone's half-finished runs, and the named volumes that replace
+# them would never be used because the path already had content.
+services/backend/db.sqlite3
+services/backend/db.sqlite3-*
+**/rangeland-workspace
+
+# ---- editor and OS noise -------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+.idea
+.vscode
+
+# ---- documentation -------------------------------------------------------
+#
+# Left OUT of the ignore list on purpose: services/backend/README.md and
+# contracts/*.md are small, and contracts/ must reach the backend image whole
+# because settings.py reads criteria.json and ahp-fixtures.json from it.

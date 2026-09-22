@@ -288,3 +288,77 @@ class RunEndpointTests(TestCase):
         run.set_stages(done)
         self.assertEqual(run.status, "succeeded")
         self.assertAlmostEqual(run.progress, 1.0, places=6)
+
+
+class CriteriaEndpointTests(TestCase):
+    """What `GET /topics/{topic}/criteria` says a deployment can actually run.
+
+    The regression these pin: the endpoint used to report a criterion as
+    available whenever its class table was full, ignoring whether any layer on
+    this GeoServer supplies it. `elevation` has a complete class table and no
+    DEM behind it, so the app was told it was available, put it in the weights,
+    and got a 400 from `POST /runs` several seconds later saying the opposite.
+
+    The app cannot know the bindings. That is the whole reason this service is
+    the authoritative side, so the knowledge has to arrive in this response.
+    """
+
+    def test_names_an_unbound_criterion_as_unrunnable(self) -> None:
+        response = self.client.get("/api/v1/topics/flood-risk/criteria")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+
+        # No DEM is published on this deployment. See bindings.DEFAULT_BINDINGS.
+        self.assertIn("elevation", body["unfilled"])
+
+        by_id = {c["id"]: c for c in body["criteria"]}
+        self.assertFalse(by_id["elevation"]["filled"])
+
+    def test_leaves_a_bound_criterion_alone(self) -> None:
+        body = self.client.get("/api/v1/topics/flood-risk/criteria").json()
+        by_id = {c["id"]: c for c in body["criteria"]}
+
+        for criterion in ("slope", "rainfall", "dist_to_river"):
+            self.assertTrue(by_id[criterion]["filled"], criterion)
+            self.assertNotIn(criterion, body["unfilled"])
+
+    def test_what_is_left_is_a_configuration_the_run_endpoint_accepts(self) -> None:
+        """The two endpoints have to agree, and this is the test that says so.
+
+        Drop everything the criteria endpoint calls unrunnable, renormalise, and
+        the result must be a body `POST /runs` does not refuse. That is exactly
+        what my-app/services/backend-api's `runnableWeights` does, and this is
+        the Python side of the same contract.
+        """
+        body = self.client.get("/api/v1/topics/flood-risk/criteria").json()
+        unfilled = set(body["unfilled"])
+        kept = {k: v for k, v in body["defaultWeights"].items() if k not in unfilled}
+        total = sum(kept.values())
+        weights = {k: round(v / total, 6) for k, v in kept.items()}
+        # Absorb the rounding residual the way the app does, so the sum is exact.
+        largest = max(weights, key=lambda k: weights[k])
+        weights[largest] = round(weights[largest] + (1 - sum(weights.values())), 6)
+
+        _, errors = validate_run_config(
+            {
+                "topic": "flood-risk",
+                "areas": [
+                    {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [39.95, -1.75],
+                                [40.10, -1.75],
+                                [40.10, -1.60],
+                                [39.95, -1.60],
+                                [39.95, -1.75],
+                            ]
+                        ],
+                    }
+                ],
+                "weights": weights,
+                "targetCrs": "EPSG:32637",
+                "resolution": 30,
+            }
+        )
+        self.assertEqual(errors, {})

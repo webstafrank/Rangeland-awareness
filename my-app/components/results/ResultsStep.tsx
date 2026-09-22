@@ -1,24 +1,32 @@
 "use client";
 
 /**
- * Where a run lands.
+ * The request receipt: what the results route shows when there is no result.
  *
  * Deliberately not a step. The rail is a map of decisions still to make, and
  * this is the consequence of all four of them, so it has no pill and no
  * Continue. See TERMINAL_SEGMENTS in services/analysis/steps.ts.
  *
+ * WHEN THIS SCREEN IS THE RIGHT ONE. The backend runs a weighted overlay, and
+ * it has exactly one topic behind it: flood risk. The other three are on the
+ * model track, nothing has been trained, and there is no service to ask. For
+ * those, the honest screen is this one: the validated request that a future
+ * service will receive, and the sentence saying so. A progress bar over a
+ * number nobody computed would be a lie with a spinner on it.
+ *
+ * A run that DID happen is a different component entirely, rendered by the
+ * route above this one from the service's own result. This file is never the
+ * screen for a real run, which is why nothing in it was rewritten to pretend
+ * it could be.
+ *
  * The configuration arrives in the URL and the areas arrive in sessionStorage,
- * paired by the id in `?run=`. That pairing is checked twice, and both checks
+ * paired by the id in `?req=`. That pairing is checked twice, and both checks
  * are needed: `readAreas` proves the stored areas were filed under this id, and
  * recomputing the id from the configuration now in the URL proves the id still
  * describes what the URL says. Without the second check, editing `model=` in
- * the address bar leaves `?run=` untouched, the storage check passes, and the
+ * the address bar leaves `?req=` untouched, the storage check passes, and the
  * page renders a previous selection beside a configuration it was never chosen
  * for. A confidently wrong answer is worse than none.
- *
- * There is still no model backend, so what it renders is the validated
- * request, not a result. That is the honest thing to show; a progress bar over
- * a number nobody computed would be a lie with a spinner on it.
  */
 
 import { useMemo, useState } from "react";
@@ -28,7 +36,7 @@ import dynamic from "next/dynamic";
 import RequestResult from "@/components/topic/RequestResult";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { buildRequest } from "@/services/analysis/request";
-import { RUN_PARAM, requestId } from "@/services/analysis/request-id";
+import { REQUEST_PARAM, requestId } from "@/services/analysis/request-id";
 import { resetSelection } from "@/services/analysis/selection-store";
 import { stepHref } from "@/services/analysis/steps";
 import { HANDOFF_MESSAGE, clearAreas, readAreas } from "@/services/handoff/areas";
@@ -194,7 +202,10 @@ export interface ResultsStepProps {
 export default function ResultsStep({ topic, initial }: ResultsStepProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const runId = searchParams.get(RUN_PARAM);
+  // `?req=`, the app's own id for an unsubmitted request. Not `?run=`, which
+  // names a real computation on the service and is handled by the route above
+  // this component rather than here.
+  const runId = searchParams.get(REQUEST_PARAM);
 
   const [notes, setNotes] = useState("");
 
@@ -296,7 +307,7 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
               {topic.name}
             </h1>
           </div>
-          <p className="font-mono text-xs text-ink-faint">run {runId}</p>
+          <p className="font-mono text-xs text-ink-faint">request {runId}</p>
         </div>
 
         {/*
