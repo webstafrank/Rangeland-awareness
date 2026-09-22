@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TOPICS } from "@/lib/analysis/topics";
+import { TOPICS } from "@/services/analysis/topics";
 
 /**
  * The 404.

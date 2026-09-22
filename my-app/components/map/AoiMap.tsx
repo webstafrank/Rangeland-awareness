@@ -8,7 +8,7 @@
  * server component would crash the route.
  *
  * It owns no selection state. Everything it learns about the world arrives as
- * props from the reducer in lib/analysis/selection.ts, and everything the user
+ * props from the reducer in services/analysis/selection.ts, and everything the user
  * does leaves as a callback. That is what keeps the interesting rules testable
  * in node: this file is a Leaflet adapter and nothing more.
  */
@@ -33,7 +33,7 @@ import {
   type DraftArea,
   type FocusRequest,
   draftAreaFromGeometry,
-} from "@/lib/analysis/selection";
+} from "@/services/analysis/selection";
 import { KENYA_BOUNDS, type MapTool } from "@/components/map/tools";
 import { token } from "@/lib/theme/palette";
 
@@ -95,7 +95,7 @@ function areaStyle(): L.PathOptions {
  * Keyed off `focus.token`, not `focus.bounds`. Re-selecting an area the user is
  * already looking at must still re-centre it, and identical bounds would make a
  * bounds-only dependency compare equal and skip the effect. See the focus token
- * note in lib/analysis/README.md.
+ * note in services/analysis/README.md.
  */
 function FocusController({ focus }: { focus: FocusRequest | null }) {
   const map = useMap();
@@ -198,7 +198,7 @@ function PointSelector({
       if (!active) return;
 
       // Leaflet gives lat/lng; GeoJSON wants lng/lat. The flip lives here and
-      // in lib/geo/bounds.ts, nowhere else.
+      // in services/geo/bounds.ts, nowhere else.
       const { lat, lng } = event.latlng;
       const draft = draftAreaFromGeometry(
         { type: "Point", coordinates: [lng, lat] },

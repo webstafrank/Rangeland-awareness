@@ -33,3 +33,8 @@ htmlcov/
 .DS_Store
 Thumbs.db
 *.swp
+
+# Session worktrees. CLAUDE.md forbids committing a worktree directory, and
+# .claude/worktrees/ is where an in-repo one lands, so `git add .` must not
+# reach it. The skills and settings alongside it stay visible to git.
+.claude/worktrees/

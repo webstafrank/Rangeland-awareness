@@ -3,7 +3,7 @@
 /**
  * Shapefile upload.
  *
- * Parsing happens entirely in the browser (lib/geo/shapefile.ts), so nothing
+ * Parsing happens entirely in the browser (services/geo/shapefile.ts), so nothing
  * is sent to a server and there is no route handler behind this. It owns only
  * its own transient state: busy, the last error, the last warnings. The areas
  * it produces go straight to the reducer.
@@ -13,13 +13,13 @@
  */
 
 import { useCallback, useId, useRef, useState } from "react";
-import type { DraftArea } from "@/lib/analysis/selection";
+import type { DraftArea } from "@/services/analysis/selection";
 import {
   ACCEPTED_EXTENSIONS,
   MAX_SHAPEFILE_BYTES,
   ShapefileError,
   readShapefile,
-} from "@/lib/geo/shapefile";
+} from "@/services/geo/shapefile";
 
 export interface ShapefileUploadProps {
   onAreas: (areas: DraftArea[]) => void;

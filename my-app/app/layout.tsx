@@ -120,15 +120,33 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
         <footer className="band-chrome mt-auto">
           <div aria-hidden="true" className="rule-action h-[3px] w-full" />
-          <div className="mx-auto flex w-full max-w-band flex-col gap-1 px-gutter py-8 text-xs leading-relaxed text-on-chrome-muted lg:px-gutter-lg">
-            <p>
-              Earth observation analysis for Kenya&apos;s rangelands. Model
-              outputs are decision support, not a forecast of record.
-            </p>
-            <p>
-              Basemaps &copy; OpenStreetMap contributors. Imagery &copy; Esri,
-              Maxar, Earthstar Geographics.
-            </p>
+          <div className="mx-auto w-full max-w-band px-gutter py-8 lg:px-gutter-lg">
+            <div className="flex flex-col gap-6 sm:flex-row sm:justify-between">
+              <div className="flex flex-col gap-1 text-xs leading-relaxed text-on-chrome-muted">
+                <p>
+                  Earth observation analysis for Kenya&apos;s rangelands. Model
+                  outputs are decision support, not a forecast of record.
+                </p>
+                <p>
+                  Basemaps &copy; OpenStreetMap contributors. Imagery &copy; Esri,
+                  Maxar, Earthstar Geographics.
+                </p>
+              </div>
+              <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-on-chrome-muted">
+                <Link href="/about" className="rounded font-medium hover:text-white hover:underline">
+                  About
+                </Link>
+                <Link href="/help" className="rounded font-medium hover:text-white hover:underline">
+                  Help
+                </Link>
+                <Link href="/contact" className="rounded font-medium hover:text-white hover:underline">
+                  Contact
+                </Link>
+                <Link href="/account" className="rounded font-medium hover:text-white hover:underline">
+                  Account
+                </Link>
+              </nav>
+            </div>
           </div>
         </footer>
       </body>

@@ -13,8 +13,8 @@
  */
 
 import { useState } from "react";
-import type { AnalysisRequest } from "@/lib/analysis/request";
-import { formatArea } from "@/lib/geo/area";
+import type { AnalysisRequest } from "@/services/analysis/request";
+import { formatArea } from "@/services/geo/area";
 
 export interface RequestResultProps {
   request: AnalysisRequest | null;

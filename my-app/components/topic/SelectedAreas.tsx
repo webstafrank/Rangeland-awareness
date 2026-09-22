@@ -9,8 +9,8 @@
  * it. That last part is why the reducer's focus request carries a token.
  */
 
-import type { AreaOfInterest, AoiSource } from "@/lib/analysis/selection";
-import { formatArea } from "@/lib/geo/area";
+import type { AreaOfInterest, AoiSource } from "@/services/analysis/selection";
+import { formatArea } from "@/services/geo/area";
 
 // Exhaustive by type, so adding an AoiSource is a compile error here rather
 // than a blank badge in the list.

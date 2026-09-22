@@ -16,7 +16,7 @@
  * "forward", all the way through the flow.
  */
 
-import { blockingReason, type ValidationResult } from "@/lib/analysis/request";
+import { blockingReason, type ValidationResult } from "@/services/analysis/request";
 
 export interface RunActionProps {
   validation: ValidationResult;

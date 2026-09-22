@@ -9,14 +9,14 @@
  * it on a narrow screen — without dragging the map's ssr:false boundary along
  * with it. `WmsLayers.tsx` is the half that must stay behind that boundary.
  *
- * It owns no rules either. `useWmsLayers` wires the reducer in lib/wms/state.ts
- * to the registry in lib/wms/layers.ts, and every sentence rendered here was
- * composed by a pure function in lib/wms/ so its wording is asserted in node.
+ * It owns no rules either. `useWmsLayers` wires the reducer in services/wms/state.ts
+ * to the registry in services/wms/layers.ts, and every sentence rendered here was
+ * composed by a pure function in services/wms/ so its wording is asserted in node.
  */
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import type { TopicSlug } from "@/lib/analysis/topics";
+import type { TopicSlug } from "@/services/analysis/topics";
 import {
   describeLayerTime,
   initialPanelState,
@@ -31,7 +31,7 @@ import {
   type WmsLayerSpec,
   type WmsPanelAction,
   type WmsPanelState,
-} from "@/lib/wms";
+} from "@/services/wms";
 
 export interface WmsLayerControlProps {
   resolution: SourceResolution;
@@ -51,7 +51,7 @@ export interface WmsLayersBinding {
 /**
  * Resolve the source, pick the topic's layers, and hold the panel state.
  *
- * Lives here rather than in lib/wms because lib/ holds no React, and here
+ * Lives here rather than in services/wms because the services hold no React, and here
  * rather than in WmsLayers.tsx because importing that file pulls Leaflet into
  * whatever imports it. The results page calls this once and hands the same
  * `state` and `dispatch` to both halves, which is what keeps the map's notices
@@ -285,7 +285,7 @@ export default function WmsLayerControl({
           </p>
           <p className="mt-1 text-xs text-ink-faint">
             {source.note ??
-              "Add entries to this source's layer registry in lib/wms/layers.ts."}
+              "Add entries to this source's layer registry in services/wms/layers.ts."}
           </p>
         </div>
       ) : (

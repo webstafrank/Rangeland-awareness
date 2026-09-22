@@ -17,17 +17,51 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import RequestResult from "@/components/topic/RequestResult";
 import RunAction from "@/components/topic/RunAction";
 import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
-import { resetSelection } from "@/lib/analysis/selection-store";
-import { stepHref } from "@/lib/analysis/steps";
-import { formatArea } from "@/lib/geo/area";
-import type { AnalysisRequest } from "@/lib/analysis/request";
-import type { Topic, TopicSlug } from "@/lib/analysis/topics";
-import type { UrlSelection } from "@/lib/analysis/url-state";
+import { resetSelection } from "@/services/analysis/selection-store";
+import { stepHref, terminalHref } from "@/services/analysis/steps";
+import { RUN_PARAM, requestId } from "@/services/analysis/request-id";
+import { writeAreas } from "@/services/handoff/areas";
+import { formatArea } from "@/services/geo/area";
+import type { AnalysisRequest } from "@/services/analysis/request";
+import type { Topic, TopicSlug } from "@/services/analysis/topics";
+import type { UrlSelection } from "@/services/analysis/url-state";
+
+/**
+ * Hand the request over to the results route.
+ *
+ * The split is deliberate and is the one services/handoff exists to express: the
+ * configuration goes in the URL, where it is shareable, and the areas go to
+ * sessionStorage, because one drawn polygon is kilobytes of coordinates.
+ *
+ * The id ties the two halves together. Edit the query string and the id no
+ * longer matches what the areas were stored under, so `readAreas` reports a
+ * mismatch instead of pairing a previous selection with a new configuration.
+ * That pairing would render confidently and be wrong, which is worse than
+ * rendering nothing.
+ *
+ * `writeAreas` returns false rather than throwing when storage is full or
+ * blocked. We navigate anyway: the results route already has a designed path
+ * for absent areas, and that is strictly better than an exception thrown on
+ * the way out of a form the analyst has just filled in.
+ */
+function handOff(
+  request: AnalysisRequest,
+  topic: Topic,
+  query: string,
+  router: ReturnType<typeof useRouter>,
+) {
+  const id = requestId(request);
+  writeAreas(id, request.areas);
+
+  // The wizard's own query (type, model) is threaded through so the results
+  // page renders the same configuration the review page was showing, and so a
+  // shared link carries it.
+  const separator = query === "" ? "?" : "&";
+  router.push(terminalHref(topic.slug, "results", `${query}${separator}${RUN_PARAM}=${id}`));
+}
 
 export interface ReviewStepProps {
   topic: Topic;
@@ -78,32 +112,11 @@ function SummaryRow({
 export default function ReviewStep({ topic, initial }: ReviewStepProps) {
   const wizard = useWizard(topic.slug, initial);
   const { state, spec, model, validation, query } = wizard;
-  const resultRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-
-  // Keyed by the selection that produced it, so a payload on screen can never
-  // disagree with the choices above it: change anything and it clears.
-  const [submitted, setSubmitted] = useState<{
-    key: string;
-    request: AnalysisRequest;
-  } | null>(null);
-
-  const resetKey = [
-    state.analysisType,
-    state.modelId,
-    state.areas.map((a) => a.id).join(","),
-  ].join("|");
-
-  const shownRequest =
-    submitted !== null && submitted.key === resetKey ? submitted.request : null;
 
   const run = () => {
     if (!validation.ok) return;
-    setSubmitted({ key: resetKey, request: validation.request });
-    // Defer to the next frame so the section exists before scrolling to it.
-    requestAnimationFrame(() =>
-      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-    );
+    handOff(validation.request, topic, query, router);
   };
 
   /** Bound once, so the four rows below read as a table rather than as plumbing. */
@@ -199,10 +212,6 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
           ))}
         </ol>
       )}
-
-      <div ref={resultRef} className="mt-8 scroll-mt-6">
-        <RequestResult request={shownRequest} />
-      </div>
     </StepShell>
   );
 }

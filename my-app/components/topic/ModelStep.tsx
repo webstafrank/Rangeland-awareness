@@ -12,9 +12,9 @@
 import RadioCards from "@/components/topic/RadioCards";
 import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
-import { MODELS, type ModelId } from "@/lib/analysis/models";
-import type { Topic } from "@/lib/analysis/topics";
-import type { UrlSelection } from "@/lib/analysis/url-state";
+import { MODELS, type ModelId } from "@/services/analysis/models";
+import type { Topic } from "@/services/analysis/topics";
+import type { UrlSelection } from "@/services/analysis/url-state";
 
 export interface ModelStepProps {
   topic: Topic;

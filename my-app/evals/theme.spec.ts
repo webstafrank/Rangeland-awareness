@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { TOPICS } from "../lib/analysis/topics";
-import { STEPS } from "../lib/analysis/steps";
+import { TOPICS } from "../services/analysis/topics";
+import { STEPS } from "../services/analysis/steps";
 
 /**
  * Theme eval.

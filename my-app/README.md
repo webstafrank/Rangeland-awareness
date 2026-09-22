@@ -9,10 +9,27 @@ assessment. Three models: Random Forest, XGBoost, Combined.
 
 ## Status
 
-The pages and the analysis contract are built. **There is no model backend
-yet.** Running an analysis validates the request and shows the exact
-`AnalysisRequest` payload a future service will receive. Nothing is trained or
-scored.
+The pages are built and **the backend exists**: `services/backend` is a Django
+service that owns GeoServer and runs the weighted overlay. It has produced a
+real flood-risk result over a Tana River area, a 928x922 grid at 30m in
+EPSG:32637 with Jenks breaks computed from its own distribution.
+
+**The app is not wired to it yet.** Running an analysis here still validates the
+request and shows the exact `AnalysisRequest` payload the service will receive.
+Connecting the two is the next piece of work.
+
+Two things the first real run established, both of which the service refuses
+cleanly rather than guessing around:
+
+- No DEM is published on the KSA GeoServer, so the `elevation` criterion cannot
+  run and a request naming it is refused at creation.
+- `Hazards_Dashboard:TanaRiver_LULC` uses codes 1 to 5 while the shipped class
+  table is ESA WorldCover (10 to 100), so `landcover` cannot be classified until
+  that layer's legend is supplied.
+
+Nothing is trained or scored: the method is a weighted overlay, not a model. The
+three model-track topics (drought, rangeland dynamics, food security) have no
+method behind them and say so.
 
 ## Run it
 
@@ -33,13 +50,20 @@ npm run eval         # eval lane: Playwright, real browser, builds first
 npm run eval:desktop # just the desktop project
 ```
 
-**Gate lane** (`vitest`, `lib/**/__tests__`) is pure functions only: no DOM, no
-browser, budgeted under 2 seconds so it can run on every commit. Install the
-hook with:
+**Gate lane** (`vitest`) runs in two projects. `node` is the services and
+`lib/theme`: pure functions, no DOM, no globals, 1137 tests in 2.4s. `dom` is
+`app/`, `components/`, `contracts/` and `design/` under jsdom, 126 tests in
+2.7s. The boundary is purity, not directory: a suite that needs a DOM is named
+`*.dom.test.ts` and lands in the dom lane wherever it lives. Install the hook
+with:
 
 ```bash
-git config core.hooksPath scripts
+git config core.hooksPath my-app/scripts
 ```
+
+The path is relative on purpose, so each worktree runs its own copy against the
+tree it is committing rather than against whichever checkout the hook file
+happens to live in.
 
 **Eval lane** (`playwright`, `evals/`) drives a real browser at 1280px and
 360px: 64 journey checks and 46 theme checks, 110 in total. It proves the things the gate
@@ -85,24 +109,39 @@ app/                      routes only, no business logic
 components/               UI. See components/README.md
   map/                    everything that touches Leaflet
   topic/                  the four steps, the rail, and their controls
-lib/
+services/                 every rule. Pure, node-testable, imports nothing
+                          from app/ or components/
   analysis/               topics, models, the AOI state machine, the request
-                          contract, URL state. See lib/analysis/README.md
-  geo/                    bounds, area, coordinate parsing, shapefile, zip
-                          pre-flight. See lib/geo/README.md
+                          contract, URL state. See services/analysis/README.md
+  geo/                    the 47 counties and the projection, plus bounds,
+                          area, coordinate parsing, shapefile and the zip
+                          pre-flight. See services/geo/README.md
+  run/                    the run engine and its exporters
+  criteria/ ahp/          the class tables and pairwise weighting, both
+                          mirrored by the Django service
+  wms/                    WMS capabilities, time and layer selection
+  handoff/ preanalysis/   carrying a selection between pages
+  auth/                   the session cookie stub. NOT authentication
+lib/theme/                palette and contrast measurement. Build tooling
+                          rather than a service, which is why it did not move
 evals/                    journey.spec.ts and theme.spec.ts
 docs/acceptance-rubric.md the frozen rubric the evals implement
 scripts/pre-commit        the gate lane hook
 ```
 
-`lib/` holds every rule and imports nothing from `app/` or `components/`. It is
-pure and node-testable, which is why the area cap, the analysis-type
+`services/` holds every rule and imports nothing from `app/` or `components/`.
+It is pure and node-testable, which is why the area cap, the analysis-type
 transition, the zoom trigger and request validation are all provable without a
 browser. `app/` and `components/` are adapters over it.
 
+This used to be `lib/`. It moved so the repo matches the services-first rule in
+CLAUDE.md, and the move paid for itself immediately: those suites had been
+collected by the dom lane's `services/**` glob and were paying for a jsdom they
+never touched, so the whole gate run went from 11.9s to 4.9s.
+
 ## Decisions worth knowing
 
-**One registry drives everything.** Adding a topic to `lib/analysis/topics.ts`
+**One registry drives everything.** Adding a topic to `services/analysis/topics.ts`
 adds a homepage card, a 404 card and a working route with no other edit. A
 test fails if the slug list and the topic list ever drift apart.
 
@@ -114,12 +153,12 @@ programming for its own sake: a buffer starting with `PK` that has no valid
 central directory makes shpjs spin *synchronously* forever, which on the main
 thread is a frozen tab that no `try/catch` or timeout can rescue. Every other
 malformed input tried rejects in about a millisecond. The measurements and the
-reasoning are in `lib/geo/README.md`, and a test fails, rather than times out,
+reasoning are in `services/geo/README.md`, and a test fails, rather than times out,
 if the pre-flight is removed.
 
 **`@turf/turf` was installed and then removed.** One function was needed
 (polygon area) and turf costs roughly 500KB in a client bundle for it.
-`lib/geo/area.ts` is the same spherical-excess formula, checked against the
+`services/geo/area.ts` is the same spherical-excess formula, checked against the
 independent closed-form area of a lat/lng cell.
 
 **The design system is one Tailwind `@theme` block.** `app/globals.css` declares
@@ -142,10 +181,10 @@ stylesheets.
 
 **The flow is four routes, not four sections of one page.** Each decision gets
 the screen to itself, and a rail across the top keeps the other three one click
-away. The registry in `lib/analysis/steps.ts` is the single description of that
+away. The registry in `services/analysis/steps.ts` is the single description of that
 sequence: `steps.test.ts` reads `app/topics/[topic]/` off disk and fails if a
 step has no route, or a route has no step. The selection itself lives in
-`lib/analysis/selection-store.ts`, an external store read through
+`services/analysis/selection-store.ts`, an external store read through
 `useSyncExternalStore`, which is what lets it survive a navigation between
 steps and a full reload without a hydration mismatch. A context in the layout
 was the obvious alternative and was rejected: a layout cannot read

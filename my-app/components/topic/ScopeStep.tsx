@@ -15,10 +15,10 @@ import RadioCards from "@/components/topic/RadioCards";
 import SelectionNotice from "@/components/topic/SelectionNotice";
 import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
-import { ANALYSIS_TYPES, type AnalysisTypeId } from "@/lib/analysis/models";
-import { switchWouldDrop, undoRestoreCount } from "@/lib/analysis/selection";
-import type { Topic } from "@/lib/analysis/topics";
-import type { UrlSelection } from "@/lib/analysis/url-state";
+import { ANALYSIS_TYPES, type AnalysisTypeId } from "@/services/analysis/models";
+import { switchWouldDrop, undoRestoreCount } from "@/services/analysis/selection";
+import type { Topic } from "@/services/analysis/topics";
+import type { UrlSelection } from "@/services/analysis/url-state";
 
 export interface ScopeStepProps {
   topic: Topic;

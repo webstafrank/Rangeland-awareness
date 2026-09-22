@@ -1,8 +1,8 @@
 # components
 
-The UI. Every rule lives in `lib/`; these files render its state and dispatch
+The UI. Every rule lives in `services/`; these files render its state and dispatch
 its actions. If you find yourself writing an `if` about area caps or analysis
-types here, it belongs in `lib/analysis/selection.ts` instead.
+types here, it belongs in `services/analysis/selection.ts` instead.
 
 ## The SSR boundary
 
@@ -51,7 +51,7 @@ bundler. A circle sidesteps the problem and themes correctly.
 
 ## topic/
 
-The flow is four routes, one decision each. `lib/analysis/steps.ts` is the one
+The flow is four routes, one decision each. `services/analysis/steps.ts` is the one
 description of that sequence; nothing here hardcodes a step order or a URL.
 
 | File | What it owns |
@@ -96,7 +96,7 @@ hydration mismatch; and reading it in an effect and calling `setState` forces a
 second render on every mount. `useSyncExternalStore` with a server snapshot is
 the shape that avoids both.
 
-`lib/analysis/selection-store.ts` is the same shape one level up, for the same
+`services/analysis/selection-store.ts` is the same shape one level up, for the same
 reason plus one more. React state inside a step dies when that step unmounts,
 and every Continue unmounts one, so the selection has to live outside the tree.
 Three shapes were considered and two rejected:
@@ -109,7 +109,7 @@ Three shapes were considered and two rejected:
 
 The store runs the same pure reducer the single page used, so every rule about
 area caps, the comparison-to-single transition and the undo offer is unchanged
-and still gate-tested in `lib/analysis/__tests__/selection.test.ts`. What is new
+and still gate-tested in `services/analysis/__tests__/selection.test.ts`. What is new
 is subscription, persistence, and the URL seed, and the pure half of that is
 tested in `selection-store.test.ts`.
 

@@ -10,8 +10,8 @@
  * dynamic import loads the map itself. See components/README.md.
  *
  * It owns no layer state. Which layers are on, how transparent they are and
- * which ones are failing all live in the reducer in lib/wms/state.ts, and every
- * decision about what to request lives in lib/wms/. This file is a Leaflet
+ * which ones are failing all live in the reducer in services/wms/state.ts, and every
+ * decision about what to request lives in services/wms/. This file is a Leaflet
  * adapter and nothing more, which is what keeps the interesting rules provable
  * in node.
  *
@@ -36,7 +36,7 @@ import {
   type WmsPanelAction,
   type WmsPanelState,
   type WmsSource,
-} from "@/lib/wms";
+} from "@/services/wms";
 
 export interface WmsLayersProps {
   source: WmsSource;

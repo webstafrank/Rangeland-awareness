@@ -2,31 +2,74 @@
 #
 # Gate lane pre-commit hook.
 #
-# Runs only the fast, deterministic, free checks: the vitest gate suite, the
-# typechecker and the linter. Budget is a couple of seconds. The Playwright
-# eval lane is deliberately NOT here: it builds the app and drives a browser,
-# which is a minute-plus and belongs before a push, not on every commit.
+# Runs only the fast, deterministic, free checks: the typechecker, the linter
+# and the vitest gate suite. The Playwright eval lane is deliberately NOT here:
+# it builds the app and drives a browser, which is minutes, and belongs before
+# a push rather than on every commit.
 #
-# Install (from my-app/):
-#   git config core.hooksPath scripts
+# Install (from the repo root):
+#   git config core.hooksPath my-app/scripts
 #
 # core.hooksPath is used rather than copying into .git/hooks so the hook is
 # version controlled and every worktree of this repo picks it up.
+#
+# Store it RELATIVE, as above. A relative value resolves against the top of the
+# working tree being committed, so each worktree runs its own copy of this file
+# and a change to the hook is testable in the worktree that makes it. On this
+# repo it had been stored absolute, as
+# /home/.../Rangeland-awareness/my-app/scripts, which makes every worktree run
+# one checkout's copy. That alone is survivable; combined with the cd below it
+# was not.
 
 set -euo pipefail
 
-# The hook runs from the repo root, but this project lives in my-app/.
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# Change to the my-app directory OF THE TREE BEING COMMITTED.
+#
+# Not `dirname "${BASH_SOURCE[0]}"/..`, which was the original and which is
+# wrong in a worktree. With an absolute hooksPath, BASH_SOURCE is the shared
+# checkout's copy of this script, and that cd took the hook to the shared
+# checkout's my-app. The result: a commit made in a worktree was gated on a
+# completely different working tree, passing when the shared checkout happened
+# to be green and failing when it was not, and in both cases saying nothing
+# about the code actually being committed. Observed, not theorised: it failed
+# this repo on files that were not in the diff.
+#
+# That is the exact failure the worktree discipline exists to prevent, so the
+# hook has to ask git which tree it is running for rather than infer it from
+# where the script lives.
+#
+# GIT_DIR is set by git when it runs a hook and confuses rev-parse's view of
+# the top level; clearing it makes --show-toplevel answer for the worktree the
+# commit is happening in.
+repo_root="$(unset GIT_DIR GIT_WORK_TREE; git rev-parse --show-toplevel)"
+cd "$repo_root/my-app"
 
-echo "pre-commit: gate lane"
+echo "pre-commit: gate lane in $repo_root"
 
+# Only the frontend is gated here. A commit touching nothing under my-app still
+# runs it, which is cheap and catches a contract artifact going stale.
 echo "  - typecheck"
-npx tsc --noEmit
+# Via the npm script, so `next typegen` runs first. The generated route types
+# under .next/types are gitignored, so a fresh clone or a new worktree has none
+# and a bare `tsc --noEmit` fails on every PageProps in the app.
+npm run --silent typecheck
 
 echo "  - lint"
 npx eslint .
 
 echo "  - gate tests"
 npx vitest run --silent
+
+# The Django service, when the commit touches it. Skipped otherwise so a
+# frontend-only commit does not pay for it, and skipped entirely when Django is
+# not installed, because the backend is not every contributor's concern.
+if git diff --cached --name-only | grep -q '^services/backend/'; then
+  if python3 -c "import django" 2>/dev/null; then
+    echo "  - backend tests"
+    (cd "$repo_root/services/backend" && python3 manage.py test apps --verbosity 0)
+  else
+    echo "  - backend tests SKIPPED (django not importable)"
+  fi
+fi
 
 echo "pre-commit: green"
