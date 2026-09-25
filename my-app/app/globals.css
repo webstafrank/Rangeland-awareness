@@ -9,74 +9,103 @@
  * at the bottom of this file and `bg-surface` / `text-surface` /
  * `border-surface` in markup. One declaration, two uses.
  *
- * Four colours, and the discipline is in which one does what:
+ * This is the Fluent 2 "Spatial Analytics Dashboard" design system's chrome
+ * palette, replacing the four-colour navy/white/red/dark-blue system that
+ * shipped here before. One brand hue this time, not four colours with a rule
+ * about which does what:
  *
- *   navy blue   (--color-accent)        what the app is built OUT of: links,
- *                                       selected state, the focus ring, the
- *                                       chrome bands, drawn geometry.
- *   white       (--color-surface)       the raised panel tier.
- *   red         (--color-action)        forward, and brand. Precisely: the
- *                                       control that advances the flow
- *                                       (Continue, Run), the current step
- *                                       marker, the brand rule and logo mark,
- *                                       and two of the four topic identities.
- *                                       Never a SECOND interactive colour: no
- *                                       red secondary button, no red link,
- *                                       nothing red that a navy control could
- *                                       have been. That restraint, not
- *                                       absolute scarcity, is what keeps it
- *                                       reading as "this way forward".
- *   dark blue   (--color-accent-hover)  navy under pressure: hover, and the
- *                                       ground of the header, footer and hero.
+ *   Fluent brand blue (--color-accent)   structure AND the primary action.
+ *                                        Links, selection, the focus ring,
+ *                                        the active map tool, AND the
+ *                                        control that advances the flow
+ *                                        (Continue, Run). There is no second
+ *                                        interactive colour to keep separate
+ *                                        from it, because Fluent's status
+ *                                        colours (danger, warning, success)
+ *                                        are never a CTA fill.
+ *   white       (--color-surface)       the panel tier.
+ *   light grey  (--color-sunken)        the app canvas AND the header/nav
+ *                                       rail — Fluent's own header token is
+ *                                       a light neutral, not a dark band, so
+ *                                       the header and footer carry dark ink
+ *                                       text now, not white.
  *
  * lib/theme/palette.ts declares the same tokens with their measured contrast
  * notes, and lib/theme/__tests__/palette.test.ts fails if this file and that
  * one ever disagree.
  */
 @theme {
-  /* Neutrals. One blue-cast ramp, used for every surface and every piece of text. */
-  --color-page: #f3f6fb;
+  /* Neutrals. Fluent's own webLightTheme values, unmodified. */
+  --color-page: #f5f5f5;
   --color-surface: #ffffff;
-  --color-sunken: #e7edf7;
-  --color-edge: #d5dfee;
-  --color-edge-strong: #a9bcd8;
+  --color-surface-subtle: #fafafa;
+  --color-sunken: #f0f0f0;
+  --color-edge: #e0e0e0;
+  --color-edge-strong: #d1d1d1;
+  --color-edge-input: #616161;
 
-  --color-ink: #07162f;
-  --color-ink-muted: #3b5175;
-  --color-ink-faint: #55688c;
-  /* Secondary text inside a chrome band. The three tiers above are graded
-     against light surfaces and every one of them is illegible on dark blue. */
-  --color-on-chrome-muted: #aac2e2;
+  --color-ink: #242424;
+  --color-ink-muted: #424242;
+  --color-ink-faint: #616161;
 
-  /* Navy and dark blue. Structure, selection, focus. */
-  --color-accent: #10316b;
-  --color-accent-hover: #071c45;
-  --color-accent-soft: #eaf1fc;
-  --color-accent-border: #9cb9e4;
+  /* The one brand hue. Structure AND the primary action; see the header
+     comment above for why there is no second interactive colour. */
+  --color-accent: #0f6cbd;
+  --color-accent-hover: #115ea3;
+  --color-accent-pressed: #0c3b5e;
+  --color-accent-soft: #ebf3fc;
+  --color-accent-link: #115ea3;
 
-  /* Red. Forward and brand: see the header comment for exactly where. */
-  --color-action: #c8102e;
-  --color-action-hover: #9e0a23;
-  --color-action-soft: #fdecef;
-  --color-action-border: #f3a9b3;
+  /* Status. Read as a Fluent Badge in the tint appearance (text on a light
+     fill), never as a solid fill a CTA label sits on. */
+  --color-danger: #b10e1c;
+  --color-danger-soft: #fdf3f4;
+  --color-warn: #bc4b09;
+  --color-warn-soft: #fff9f5;
+  --color-success: #0e700e;
+  --color-success-soft: #f1faf1;
 
-  /* Status. Upload failures and selection notices only. A deeper, browner red
-     than the action red on purpose: see palette.ts, note 4. */
-  --color-danger: #a4161a;
-  --color-danger-soft: #fdeceb;
-  --color-danger-border: #eda19d;
-  --color-warn: #8a5200;
-  --color-warn-soft: #fdf6e3;
-  --color-warn-border: #e0b04a;
-
-  /* Elevation. Three steps, all restrained: this is a data tool, not a deck.
-     Tinted navy rather than neutral black, so a shadow belongs to the palette
-     instead of greying it. */
+  /* Fluent elevation. Four steps; shadow4 for resting cards, shadow8 for
+     floating map controls and the legend, shadow16 for popovers and map
+     feature popups, shadow28 for dialogs only. Neutral, not tinted: Fluent's
+     own recipe, used as given rather than re-derived from the app's ink. */
+  --shadow-4: 0 0 2px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.14);
+  --shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
+  --shadow-16: 0 0 2px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.14);
+  --shadow-28: 0 0 8px rgba(0, 0, 0, 0.12), 0 14px 28px rgba(0, 0, 0, 0.14);
+  /* Deprecated: the tinted-navy shadows the Fluent steps above replace.
+     Kept until every component that reads them has migrated. */
   --shadow-card: 0 1px 2px 0 rgb(7 22 47 / 0.05);
   --shadow-raised:
     0 4px 10px -3px rgb(7 22 47 / 0.1), 0 2px 4px -2px rgb(7 22 47 / 0.06);
-  /* Used by the sticky action bar, which casts upward. */
   --shadow-lifted: 0 -2px 10px -4px rgb(7 22 47 / 0.1);
+
+  /* Fluent spacing scale (4px-based). Inside components use s to m; between
+     cards, l; between sections in a panel, xxl. */
+  --spacing-fluent-xxs: 2px;
+  --spacing-fluent-xs: 4px;
+  --spacing-fluent-s-nudge: 6px;
+  --spacing-fluent-s: 8px;
+  --spacing-fluent-m-nudge: 10px;
+  --spacing-fluent-m: 12px;
+  --spacing-fluent-l: 16px;
+  --spacing-fluent-xl: 20px;
+  --spacing-fluent-xxl: 24px;
+  --spacing-fluent-xxxl: 32px;
+
+  /* Fluent radius scale. */
+  --radius-fluent-none: 0;
+  --radius-fluent-small: 2px;
+  --radius-fluent-medium: 4px;
+  --radius-fluent-large: 6px;
+  --radius-fluent-xlarge: 8px;
+  --radius-fluent-circular: 10000px;
+
+  /* Fluent app-shell layout constants. */
+  --layout-header-height: 48px;
+  --layout-panel-min: 320px;
+  --layout-panel-max: 400px;
+  --layout-target-min: 32px;
 
   /* The page gutter and the content ceiling, so every band agrees. */
   --spacing-gutter: 1.5rem;
@@ -89,8 +118,64 @@
    */
   --container-step: 980px;
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Fluent 2 web type ramp: Segoe UI, installed on Windows, falling back to
+     the system sans elsewhere. Data (coordinates, IDs, CRS codes) keeps the
+     existing mono stack. */
+  --font-sans:
+    "Segoe UI", "Segoe UI Web (West European)", var(--font-geist-sans),
+    -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: Consolas, "Cascadia Mono", var(--font-geist-mono), "Courier New", monospace;
+
+  /*
+   * ------------------------------------------------------------- data-viz
+   *
+   * The Fluent design system's map/chart data colours: categorical
+   * (Okabe-Ito, colour-blind safe), sequential (viridis), diverging (BrBG)
+   * and confusion-matrix ramps, plus the two map-specific tokens. These are
+   * NOT app chrome, same rule as the --color-navy-*/--color-scarlet-* data-viz
+   * namespace below: a category keeps its colour on the map, the legend, the
+   * table and the confusion matrix, it is never reused as chrome, and it is
+   * unchanged between... there is only one theme, so "between themes" does
+   * not apply here, but the source design system holds it constant across
+   * light and dark for the same reason this app holds everything to one
+   * theme: a class must not change colour depending on where it is drawn.
+   *
+   * This is a second, separate data-viz namespace from --color-navy-*/
+   * --color-scarlet-*/--color-status-* below. That one is design/tokens.ts's
+   * chart-series system (TimeSeries, Graticule, Logo, MapCanvas raw SVG
+   * fills) and is left untouched. This one is for the new map/results
+   * components: MapLegend swatches, DataTable class colours, ModelMetrics'
+   * confusion matrix. A project fixes ONE class-to-colour table using
+   * --data-cat-* and reuses it in the map, the legend, the table and the
+   * matrix; see each component's README under the design system reference.
+   */
+  --data-cat-1: #0072b2;
+  --data-cat-2: #e69f00;
+  --data-cat-3: #009e73;
+  --data-cat-4: #d55e00;
+  --data-cat-5: #56b4e9;
+  --data-cat-6: #cc79a7;
+  --data-cat-7: #f0e442;
+  --data-cat-8: #8a8a8a;
+
+  --data-seq-1: #440154;
+  --data-seq-2: #3b528b;
+  --data-seq-3: #21918c;
+  --data-seq-4: #5ec962;
+  --data-seq-5: #fde725;
+
+  --data-div-1: #8c510a;
+  --data-div-2: #d8b365;
+  --data-div-3: #f5f5f5;
+  --data-div-4: #5ab4ac;
+  --data-div-5: #01665e;
+
+  --data-matrix-1: #ebf3fc;
+  --data-matrix-2: #96c6fa;
+  --data-matrix-3: #0f6cbd;
+
+  --map-selection: #00e5ff;
+  --map-halo: #000000b3;
 
   /*
    * ----------------------------------------------------------- data-viz
@@ -240,17 +325,18 @@
 }
 
 /*
- * The app chrome's own dark band, on the CHROME tokens rather than the chart
- * ones.
+ * The app chrome's own band, on the CHROME tokens rather than the chart ones.
  *
  * `band-navy` above belongs to design/tokens.ts and is asserted against it.
- * The header, the footer and the homepage hero are app chrome, so they have to
- * move when the chrome accent moves; borrowing a data-viz colour that happens
- * to look similar today is exactly how the two namespaces drift into one.
+ * The header, the footer and the homepage hero are app chrome, so they have
+ * to move when the chrome accent moves. Fluent's header/nav token is a light
+ * neutral, not a dark band, so this is dark ink on --color-sunken now, not
+ * white on navy — the flip is deliberate, not a regression: see the header
+ * comment on the @theme block above.
  */
 @utility band-chrome {
-  background: var(--color-accent-hover);
-  color: #ffffff;
+  background: var(--color-sunken);
+  color: var(--color-ink);
 }
 
 /* Scarlet hairline used to open a band. Decorative, never load-bearing. */
@@ -264,19 +350,13 @@
 }
 
 /*
- * The rule that opens a chrome band: red for the first fifth, navy for the
- * rest. Same idea as rule-scarlet on the chrome tokens, used as a 3px strip
- * under the header and above the footer, so the four-colour system states
- * itself before a single word is read. Decorative, never load-bearing.
+ * The rule that opens a chrome band: a solid accent strip, used as a 3px
+ * strip under the header and above the footer. Solid rather than two-tone:
+ * Fluent has one brand hue, so there is no second colour to split it with.
+ * Decorative, never load-bearing.
  */
 @utility rule-action {
-  background: linear-gradient(
-    90deg,
-    var(--color-action) 0%,
-    var(--color-action) 18%,
-    var(--color-accent) 18%,
-    var(--color-accent) 100%
-  );
+  background: var(--color-accent);
 }
 
 /*
@@ -310,16 +390,6 @@ body {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 3px;
-}
-
-/*
- * Inside a chrome band the navy ring is invisible against the navy ground, so
- * it inverts to white there. Scoped to the band rather than made global: the
- * light page keeps the navy ring the palette actually grades, and only the
- * region that painted itself dark pays for it.
- */
-.band-chrome :focus-visible {
-  outline-color: #ffffff;
 }
 
 /* Respect a user who has asked for less motion. A map pans and zooms a lot. */
