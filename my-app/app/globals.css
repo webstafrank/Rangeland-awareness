@@ -132,7 +132,7 @@
    * The Fluent design system's map/chart data colours: categorical
    * (Okabe-Ito, colour-blind safe), sequential (viridis), diverging (BrBG)
    * and confusion-matrix ramps, plus the two map-specific tokens. These are
-   * NOT app chrome, same rule as the --color-navy-*/--color-scarlet-* data-viz
+   * NOT app chrome, same rule as the --color-navy-*, --color-scarlet-* data-viz
    * namespace below: a category keeps its colour on the map, the legend, the
    * table and the confusion matrix, it is never reused as chrome, and it is
    * unchanged between... there is only one theme, so "between themes" does
@@ -140,8 +140,8 @@
    * light and dark for the same reason this app holds everything to one
    * theme: a class must not change colour depending on where it is drawn.
    *
-   * This is a second, separate data-viz namespace from --color-navy-*/
-   * --color-scarlet-*/--color-status-* below. That one is design/tokens.ts's
+   * This is a second, separate data-viz namespace from --color-navy-*,
+   * --color-scarlet-*, --color-status-* below. That one is design/tokens.ts's
    * chart-series system (TimeSeries, Graticule, Logo, MapCanvas raw SVG
    * fills) and is left untouched. This one is for the new map/results
    * components: MapLegend swatches, DataTable class colours, ModelMetrics'
