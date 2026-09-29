@@ -361,8 +361,14 @@ export default function ResultView({
                 overflow-x-auto on the wrapper, not the page. Five columns of
                 numbers cannot fit 360px without truncating a value or dropping
                 a column, and both lose information the rubric asks for.
+
+                `relative` is load-bearing. The visually hidden "%" in every
+                share cell is `position: absolute`, and an absolute box whose
+                containing block sits OUTSIDE a scroller is not clipped by it:
+                without a positioned ancestor here, those 1px spans escaped to
+                x = 550 and pushed the page 192px wide at 360.
               */}
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="w-full min-w-[34rem] border-collapse">
                   <caption className="sr-only">
                     Class table: every class with its index range, pixel count, area in square
@@ -455,22 +461,29 @@ export default function ResultView({
                         preserveAspectRatio="xMidYMid meet"
                         className="h-full w-full"
                       >
+                        {/*
+                          One string child, not several. React 19 treats
+                          <title> as document metadata and wants a single text
+                          node; split across JSX expressions it rendered
+                          differently on the server and the client, and every
+                          results page logged a hydration mismatch.
+                        */}
                         <title id={titleId}>
-                          Outline of the {config.areas.length}{" "}
-                          {config.areas.length === 1 ? "area" : "areas"} this run covered
+                          {`Outline of the ${config.areas.length} ${
+                            config.areas.length === 1 ? "area" : "areas"
+                          } this run covered`}
                         </title>
                         <desc id={descId}>
                           Boundary only. The classified raster stays on the service, so no
                           per-pixel classes are drawn here. Extent {formatBounds(outline.bounds)}.
                         </desc>
                         {/*
-                          The design system's selected-feature treatment: a
-                          3px selection stroke with a mapHalo around it, so the
-                          outline reads as "the area this run is about" and
-                          holds its edge on any ground. The halo is a
-                          drop-shadow on the one path rather than a second,
-                          wider path underneath, so each area stays exactly one
-                          element.
+                          Brand stroke on colorBrandBackground2, the design
+                          system's "selected layer" pair. Not mapSelection
+                          (#00e5ff): that cyan is tuned to hold its edge over
+                          imagery with a dark halo, and on this plain light
+                          locator it would sit near 1.3:1. One path per area,
+                          so each area is exactly one element.
                         */}
                         {outline.paths.map((d) => (
                           <path
@@ -478,15 +491,10 @@ export default function ResultView({
                             d={d}
                             fillRule="evenodd"
                             fill="var(--color-accent-soft)"
-                            fillOpacity={0.6}
-                            stroke="var(--map-selection)"
-                            strokeWidth={3}
+                            stroke="var(--color-accent)"
+                            strokeWidth={2}
                             strokeLinejoin="round"
                             vectorEffect="non-scaling-stroke"
-                            style={{
-                              filter:
-                                "drop-shadow(0 0 1px var(--map-halo)) drop-shadow(0 0 1px var(--map-halo))",
-                            }}
                           />
                         ))}
                       </svg>
