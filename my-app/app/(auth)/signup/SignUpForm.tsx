@@ -5,6 +5,7 @@ import type { FormState } from "@/contracts/auth";
 import { signUpAction } from "@/services/auth/actions";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
 import { TextInput } from "@/components/ui/TextInput";
 
 const initial: FormState = { ok: false };
@@ -21,12 +22,9 @@ export function SignUpForm() {
   return (
     <form action={formAction} className="flex flex-col gap-5" noValidate>
       {state.message && !state.ok ? (
-        <p
-          role="alert"
-          className="border-scarlet-ink-light/35 text-scarlet-ink-light text-caption rounded border bg-white px-3.5 py-2.5 font-medium"
-        >
+        <Notice intent="error" role="alert">
           {state.message}
-        </p>
+        </Notice>
       ) : null}
 
       <Field label="Full name" htmlFor="name" error={err("name")}>
@@ -87,7 +85,7 @@ export function SignUpForm() {
         />
       </Field>
 
-      <Button type="submit" variant="scarlet" size="lg" tone="light" block disabled={pending}>
+      <Button type="submit" variant="primary" size="lg" block disabled={pending}>
         {pending ? "Creating account…" : "Create account"}
       </Button>
     </form>

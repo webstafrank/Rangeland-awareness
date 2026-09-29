@@ -11,6 +11,7 @@
 
 import RadioCards from "@/components/topic/RadioCards";
 import StepShell from "@/components/topic/StepShell";
+import { Notice } from "@/components/ui/Notice";
 import { useWizard } from "@/components/topic/useWizard";
 import { MODELS, type ModelId } from "@/services/analysis/models";
 import type { Topic } from "@/services/analysis/topics";
@@ -41,12 +42,12 @@ export default function ModelStep({ topic, initial }: ModelStepProps) {
         layout="row"
       />
 
-      <p className="mt-8 max-w-2xl rounded-xl border border-edge bg-sunken px-5 py-4 text-sm leading-relaxed text-ink-muted">
-        <span className="font-semibold text-ink">Note.</span> The model backend
-        is not connected yet. Running an analysis validates your request and
-        shows the exact payload the service will receive, so the whole flow can
+      <Notice intent="info" title="Note." className="mt-6 max-w-2xl">
+        No model is trained yet. Flood risk runs a weighted overlay on the
+        analysis service; the other three topics validate your request and
+        show the exact payload the service will receive, so the whole flow can
         be used and reviewed today.
-      </p>
+      </Notice>
     </StepShell>
   );
 }

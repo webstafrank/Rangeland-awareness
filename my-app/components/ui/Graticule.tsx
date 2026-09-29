@@ -1,53 +1,54 @@
 /**
- * A faint lat/lon graticule, used as a backdrop on the navy hero bands.
+ * The plus-grid: the design system's spatial motif, as a backdrop.
  *
- * It is decorative and marked `aria-hidden`, but it is not arbitrary
- * decoration: the meridian spacing and the single emphasised line at the
- * equator are what tie the hero to the thing the app actually does. Kenya
- * straddles the equator, so that one brighter line is a real reference.
+ * Lifted from the Spatial Analytics Dashboard cover, where a graticule of
+ * small plus marks is cut from the ground over the brand block. Plus marks
+ * rather than full lines because a full lat/lon grid at this density reads as
+ * a table border; a plus at every intersection reads as a map's tick marks.
+ * The pitch is Fluent's spacingXXL (24px), so it sits on the same 4px grid as
+ * everything else on the page.
  *
- * Rendered as one inline SVG with a pattern, so it costs no request and
- * scales without artefacts.
+ * `ground` says what it is drawn over. On the brand fill the marks are the
+ * page ground showing through, as on the cover; on a light panel they are a
+ * faint ink so they orient without competing with the copy on top.
+ *
+ * Decorative and aria-hidden. One inline SVG with a pattern, so it costs no
+ * request and scales without artefacts. The pattern id is suffixed by ground
+ * so two graticules on one page cannot collide.
  */
-export function Graticule({ className = "" }: { className?: string }) {
+export function Graticule({
+  className = "",
+  ground = "light",
+  behindText = false,
+}: {
+  className?: string;
+  ground?: "light" | "brand";
+  /** Set when copy sits on top of the grid, which fades it to a texture. */
+  behindText?: boolean;
+}) {
+  const id = `plus-grid-${ground}${behindText ? "-text" : ""}`;
+  const stroke = ground === "brand" ? "var(--color-surface)" : "var(--color-ink)";
+  // Behind copy the marks drop to a whisper, so they read as texture and
+  // never as a second layer of glyphs competing with the words on top.
+  const opacity = behindText ? 0.16 : ground === "brand" ? 0.55 : 0.14;
+
   return (
     <svg
       className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
       aria-hidden="true"
-      preserveAspectRatio="none"
     >
       <defs>
-        <pattern id="graticule" width="72" height="72" patternUnits="userSpaceOnUse">
+        <pattern id={id} width="24" height="24" patternUnits="userSpaceOnUse">
           <path
-            d="M72 0H0V72"
+            d="M8 12h8M12 8v8"
             fill="none"
-            stroke="var(--color-ink-dark-primary)"
-            strokeOpacity="0.07"
-            strokeWidth="1"
+            stroke={stroke}
+            strokeOpacity={opacity}
+            strokeWidth="1.5"
           />
         </pattern>
-        <linearGradient id="graticule-fade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="white" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="white" stopOpacity="0.15" />
-        </linearGradient>
-        <mask id="graticule-mask">
-          <rect width="100%" height="100%" fill="url(#graticule-fade)" />
-        </mask>
       </defs>
-
-      <rect width="100%" height="100%" fill="url(#graticule)" mask="url(#graticule-mask)" />
-
-      {/* The equator. Kenya sits on it, so this line is a reference, not a flourish. */}
-      <line
-        x1="0"
-        y1="62%"
-        x2="100%"
-        y2="62%"
-        stroke="var(--color-scarlet-mark)"
-        strokeOpacity="0.4"
-        strokeWidth="1"
-        strokeDasharray="5 7"
-      />
+      <rect width="100%" height="100%" fill={`url(#${id})`} />
     </svg>
   );
 }

@@ -5,30 +5,31 @@ import { Logo } from "@/components/ui/Logo";
  * The footer carries the data provenance, which is not decoration: an analysis
  * product that does not say where its geometry came from cannot be checked by
  * the person reading it.
+ *
+ * NOTE: nothing renders this today; app/layout.tsx has its own footer. It is
+ * kept, restyled into the same Fluent neutral chrome, for the day the richer
+ * three-column footer is wanted.
  */
 export function SiteFooter() {
   return (
-    <footer className="band-navy-deep border-navy-700 mt-auto border-t">
-      <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-12 sm:grid-cols-[1.4fr_1fr_1fr] sm:px-8">
+    <footer className="band-chrome mt-auto border-t border-edge">
+      <div className="mx-auto grid w-full max-w-band gap-8 px-gutter py-8 sm:grid-cols-[1.4fr_1fr_1fr] lg:px-gutter-lg">
         <div className="flex flex-col gap-3">
-          <Logo tone="dark" />
-          <p className="text-caption text-ink-dark-secondary max-w-xs">
+          <Logo />
+          <p className="type-caption1 max-w-xs text-ink-muted">
             Earth observation analysis over Kenya&rsquo;s 47 counties: flood risk, drought,
             food security and rangeland dynamics.
           </p>
         </div>
 
         <nav aria-label="Product" className="flex flex-col gap-2">
-          <h2 className="text-micro text-ink-dark-muted font-semibold tracking-[0.14em] uppercase">
-            Product
-          </h2>
+          <h2 className="eyebrow">Product</h2>
           {/*
             `as const` is load-bearing with typedRoutes. Without it the array
             literal widens to string[], `href` is a plain string, and Link
-            rejects it — but the useful half is that WITH it each href stays a
-            literal and is checked against the routes that actually exist, so
-            deleting a page turns this footer into a build error instead of
-            three silent 404s.
+            rejects it; WITH it each href stays a literal and is checked
+            against the routes that actually exist, so deleting a page turns
+            this footer into a build error instead of three silent 404s.
           */}
           {(
             [
@@ -40,7 +41,7 @@ export function SiteFooter() {
             <Link
               key={href}
               href={href}
-              className="text-caption text-ink-dark-secondary hover:text-ink-dark-primary rounded"
+              className="type-caption1 rounded-fluent-small text-accent-link hover:underline"
             >
               {label}
             </Link>
@@ -48,14 +49,12 @@ export function SiteFooter() {
         </nav>
 
         <div className="flex flex-col gap-2">
-          <h2 className="text-micro text-ink-dark-muted font-semibold tracking-[0.14em] uppercase">
-            Data provenance
-          </h2>
-          <p className="text-caption text-ink-dark-secondary">
+          <h2 className="eyebrow">Data provenance</h2>
+          <p className="type-caption1 text-ink-muted">
             County boundaries: geoBoundaries gbOpen KEN ADM1 (2020), sourced from the RCMRD
             Africa GeoPortal. Public Domain.
           </p>
-          <p className="text-caption text-ink-dark-muted">
+          <p className="type-caption1 text-ink-faint">
             Indicator values in this build are synthetic and seeded, for interface review only.
           </p>
         </div>

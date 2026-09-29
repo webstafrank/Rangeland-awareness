@@ -75,20 +75,20 @@ export default function ScopeStep({ topic, initial }: ScopeStepProps) {
       {/* What this topic actually returns. It belongs on the first step: it is
           the last chance to notice you opened the wrong topic before spending
           four screens on it. */}
-      <dl className="mt-10 grid gap-5 border-t border-edge pt-8 sm:grid-cols-2">
+      <dl className="mt-8 grid gap-5 border-t border-edge pt-6 sm:grid-cols-2">
         <div>
           <dt className="eyebrow">What comes back</dt>
-          <dd className="mt-2 text-sm leading-relaxed text-ink-muted">
+          <dd className="type-body1 mt-1 text-ink-muted">
             {topic.output}
           </dd>
         </div>
         <div>
           <dt className="eyebrow">Model inputs</dt>
-          <dd className="mt-2 flex flex-wrap gap-1.5">
+          <dd className="mt-1.5 flex flex-wrap gap-1.5">
             {topic.inputs.map((input) => (
               <span
                 key={input}
-                className="rounded-md border border-edge bg-sunken px-2 py-1 text-xs font-medium text-ink-muted"
+                className="type-caption1 rounded-fluent-medium bg-surface px-2 py-0.5 text-ink-muted shadow-4"
               >
                 {input}
               </span>

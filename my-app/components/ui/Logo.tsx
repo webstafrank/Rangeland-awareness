@@ -1,55 +1,49 @@
+import Image from "next/image";
 import type { Tone } from "./tone";
 
 interface LogoProps {
+  /** Accepted for compatibility. There is one light chrome now. */
   tone?: Tone;
-  /** Mark only, for the compact app header. */
+  /** Mark only, for a compact header. */
   markOnly?: boolean;
+  /** The mark's height in px. Its width follows the artwork's 207:165 ratio. */
   size?: number;
   className?: string;
 }
 
-/**
- * The mark: an earth limb with three rangeland contour lines and a scarlet
- * orbiter. It is drawn rather than imported so it inherits the tone and stays
- * crisp at 24px, where a raster logo would blur.
- *
- * `currentColor` carries the limb and contours, so the mark works on any
- * ground without a second asset.
- */
-export function Logo({ tone = "light", markOnly = false, size = 30, className = "" }: LogoProps) {
-  const wordInk = tone === "dark" ? "text-white" : "text-navy-900";
-  const subInk = tone === "dark" ? "text-ink-dark-muted" : "text-ink-light-muted";
+const RATIO = 207 / 165;
 
+/**
+ * The Kenya Space Agency mark beside the product name.
+ *
+ * The raster is the agency's own artwork, not a redraw: a hand-drawn stand-in
+ * for a government agency's logo is exactly the thing that should not ship.
+ * It is served from /public and sized to its intrinsic ratio so it never
+ * stretches.
+ *
+ * With the wordmark beside it the image is decorative (alt=""): the text names
+ * the link, and a screen reader hearing "Kenya Space Agency logo, Rangeland
+ * Awareness, Kenya Space Agency" is hearing one name three times. Mark only,
+ * the image carries the name itself.
+ */
+export function Logo({ markOnly = false, size = 32, className = "" }: LogoProps) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <svg
-        width={size}
+      <Image
+        src="/ksa-logo.png"
+        alt={markOnly ? "Kenya Space Agency" : ""}
+        width={Math.round(size * RATIO)}
         height={size}
-        viewBox="0 0 32 32"
-        fill="none"
-        aria-hidden="true"
-        className={wordInk}
-      >
-        {/* Earth limb: an arc, not a full circle, so the mark reads as a horizon. */}
-        <path
-          d="M2.6 21.4a15 15 0 1 1 26.8 0"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        {/* Three contours, tightening downward: the rangeland surface. */}
-        <path d="M6.4 21.4h19.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity="0.9" />
-        <path d="M8.8 25.2h14.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity="0.6" />
-        <path d="M11.8 29h8.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity="0.32" />
-        {/* The orbiter. The only scarlet in the mark, and the only fill. */}
-        <circle cx="24.4" cy="8.2" r="3.1" fill="var(--color-scarlet-mark)" />
-      </svg>
-
+        priority
+        className="shrink-0"
+      />
       {markOnly ? null : (
-        <span className="flex flex-col leading-none">
-          <span className={`text-sm font-bold tracking-tight ${wordInk}`}>Rangeland Awareness</span>
-          <span className={`text-micro mt-0.5 tracking-[0.1em] uppercase ${subInk}`}>
-            Kenya · Earth Observation
+        <span className="flex min-w-0 flex-col">
+          <span className="type-body1 font-semibold whitespace-nowrap text-ink">
+            Rangeland Awareness
+          </span>
+          <span className="type-caption1 whitespace-nowrap text-ink-faint">
+            Kenya Space Agency
           </span>
         </span>
       )}

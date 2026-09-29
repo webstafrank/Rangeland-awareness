@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Location16Regular } from "@/components/ui/icons";
 import CoordinateEntry from "@/components/topic/CoordinateEntry";
 import MapSizeStepper from "@/components/topic/MapSizeStepper";
 import RadioCards from "@/components/topic/RadioCards";
@@ -52,12 +53,12 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card">
-      <h3 className="text-[13px] font-semibold tracking-tight">{title}</h3>
+    <section className="card flex flex-col p-4">
+      <h3 className="type-subtitle2 text-ink">{title}</h3>
       {hint && (
-        <p className="mt-1 text-xs leading-relaxed text-ink-faint">{hint}</p>
+        <p className="type-caption1 mt-0.5 text-ink-faint">{hint}</p>
       )}
-      <div className="mt-4 flex flex-1 flex-col">{children}</div>
+      <div className="mt-3 flex flex-1 flex-col">{children}</div>
     </section>
   );
 }
@@ -121,7 +122,8 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
       blockedReason={canReview ? null : blockingReason(validation)}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="rounded-lg border border-edge bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted">
+        <p className="type-caption1 inline-flex min-h-6 items-center gap-1.5 rounded-fluent-circular bg-accent-soft px-2.5 font-semibold text-accent">
+          <Location16Regular aria-hidden="true" />
           {countHint}
         </p>
       </div>
@@ -162,7 +164,7 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
         scroll away like any other element. Stretching the column to the row's
         height is what gives `sticky` its range.
       */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <Panel
             title="On the map"
@@ -208,7 +210,7 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
             map's height, which made the largest thing on the page an empty
             white box in the state every session starts in.
           */}
-          <div className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card">
+          <div className="card flex flex-col p-4">
             <SelectedAreas
               areas={state.areas}
               emptyHint={
@@ -227,7 +229,7 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
           The map sticks while the tool column scrolls past it, so a long
           selection list never takes the map off screen.
         */}
-        <div className="h-fit overflow-hidden rounded-xl border border-edge bg-surface shadow-card lg:sticky lg:top-20">
+        <div className="card h-fit overflow-hidden lg:sticky lg:top-16">
           <MapSizeStepper size={mapSize} onChange={setStoredMapSize} />
           <div
             /*

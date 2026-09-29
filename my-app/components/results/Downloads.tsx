@@ -17,6 +17,7 @@
  * the reader with a browser dialog and no file.
  */
 
+import { ArrowDownload20Regular } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 
 export interface DownloadFile {
@@ -54,21 +55,21 @@ function sizeOf(body: string): string {
 
 export default function Downloads({ files }: DownloadsProps) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-3">
+    <ul className="flex flex-col divide-y divide-edge">
       {files.map((file) => (
-        <li key={file.filename} className="flex min-w-0 flex-col gap-2">
+        <li key={file.filename} className="flex min-w-0 flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
           {/*
-            `outline`, never the kit's scarlet. The screen gets exactly one
-            forward control and it is "Run this configuration again"; a red
-            download button would make three of them and the accent would stop
-            meaning "this way".
+            Secondary, never primary. The screen gets exactly one primary
+            control and it is "Run this configuration again"; three brand-blue
+            download buttons would make the primary stop meaning "this way".
+            The design system's rule: offer CSV export for any results table.
           */}
           <Button
             type="button"
-            variant="outline"
-            tone="light"
-            block
+            variant="secondary"
+            icon={<ArrowDownload20Regular />}
             onClick={() => save(file)}
+            className="self-start"
           >
             {file.label}
           </Button>
@@ -79,10 +80,10 @@ export default function Downloads({ files }: DownloadsProps) {
             one thing on this screen that would put a horizontal scrollbar on
             the page. Rubric S10 costs a hyphenless wrap here.
           */}
-          <p className="text-xs leading-relaxed text-ink-muted">
+          <p className="type-caption1 text-ink-muted">
             {file.detail}{" "}
             <span className="break-all text-ink-faint">
-              ({file.filename}, {sizeOf(file.body)})
+              (<span className="font-mono">{file.filename}</span>, {sizeOf(file.body)})
             </span>
           </p>
         </li>

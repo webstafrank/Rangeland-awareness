@@ -8,7 +8,7 @@ interface StatTileProps {
   value: string;
   /** The unit, set smaller beside the value. Never folded into `value`. */
   unit?: string;
-  /** The interval or qualifier under the value, e.g. "90% CI 21.4 to 29.8". */
+  /** The interval or qualifier under the value, e.g. "30% hold-out, n = 276". */
   detail?: ReactNode;
   /**
    * Change against the previous comparable window. `direction` is the arrow;
@@ -22,6 +22,7 @@ interface StatTileProps {
     direction: "up" | "down" | "flat";
     sense: "good" | "bad" | "neutral";
   };
+  /** Accepted for compatibility. There is one light theme. */
   tone?: Tone;
   /** Marks this as the screen's single most important number. */
   emphasis?: boolean;
@@ -31,55 +32,41 @@ const arrows = { up: "▲", down: "▼", flat: "▬" } as const;
 const senseWord = { good: "improving", bad: "worsening", neutral: "little change" } as const;
 
 /**
- * A headline figure.
+ * A headline figure, the design system's ModelMetrics KPI card.
  *
- * The number uses proportional figures because it stands alone; only columns
- * that must align vertically get `tabular-nums`. The unit is a separate
- * element at a smaller size so the eye lands on the magnitude first and the
- * unit second, and so a screen reader reads them as one phrase.
+ * Label in caption1 above, value in title1 (largeTitle when it is the one
+ * number the screen is for), qualifier in caption1 below, all in the neutral
+ * foregrounds. The value is ink, not brand: brand marks the one action a view
+ * exists for, and a number is not an action.
+ *
+ * The unit is a separate element at body size so the eye lands on the
+ * magnitude first, and so a screen reader reads the two as one phrase. Tabular
+ * figures, because tiles sit side by side and their digits should align.
+ *
+ * Renders as a `dt`/`dd` pair inside a wrapping `div`, so a row of tiles can
+ * sit in one `<dl>` and a screen reader hears each as a term and its value.
  */
-export function StatTile({
-  label,
-  value,
-  unit,
-  detail,
-  delta,
-  tone = "light",
-  emphasis = false,
-}: StatTileProps) {
-  const labelInk = tone === "dark" ? "text-ink-dark-secondary" : "text-ink-light-secondary";
-  const detailInk = tone === "dark" ? "text-ink-dark-muted" : "text-ink-light-muted";
-  const valueInk = emphasis
-    ? tone === "dark"
-      ? "text-scarlet-ink-dark"
-      : "text-scarlet-ink-light"
-    : tone === "dark"
-      ? "text-white"
-      : "text-navy-900";
-  const deltaInk = tone === "dark" ? "text-ink-dark-secondary" : "text-ink-light-secondary";
-
+export function StatTile({ label, value, unit, detail, delta, emphasis = false }: StatTileProps) {
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <p className={`text-micro font-semibold tracking-[0.14em] uppercase ${labelInk}`}>{label}</p>
+    <div className="card flex min-w-0 flex-col gap-1 p-4">
+      <dt className="type-caption1 text-ink-faint">{label}</dt>
 
-      <p className={`flex items-baseline gap-1.5 leading-none ${valueInk}`}>
-        <span className={emphasis ? "text-5xl font-bold tracking-tight" : "text-3xl font-bold tracking-tight"}>
-          {value}
-        </span>
-        {unit ? <span className="text-base font-semibold opacity-70">{unit}</span> : null}
-      </p>
+      <dd className="flex items-baseline gap-1 text-ink tabular-nums">
+        <span className={emphasis ? "type-large-title" : "type-title1"}>{value}</span>
+        {unit ? <span className="type-body1 text-ink-muted">{unit}</span> : null}
+      </dd>
 
       {delta ? (
-        <p className={`text-caption flex items-center gap-1.5 font-medium ${deltaInk}`}>
+        <dd className="type-caption1 flex items-center gap-1.5 text-ink-muted">
           <span aria-hidden="true" className="text-[0.75em]">
             {arrows[delta.direction]}
           </span>
           <span>{delta.text}</span>
-          <span className={detailInk}>({senseWord[delta.sense]})</span>
-        </p>
+          <span className="text-ink-faint">({senseWord[delta.sense]})</span>
+        </dd>
       ) : null}
 
-      {detail ? <p className={`text-caption tabular ${detailInk}`}>{detail}</p> : null}
+      {detail ? <dd className="type-caption1 text-ink-faint tabular-nums">{detail}</dd> : null}
     </div>
   );
 }

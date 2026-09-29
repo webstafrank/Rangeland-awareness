@@ -34,7 +34,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import RequestResult from "@/components/topic/RequestResult";
+import {
+  ArrowCounterclockwise20Regular,
+  ArrowDownload20Regular,
+  ArrowLeft20Regular,
+} from "@/components/ui/icons";
+import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { Notice } from "@/components/ui/Notice";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { buildRequest } from "@/services/analysis/request";
 import { REQUEST_PARAM, requestId } from "@/services/analysis/request-id";
 import { resetSelection } from "@/services/analysis/selection-store";
@@ -99,30 +107,27 @@ function HandoffProblem({
   query: string;
 }) {
   return (
-    <div className="mx-auto w-full max-w-band px-gutter py-16 lg:px-gutter-lg">
-      <div className="mx-auto max-w-xl rounded-2xl border border-edge bg-surface p-8 text-center shadow-card">
+    <div className="mx-auto w-full max-w-band px-gutter py-10 lg:px-gutter-lg lg:py-16">
+      <div className="card mx-auto max-w-xl p-6 lg:p-8">
         <Eyebrow>No result to show</Eyebrow>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">
+        <h1 className="type-title3 mt-2 text-ink">
           The areas for this run are not available
         </h1>
         <p
-          className="mt-3 text-sm leading-relaxed text-ink-muted"
+          className="type-body1 mt-2 text-ink-muted"
           data-testid="handoff-problem"
           data-reason={reason}
         >
           {HANDOFF_MESSAGE[reason]} {RECOVERY[reason]}
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <div className="mt-6 flex flex-wrap gap-2">
           <Link
             href={stepHref(topic.slug, "areas", query)}
-            className="rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover"
+            className={buttonClasses({ appearance: "primary" })}
           >
             Select areas
           </Link>
-          <Link
-            href={stepHref(topic.slug, "review", query)}
-            className="rounded-lg border border-edge-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-          >
+          <Link href={stepHref(topic.slug, "review", query)} className={buttonClasses()}>
             Back to review
           </Link>
         </div>
@@ -299,30 +304,36 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mx-auto w-full max-w-band px-gutter py-6 lg:px-gutter-lg lg:py-8">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-          <div>
-            <Eyebrow>Request submitted</Eyebrow>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight lg:text-3xl">
-              {topic.name}
-            </h1>
+      <section className="border-b border-edge bg-surface">
+        <div className="mx-auto w-full max-w-band px-gutter py-5 lg:px-gutter-lg lg:py-7">
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+            <div>
+              <Eyebrow>Request submitted</Eyebrow>
+              <h1 className="type-title3 mt-1 text-ink lg:type-title2">{topic.name}</h1>
+            </div>
+            <p className="type-caption1 text-ink-faint">
+              Request <span className="font-mono text-ink-muted">{runId}</span>
+            </p>
           </div>
-          <p className="font-mono text-xs text-ink-faint">request {runId}</p>
+
+          {/*
+            Stated once, prominently, and repeated in every export. The app is a
+            government decision-support tool; a screen that looks like a result
+            and is not one is the single most damaging thing it could render.
+            A Fluent MessageBar in the warning intent, so it carries the
+            warning icon as well as the words.
+          */}
+          <Notice intent="warning" title="No model has run." className="mt-4">
+            No model backend is connected for this request, so this page shows the validated
+            request that the analysis service will receive. Nothing below is a
+            prediction.
+          </Notice>
         </div>
+      </section>
 
-        {/*
-          Stated once, prominently, and repeated in every export. The app is a
-          government decision-support tool; a screen that looks like a result
-          and is not one is the single most damaging thing it could render.
-        */}
-        <p className="mt-5 rounded-xl border border-warn-border bg-warn-soft px-5 py-4 text-sm leading-relaxed text-ink">
-          <span className="font-semibold">No model has run.</span> The model
-          backend is not connected yet, so this page shows the validated request
-          that the analysis service will receive. Nothing below is a prediction.
-        </p>
-
-        <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="h-[400px] overflow-hidden rounded-xl border border-edge bg-surface shadow-card lg:h-[clamp(400px,calc(100svh-320px),620px)]">
+      <div className="mx-auto flex w-full max-w-band flex-col gap-8 px-gutter py-6 lg:px-gutter-lg lg:py-8">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="card h-[400px] overflow-hidden lg:h-[clamp(400px,calc(100svh-320px),620px)]">
             <AoiMap
               areas={handoff.areas}
               focus={focus}
@@ -333,183 +344,168 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
             />
           </div>
 
-          <div className="flex flex-col rounded-xl border border-edge bg-surface shadow-card">
-            <header className="flex items-center justify-between border-b border-edge px-5 py-4">
-              <h2 className="text-sm font-semibold tracking-tight">
-                Analyst notes
-              </h2>
-              <span className="text-xs text-ink-faint">
+          <div className="card flex flex-col">
+            <header className="flex min-h-11 items-center justify-between border-b border-edge px-4 py-2.5">
+              <h2 className="type-subtitle2 text-ink">Analyst notes</h2>
+              <span className="type-caption1 text-ink-faint tabular-nums">
                 {notes.length > 0 ? `${notes.length} chars` : "Empty"}
               </span>
             </header>
 
+            {/*
+              Native, so the notes stay a plain controlled string. Fluent's
+              field focus affordance is drawn as a brand edge along the bottom
+              of the box while it has focus, and the app-wide ring still shows
+              on keyboard focus.
+            */}
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add observations, context, or flags for this request..."
-              className="min-h-[200px] flex-1 resize-none bg-transparent px-5 py-4 text-sm leading-relaxed text-ink placeholder:text-ink-faint focus:outline-none lg:min-h-0"
+              className="type-body1 min-h-[200px] flex-1 resize-none border-b-2 border-transparent bg-transparent px-4 py-3 text-ink placeholder:text-ink-faint focus:border-b-accent lg:min-h-0"
               aria-label="Analyst notes for this request"
             />
 
-            <div className="border-t border-edge px-5 py-3">
-              <p className="text-xs text-ink-faint">
+            <div className="border-t border-edge px-4 py-2.5">
+              <p className="type-caption1 text-ink-faint">
                 Notes are saved with the JSON and CSV exports.
               </p>
             </div>
           </div>
         </div>
-      </div>
 
-      <section className="border-y border-edge bg-surface">
-        <div className="mx-auto w-full max-w-band px-gutter py-8 lg:px-gutter-lg">
-          <dl
-            data-testid="results-summary"
-            className="grid gap-x-8 gap-y-4 sm:grid-cols-4"
-          >
-            <div>
-              <dt className="eyebrow">Topic</dt>
-              <dd className="mt-1 text-sm font-semibold">{topic.name}</dd>
-            </div>
-            <div>
-              <dt className="eyebrow">Analysis type</dt>
-              <dd className="mt-1 text-sm font-semibold">{spec.label}</dd>
-            </div>
-            <div>
-              <dt className="eyebrow">Model</dt>
-              <dd className="mt-1 text-sm font-semibold">
-                {model?.label ?? request.model}
-              </dd>
-            </div>
-            <div>
-              <dt className="eyebrow">Areas</dt>
-              <dd className="mt-1 text-sm font-semibold">
-                {request.areas.length}{" "}
-                {request.areas.length === 1 ? "area" : "areas"}
-              </dd>
-            </div>
+        <section aria-labelledby="request-summary-heading">
+          <h2 id="request-summary-heading" className="sr-only">
+            Request summary
+          </h2>
+          <dl data-testid="results-summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {(
+              [
+                ["Topic", topic.name],
+                ["Analysis type", spec.label],
+                ["Model", model?.label ?? request.model],
+                [
+                  "Areas",
+                  `${request.areas.length} ${request.areas.length === 1 ? "area" : "areas"}`,
+                ],
+              ] as const
+            ).map(([term, value]) => (
+              <div key={term} className="card p-4">
+                <dt className="type-caption1 text-ink-faint">{term}</dt>
+                <dd className="type-subtitle2 mt-0.5 text-ink">{value}</dd>
+              </div>
+            ))}
           </dl>
-        </div>
-      </section>
+        </section>
 
-      <section className="mx-auto w-full max-w-band px-gutter py-8 lg:px-gutter-lg">
-        <div className="max-w-3xl">
-          <Eyebrow>Download</Eyebrow>
-          <h2 className="mt-4 text-xl font-semibold tracking-tight">
+        <section aria-labelledby="export-heading">
+          <h2 id="export-heading" className="type-subtitle1 text-ink">
             Export this request
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          <p className="type-body1 mt-0.5 max-w-3xl text-ink-muted">
             Every file carries the notice above, so one detached from this page
             cannot be mistaken for model output.
           </p>
-        </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <DownloadCard
-            badge="JSON"
-            title="Full request"
-            body="The validated payload with areas, configuration and your notes."
-            onClick={() =>
-              download(
-                `rangeland-request-${request.topic}-${runId}.json`,
-                JSON.stringify(
-                  { notice: NOT_A_RESULT, request, analystNotes: notes },
-                  null,
-                  2,
-                ),
-                "application/json",
-              )
-            }
-          />
-          <DownloadCard
-            badge="CSV"
-            title="Areas table"
-            body="One row per area with its source, size and bounding box."
-            onClick={() =>
-              download(
-                `rangeland-areas-${request.topic}-${runId}.csv`,
-                toCsv(request, notes),
-                "text/csv",
-              )
-            }
-          />
-          <DownloadCard
-            badge="Geo"
-            title="GeoJSON"
-            body="The real selected geometry, for GIS software."
-            onClick={() =>
-              download(
-                `rangeland-areas-${request.topic}-${runId}.geojson`,
-                JSON.stringify(
-                  {
-                    type: "FeatureCollection",
-                    notice: NOT_A_RESULT,
-                    features: request.areas.map((a) => ({
-                      ...a.feature,
-                      properties: {
-                        ...(a.feature.properties ?? {}),
-                        area_id: a.id,
-                        label: a.label,
-                        source: a.source,
-                        area_km2: a.areaKm2,
-                      },
-                    })),
-                  },
-                  null,
-                  2,
-                ),
-                "application/geo+json",
-              )
-            }
-          />
-        </div>
-      </section>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <DownloadCard
+              badge="JSON"
+              title="Full request"
+              body="The validated payload with areas, configuration and your notes."
+              onClick={() =>
+                download(
+                  `rangeland-request-${request.topic}-${runId}.json`,
+                  JSON.stringify(
+                    { notice: NOT_A_RESULT, request, analystNotes: notes },
+                    null,
+                    2,
+                  ),
+                  "application/json",
+                )
+              }
+            />
+            <DownloadCard
+              badge="CSV"
+              title="Areas table"
+              body="One row per area with its source, size and bounding box."
+              onClick={() =>
+                download(
+                  `rangeland-areas-${request.topic}-${runId}.csv`,
+                  toCsv(request, notes),
+                  "text/csv",
+                )
+              }
+            />
+            <DownloadCard
+              badge="Geo"
+              title="GeoJSON"
+              body="The real selected geometry, for GIS software."
+              onClick={() =>
+                download(
+                  `rangeland-areas-${request.topic}-${runId}.geojson`,
+                  JSON.stringify(
+                    {
+                      type: "FeatureCollection",
+                      notice: NOT_A_RESULT,
+                      features: request.areas.map((a) => ({
+                        ...a.feature,
+                        properties: {
+                          ...(a.feature.properties ?? {}),
+                          area_id: a.id,
+                          label: a.label,
+                          source: a.source,
+                          area_km2: a.areaKm2,
+                        },
+                      })),
+                    },
+                    null,
+                    2,
+                  ),
+                  "application/geo+json",
+                )
+              }
+            />
+          </div>
+        </section>
 
-      <section className="mx-auto w-full max-w-band px-gutter pb-8 lg:px-gutter-lg">
-        <div className="max-w-3xl">
-          <Eyebrow>Selected areas</Eyebrow>
-          <h2 className="mt-4 text-xl font-semibold tracking-tight">
+        <section aria-labelledby="area-details-heading">
+          <h2 id="area-details-heading" className="type-subtitle1 text-ink">
             Area details
           </h2>
-        </div>
 
-        <ol
-          data-testid="results-areas"
-          className="mt-4 divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface shadow-card"
-        >
-          {request.areas.map((area, index) => (
-            <li
-              key={area.id}
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-6 py-3 text-sm"
-            >
-              <span className="font-mono text-xs text-ink-faint">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span className="font-medium">{area.label}</span>
-              <span className="text-xs text-ink-faint">
-                {area.source} &middot; {formatArea(area.areaKm2)}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </section>
+          <ol data-testid="results-areas" className="card mt-4 divide-y divide-edge overflow-hidden">
+            {request.areas.map((area, index) => (
+              <li
+                key={area.id}
+                className="type-body1 flex min-h-10 flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5 lg:px-5"
+              >
+                <span className="type-caption1 font-mono text-ink-faint">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="font-semibold text-ink">{area.label}</span>
+                <span className="type-caption1 text-ink-faint">
+                  {area.source} &middot; {formatArea(area.areaKm2)}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-      {/* The payload itself. Reused rather than re-rendered here so there is
-          one description of the request shape in the app. */}
-      <section className="mx-auto w-full max-w-band px-gutter pb-8 lg:px-gutter-lg">
-        <RequestResult request={request} />
-      </section>
+        {/* The payload itself. Reused rather than re-rendered here so there is
+            one description of the request shape in the app. */}
+        <section>
+          <RequestResult request={request} />
+        </section>
 
-      <div className="mx-auto w-full max-w-band px-gutter pb-12 lg:px-gutter-lg">
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href={stepHref(topic.slug, "review", query)}
-            className="rounded-lg border border-edge-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-          >
+        <div className="flex flex-wrap gap-2 pb-4">
+          <Link href={stepHref(topic.slug, "review", query)} className={buttonClasses()}>
+            <ArrowLeft20Regular aria-hidden="true" />
             Back to review
           </Link>
-          <button
+          <Button
             type="button"
             data-testid="start-over"
+            icon={<ArrowCounterclockwise20Regular />}
             onClick={() => {
               // Drop the pairing as well as the selection, so a later visit to
               // this URL reports "missing" rather than pairing these areas with
@@ -518,14 +514,10 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
               resetSelection(topic.slug);
               router.replace(stepHref(topic.slug, "scope"));
             }}
-            className="rounded-lg border border-edge-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
           >
             Start new analysis
-          </button>
-          <Link
-            href="/"
-            className="rounded-lg border border-edge-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-          >
+          </Button>
+          <Link href="/" className={buttonClasses({ appearance: "subtle" })}>
             All topics
           </Link>
         </div>
@@ -536,6 +528,12 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
 
 /* ------------------------------------------------------------ download ---- */
 
+/**
+ * One export as a Fluent card that is itself the button: the whole surface is
+ * the target, which the design system's 32px minimum clears many times over.
+ * The format badge is a Fluent tint badge in brand, and the file type is in
+ * dataMono like every other identifier.
+ */
 function DownloadCard({
   badge,
   title,
@@ -551,21 +549,16 @@ function DownloadCard({
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col rounded-xl border border-edge bg-surface p-5 text-left shadow-card transition-all hover:-translate-y-0.5 hover:border-edge-strong hover:shadow-raised"
+      className="card group flex flex-col p-4 text-left transition-shadow duration-150 hover:shadow-8"
     >
-      <span className="grid h-10 w-10 place-items-center rounded-lg border border-accent bg-accent-soft text-xs font-bold text-accent">
+      <span className="type-caption1 self-start rounded-fluent-medium bg-accent-soft px-2 py-0.5 font-mono font-semibold text-accent">
         {badge}
       </span>
-      <span className="mt-3 text-sm font-semibold tracking-tight">{title}</span>
-      <span className="mt-1 text-xs leading-relaxed text-ink-muted">{body}</span>
-      <span className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-accent">
+      <span className="type-subtitle2 mt-3 text-ink">{title}</span>
+      <span className="type-caption1 mt-1 text-ink-muted">{body}</span>
+      <span className="type-body1 mt-3 flex items-center gap-1.5 font-semibold text-accent-link group-hover:underline">
+        <ArrowDownload20Regular aria-hidden="true" />
         Download
-        <span
-          aria-hidden="true"
-          className="transition-transform group-hover:translate-x-0.5"
-        >
-          &rarr;
-        </span>
       </span>
     </button>
   );

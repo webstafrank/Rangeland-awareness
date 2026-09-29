@@ -12,13 +12,13 @@ export const metadata: Metadata = {
 
 export default function SignUpPage() {
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-3">
-        <Eyebrow>Sign up</Eyebrow>
-        <h1 className="text-3xl font-bold tracking-tight">Create your account</h1>
-        <p className="text-ink-light-secondary text-sm leading-relaxed">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <Eyebrow marked>Sign up</Eyebrow>
+        <h1 className="type-title2 text-ink">Create your account</h1>
+        <p className="type-body1 text-ink-muted">
           Already have one?{" "}
-          <Link href="/login" className="text-scarlet-ink-light rounded font-semibold hover:underline">
+          <Link href="/login" className="rounded-fluent-small font-semibold text-accent-link hover:underline">
             Sign in
           </Link>
           .
@@ -27,12 +27,12 @@ export default function SignUpPage() {
 
       <SignUpForm />
 
-      <div className="border-edge flex flex-col gap-3 border-t pt-6">
-        <p className="text-caption text-ink-light-muted">
+      <div className="flex flex-col gap-3 border-t border-edge pt-5">
+        <p className="type-caption1 text-ink-faint">
           In a hurry? Skip the account and go straight to the topics.
         </p>
         <form action={continueAsGuestAction}>
-          <Button type="submit" variant="outline" size="md" tone="light" block>
+          <Button type="submit" variant="secondary" size="lg" block>
             Continue as guest
           </Button>
         </form>

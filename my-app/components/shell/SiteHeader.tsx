@@ -11,50 +11,55 @@ interface SiteHeaderProps {
 }
 
 /**
- * The header sits on the deepest navy so it reads as chrome rather than as
- * the first band of content, and so the hero band below it is a visible step
- * lighter. That step is what starts the alternation.
+ * A session-aware app header, in the same Fluent chrome as the one
+ * app/layout.tsx renders: 48px of colorNeutralBackground4 with dark ink and a
+ * colorNeutralStroke2 rule beneath it.
+ *
+ * NOTE: nothing renders this today. The root layout carries its own header,
+ * which has no session to show because no route reads one yet. This is kept
+ * restyled rather than deleted so the day a signed-in header is wanted it
+ * matches the rest of the app instead of resurrecting the navy band.
  */
 export function SiteHeader({ session, compact = false }: SiteHeaderProps) {
   return (
-    <header className="band-navy-deep border-navy-700 border-b">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="rounded" aria-label="Rangeland Awareness home">
-          <Logo tone="dark" markOnly={compact} />
+    <header className="band-chrome border-b border-edge">
+      <div className="mx-auto flex h-12 w-full max-w-band items-center justify-between gap-4 px-gutter lg:px-gutter-lg">
+        <Link href="/" className="rounded-fluent-medium" aria-label="Rangeland Awareness home">
+          <Logo markOnly={compact} size={30} />
         </Link>
 
         <div className="flex items-center gap-1 sm:gap-2">
           {compact ? null : (
-            <ButtonLink href="/" variant="ghost" size="sm" tone="dark" className="hidden sm:inline-flex">
+            <ButtonLink href="/" variant="subtle" size="sm" className="hidden sm:inline-flex">
               Analysis
             </ButtonLink>
           )}
 
           {session ? (
             <>
-              <span className="text-caption text-ink-dark-secondary hidden items-center gap-2 sm:flex">
-                <span className="text-ink-dark-muted">
+              <span className="type-caption1 hidden items-center gap-2 sm:flex">
+                <span className="text-ink-faint">
                   {session.kind === "guest" ? "Guest session" : "Signed in"}
                 </span>
-                <span className="text-ink-dark-primary font-semibold">{session.name}</span>
+                <span className="font-semibold text-ink">{session.name}</span>
               </span>
               {session.kind === "guest" ? (
-                <ButtonLink href="/signup" variant="outline" size="sm" tone="dark">
+                <ButtonLink href="/signup" variant="secondary" size="sm">
                   Sign up
                 </ButtonLink>
               ) : null}
               <form action={signOutAction}>
-                <Button type="submit" variant="ghost" size="sm" tone="dark">
+                <Button type="submit" variant="subtle" size="sm">
                   Sign out
                 </Button>
               </form>
             </>
           ) : (
             <>
-              <ButtonLink href="/login" variant="ghost" size="sm" tone="dark">
+              <ButtonLink href="/login" variant="subtle" size="sm">
                 Sign in
               </ButtonLink>
-              <ButtonLink href="/signup" variant="outline" size="sm" tone="dark">
+              <ButtonLink href="/signup" variant="secondary" size="sm">
                 Sign up
               </ButtonLink>
             </>

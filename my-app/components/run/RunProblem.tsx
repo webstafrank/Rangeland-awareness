@@ -13,7 +13,8 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { Eyebrow } from "@/components/ui/Eyebrow";
+import { ArrowLeft20Regular, ErrorCircle20Regular } from "@/components/ui/icons";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { stepHref } from "@/services/analysis/steps";
 import type { Topic } from "@/services/analysis/topics";
 
@@ -42,14 +43,14 @@ export default function RunProblem({
   receiptHref,
 }: RunProblemProps) {
   return (
-    <div className="mx-auto w-full max-w-band px-gutter py-16 lg:px-gutter-lg">
-      <div className="mx-auto max-w-xl rounded-2xl border border-edge bg-surface p-8 shadow-card">
-        <Eyebrow>No run started</Eyebrow>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">{title}</h1>
-        <p
-          data-testid="run-problem"
-          className="mt-3 text-sm leading-relaxed text-ink-muted"
-        >
+    <div className="mx-auto w-full max-w-band px-gutter py-10 lg:px-gutter-lg lg:py-16">
+      <div className="card mx-auto max-w-xl p-6 lg:p-8">
+        <div className="flex items-center gap-2">
+          <ErrorCircle20Regular aria-hidden="true" className="text-danger" />
+          <p className="type-caption1 font-semibold text-danger">No run started</p>
+        </div>
+        <h1 className="type-title3 mt-3 text-ink">{title}</h1>
+        <p data-testid="run-problem" className="type-body1 mt-2 break-words text-ink-muted">
           {message}
         </p>
 
@@ -58,28 +59,23 @@ export default function RunProblem({
           just watched a run fail to start needs to know whether anything is
           happening on a server somewhere before they press the button again.
         */}
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+        <p className="type-body1 mt-2 font-semibold text-ink">
           Nothing was submitted, so nothing is running.
         </p>
 
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-wrap gap-2">
           <Link
             href={stepHref(topic.slug, "review", query)}
-            className="rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover"
+            className={buttonClasses({ appearance: "primary" })}
           >
+            <ArrowLeft20Regular aria-hidden="true" />
             Back to review
           </Link>
-          <Link
-            href={stepHref(topic.slug, "areas", query)}
-            className="rounded-lg border border-edge-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-          >
+          <Link href={stepHref(topic.slug, "areas", query)} className={buttonClasses()}>
             Change the areas
           </Link>
           {receiptHref !== null && (
-            <Link
-              href={receiptHref}
-              className="rounded-lg border border-edge-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-            >
+            <Link href={receiptHref} className={buttonClasses({ appearance: "subtle" })}>
               See the request
             </Link>
           )}

@@ -53,10 +53,10 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card">
-      <h3 className="text-[13px] font-semibold tracking-tight">{title}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-ink-faint">{hint}</p>
-      <div className="mt-4 flex flex-1 flex-col">{children}</div>
+    <section className="card flex flex-col p-4">
+      <h3 className="type-subtitle2 text-ink">{title}</h3>
+      <p className="type-caption1 mt-0.5 text-ink-faint">{hint}</p>
+      <div className="mt-3 flex flex-1 flex-col">{children}</div>
     </section>
   );
 }
@@ -135,7 +135,7 @@ export default function AreaSelection({ state, dispatch }: AreaSelectionProps) {
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="overflow-hidden rounded-xl border border-edge bg-surface shadow-card">
+        <div className="card overflow-hidden">
           <MapSizeStepper size={mapSize} onChange={setStoredMapSize} />
           <div
             /* The size class only applies below lg. Tailwind emits variant
@@ -154,7 +154,7 @@ export default function AreaSelection({ state, dispatch }: AreaSelectionProps) {
           </div>
         </div>
 
-        <div className="flex flex-col rounded-xl border border-edge bg-surface p-5 shadow-card lg:max-h-[calc(620px+2.25rem)]">
+        <div className="card flex flex-col p-4 lg:max-h-[calc(620px+2.25rem)]">
           <SelectedAreas
             areas={state.areas}
             emptyHint={
