@@ -267,7 +267,7 @@ export default function WmsLayerControl({
           {problems.map((problem) => (
             <li
               key={problem}
-              className="rounded border border-warn-border bg-warn-soft px-2 py-1.5 text-xs text-warn"
+              className="rounded border border-warn bg-warn-soft px-2 py-1.5 text-xs text-warn"
             >
               {problem}
             </li>
