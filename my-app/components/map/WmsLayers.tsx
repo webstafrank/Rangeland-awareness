@@ -195,8 +195,8 @@ function WmsNoticeOverlay({
           key={notice.layerId}
           className={
             notice.kind === "problem"
-              ? "rounded border border-danger-border bg-danger-soft px-2 py-1.5 text-xs text-danger shadow-sm"
-              : "rounded border border-warn-border bg-warn-soft px-2 py-1.5 text-xs text-warn shadow-sm"
+              ? "rounded border border-danger bg-danger-soft px-2 py-1.5 text-xs text-danger shadow-sm"
+              : "rounded border border-warn bg-warn-soft px-2 py-1.5 text-xs text-warn shadow-sm"
           }
         >
           {notice.text}

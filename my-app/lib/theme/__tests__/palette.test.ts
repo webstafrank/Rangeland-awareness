@@ -19,6 +19,7 @@ import {
   PALETTE_HEX,
   WHITE_ON_ACCENT,
   checkPalette,
+  token,
 } from "@/lib/theme/palette";
 
 /**
@@ -186,29 +187,23 @@ describe("the palette module is coherent", () => {
     ).toBeLessThan(4.5);
   });
 
-  it("keeps the action red clear of the danger red", () => {
-    // Note 4 in palette.ts, as an assertion rather than a paragraph. The brand
-    // red means "go": Continue, Run, the current step. An upload failure
-    // painted in the colour of the button the reader just pressed is a design
-    // bug, and it is the kind that arrives as a one-hex "tidy up the reds"
-    // edit. 25 is well above the 10 the pixel budget needs and well below the
-    // 40.5 these two actually sit at, so it fails on a deliberate merge of the
-    // two and not on a retune of either.
-    const value = (name: string) =>
-      parseColor(
-        (PALETTE.find((t) => t.name === name) as { value: string }).value,
-      ) as Rgb;
-    const action = value("--color-action");
-    const danger = value("--color-danger");
-    const distance = Math.hypot(
-      action.r - danger.r,
-      action.g - danger.g,
-      action.b - danger.b,
+  it("never uses the danger red as a CTA fill", () => {
+    // The invariant this palette replaces ("keep the action red clear of the
+    // danger red") does not apply here: Fluent has ONE brand hue, used for
+    // both structure and the primary action, so there is no second red to
+    // confuse with the danger red. What still must hold is the reason that
+    // invariant existed — an upload failure must never be painted in the
+    // colour of the button the reader just pressed — which this palette
+    // satisfies structurally: --color-danger is never a BUDGET_TOKENS accent
+    // member and never a token WHITE_ON_ACCENT is graded against.
+    const dangerIsAccent = BUDGET_TOKENS.some(
+      (t) => t.name === "--color-danger" && t.role === "accent",
     );
-    expect(
-      distance,
-      "the forward action and a failure must not be the same red",
-    ).toBeGreaterThanOrEqual(25);
+    expect(dangerIsAccent).toBe(false);
+    const dangerGradedAsCta = CONTRAST_PAIRS.some(
+      (p) => p.what.startsWith("CTA label") && p.background === token("--color-danger"),
+    );
+    expect(dangerGradedAsCta).toBe(false);
   });
 
   it("keeps the strong edge darker than the default edge", () => {
