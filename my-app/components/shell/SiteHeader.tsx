@@ -30,9 +30,14 @@ export function SiteHeader({ session, compact = false }: SiteHeaderProps) {
 
         <div className="flex items-center gap-1 sm:gap-2">
           {compact ? null : (
-            <ButtonLink href="/" variant="subtle" size="sm" className="hidden sm:inline-flex">
-              Analysis
-            </ButtonLink>
+            <>
+              <ButtonLink href="/" variant="subtle" size="sm" className="hidden sm:inline-flex">
+                Analysis
+              </ButtonLink>
+              <ButtonLink href="/data" variant="subtle" size="sm" className="hidden sm:inline-flex">
+                Explore data
+              </ButtonLink>
+            </>
           )}
 
           {session ? (

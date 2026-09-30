@@ -114,6 +114,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   Topics
                 </Link>
                 <Link
+                  href="/data"
+                  className="type-body1 hidden rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink sm:block"
+                >
+                  Explore data
+                </Link>
+                <Link
                   href="/help"
                   className="type-body1 rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink"
                 >
