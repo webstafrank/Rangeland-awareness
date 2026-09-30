@@ -10,7 +10,14 @@
  *
  * No auto-hide and no modal. The message states a loss, so it stays until the
  * user acts on it or dismisses it, and it never steals focus.
+ *
+ * A Fluent MessageBar in the warning intent: the warning icon, the tinted
+ * ground and the words together, so the state never rests on colour.
  */
+
+import { Button } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/Notice";
+
 
 export interface SelectionNoticeProps {
   message: string;
@@ -27,39 +34,27 @@ export default function SelectionNotice({
   onDismiss,
 }: SelectionNoticeProps) {
   return (
-    <div
+    <Notice
+      intent="warning"
       role="status"
       aria-live="polite"
       data-testid="selection-notice"
-      className="rounded-lg border border-warn-border bg-warn-soft px-3.5 py-3 text-xs leading-relaxed text-warn"
-    >
-      <p className="flex gap-2">
-        <span aria-hidden="true" className="font-bold">
-          !
-        </span>
-        <span className="flex-1">{message}</span>
-      </p>
-
-      <p className="mt-2 flex gap-2 pl-5">
-        {restoreCount > 0 && (
-          <button
-            type="button"
-            onClick={onUndo}
+      actions={
+        <>
+          {restoreCount > 0 && (
             // The label names what comes back, not the mode it goes back to.
             // "Undo" alone makes the user work out what they are getting.
-            className="rounded-md border border-warn-border bg-white px-2.5 py-1 font-semibold hover:bg-warn-soft"
-          >
-            Restore {restoreCount === 1 ? "1 area" : `${restoreCount} areas`}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="rounded-md px-2 py-1 font-medium underline"
-        >
-          Dismiss
-        </button>
-      </p>
-    </div>
+            <Button type="button" size="sm" onClick={onUndo}>
+              Restore {restoreCount === 1 ? "1 area" : `${restoreCount} areas`}
+            </Button>
+          )}
+          <Button type="button" size="sm" variant="subtle" onClick={onDismiss}>
+            Dismiss
+          </Button>
+        </>
+      }
+    >
+      {message}
+    </Notice>
   );
 }

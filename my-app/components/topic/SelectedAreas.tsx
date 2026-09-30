@@ -9,6 +9,8 @@
  * it. That last part is why the reducer's focus request carries a token.
  */
 
+import { Delete16Regular, ZoomFit16Regular } from "@/components/ui/icons";
+import { Button } from "@/components/ui/Button";
 import type { AreaOfInterest, AoiSource } from "@/services/analysis/selection";
 import { formatArea } from "@/services/geo/area";
 
@@ -42,10 +44,8 @@ export default function SelectedAreas({
 }: SelectedAreasProps) {
   return (
     <section aria-label="Selected areas" className="flex min-h-0 flex-col">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="eyebrow">
-          Selected areas
-        </h2>
+      <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 className="type-subtitle2 text-ink">Selected areas</h2>
 
         {/*
           The count is deliberately NOT repeated here. It is already in the
@@ -53,46 +53,50 @@ export default function SelectedAreas({
           the panel that literally lists them adds nothing.
         */}
         {areas.length > 0 && (
-          <div className="flex items-center gap-2 text-xs font-medium">
+          <div className="flex items-center gap-1">
             {/*
               Adding an area zooms to that area, which is right for a single
               selection but leaves the earlier ones off screen in a comparison.
               This is the way back to seeing all of them at once.
             */}
             {areas.length > 1 && (
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="subtle"
+                icon={<ZoomFit16Regular />}
                 onClick={onFitAll}
-                className="rounded text-ink-muted hover:text-accent hover:underline"
               >
                 Fit all
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="subtle"
+              icon={<Delete16Regular />}
               onClick={onClear}
-              className="rounded text-ink-muted hover:text-ink hover:underline"
             >
               Clear all
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {areas.length === 0 ? (
-        <p className="mt-3 rounded-lg border border-dashed border-edge-strong bg-sunken px-3.5 py-4 text-xs leading-relaxed text-ink-muted">
+        <p className="type-caption1 mt-2 rounded-fluent-medium border border-dashed border-edge-strong bg-surface-subtle px-3 py-4 text-ink-muted">
           {emptyHint}
         </p>
       ) : (
-        <ul className="mt-3 space-y-2 overflow-y-auto">
+        <ul className="mt-2 divide-y divide-edge overflow-y-auto rounded-fluent-medium border border-edge">
           {areas.map((area, index) => (
             <li
               key={area.id}
-              className="group flex items-center gap-2 rounded-lg border border-edge bg-surface px-2.5 py-2"
+              className="group flex min-h-12 items-center gap-2.5 bg-surface px-2.5 py-1.5 hover:bg-surface-subtle"
             >
               <span
                 aria-hidden="true"
-                className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent font-mono text-[10px] font-bold text-white"
+                className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent font-mono text-[10px] font-semibold text-white tabular-nums"
               >
                 {index + 1}
               </span>
@@ -104,25 +108,27 @@ export default function SelectedAreas({
               <button
                 type="button"
                 onClick={() => onFocus(area.id)}
-                className="min-w-0 flex-1 rounded text-left"
+                className="min-w-0 flex-1 rounded-fluent-small text-left"
                 title="Show this area on the map"
               >
-                <span className="block truncate text-sm font-medium">
+                <span className="type-body1 block truncate font-semibold text-ink group-hover:text-accent-link">
                   {area.label}
                 </span>
-                <span className="block text-xs text-ink-faint">
+                <span className="type-caption1 block text-ink-faint">
                   {SOURCE_LABEL[area.source]} &middot; {formatArea(area.areaKm2)}
                 </span>
               </button>
 
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="subtle"
                 onClick={() => onRemove(area.id)}
-                className="shrink-0 rounded-md border border-transparent px-2 py-1 text-xs font-medium text-ink-muted hover:border-edge-strong hover:text-ink"
                 aria-label={`Remove ${area.label}`}
+                className="shrink-0"
               >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

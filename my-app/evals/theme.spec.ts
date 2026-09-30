@@ -115,15 +115,9 @@ for (const scheme of ["light", "dark"] as const) {
         await expect(page.locator("header").first()).toBeVisible();
 
         /*
-         * The header is its own band now: a dark blue ground carrying white
-         * type, rather than a white bar inheriting the body's ink. So it is
-         * graded against ITS OWN colour, which is the pairing a reader
-         * actually sees.
-         *
-         * The earlier version compared the header's background against the
-         * BODY's colour. That passed only while the header happened to be
-         * white, and it would now fail on a band that is perfectly legible: a
-         * test measuring a pair that never appears on screen.
+         * The header is its own band: Fluent's light neutral chrome
+         * (colorNeutralBackground4) carrying dark ink. It is graded against
+         * ITS OWN colour, which is the pairing a reader actually sees.
          */
         const headerGround = await luminance(page, "header", "background-color");
         const headerInk = await luminance(page, "header", "color");
@@ -138,10 +132,35 @@ for (const scheme of ["light", "dark"] as const) {
         const bodyInk = await luminance(page, "body", "color");
         expect(contrast(bodyGround as number, bodyInk as number)).toBeGreaterThan(7);
 
-        // The two grounds must genuinely differ, or the band is not a band.
-        expect(
-          Math.abs((headerGround as number) - (bodyGround as number)),
-        ).toBeGreaterThan(0.1);
+        /*
+         * And the header must be visibly separated from the page, or the
+         * band is not a band.
+         *
+         * This used to assert a luminance gap of 0.1 between the two grounds,
+         * which encoded the navy header: a dark band on a light page. The
+         * Fluent redesign deliberately moved the header to the light neutral
+         * chrome (#f0f0f0 on a #f5f5f5 canvas, a gap of about 0.04), and
+         * Fluent separates its header with a colorNeutralStroke2 hairline
+         * rather than a change of ground. So the check follows the mechanism:
+         * the header's bottom edge is drawn, and drawn in a colour that
+         * differs from both grounds. Removing the stroke fails this exactly
+         * as flattening the navy band failed the old one.
+         */
+        const stroke = await page.evaluate(() => {
+          const header = document.querySelector("header");
+          if (!header) return null;
+          const style = getComputedStyle(header);
+          return {
+            width: Number.parseFloat(style.borderBottomWidth),
+            colour: style.borderBottomColor,
+            ground: style.backgroundColor,
+            page: getComputedStyle(document.body).backgroundColor,
+          };
+        });
+        expect(stroke).not.toBeNull();
+        expect(stroke!.width).toBeGreaterThanOrEqual(1);
+        expect(stroke!.colour).not.toBe(stroke!.ground);
+        expect(stroke!.colour).not.toBe(stroke!.page);
       });
     }
 

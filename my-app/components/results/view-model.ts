@@ -12,7 +12,6 @@
  * result or derived from it by an operation named in the comments.
  */
 
-import { sequential } from "@/design/tokens";
 import type { ClassRow } from "@/services/backend-api";
 
 /* --------------------------------------------------------------- numbers */
@@ -140,33 +139,39 @@ export function formatPercent(value: number): string {
 /* --------------------------------------------------------------- classes */
 
 /**
- * The ordered class ramp: one hue, light to dark, five steps.
+ * The ordered class ramp: the design system's sequential ramp, five steps.
  *
- * `design/tokens.ts` calls `sequential` the "magnitude ramp for the map
- * choropleth", which is exactly what a five-class natural-breaks result is.
- * The reserved status scale (`status` in the same file, worn by
- * `<SeverityChip>`) is deliberately NOT used here, and the reason is
- * structural rather than stylistic: that scale has four steps and this
- * classification has five, so two classes would have to share a colour in a
- * legend whose entire job is telling five classes apart. The status scale also
- * encodes concern, and the backend never assigned concern to a class: "Very
- * high" is the top fifth of this run's own index distribution, not a judgement
- * that the situation is critical.
+ * A five-class natural-breaks result is an ordered magnitude, which is what
+ * the Spatial Analytics Dashboard reserves `dataSeq1` to `dataSeq5` (viridis)
+ * for: perceptually uniform, monotonic in lightness, and legible to the common
+ * colour-vision deficiencies. Class 1 is `dataSeq1`, class 5 is `dataSeq5`,
+ * fixed here once so the interval strip, the table swatches and the legend can
+ * never disagree about which colour is which class.
+ *
+ * It replaced a single-hue blue ramp from `design/tokens.ts`. That ramp was
+ * the same hue as the Fluent brand blue the chrome now uses for links and the
+ * primary action, and the design system's rule is that brand colours are never
+ * data colours: a "Very high" swatch must not look like a button.
+ *
+ * The values are `var()` references, not hex copies, so app/globals.css stays
+ * the one declaration of each colour. Every consumer paints them through a
+ * `style` attribute, where a custom property resolves.
+ *
+ * The reserved status scale (worn by `<SeverityChip>`) is deliberately NOT
+ * used: it has four steps for five classes, and it encodes concern, which the
+ * backend never assigned. "Very high" is the top fifth of this run's own
+ * index distribution, not a judgement that the situation is critical.
  *
  * The rule `<SeverityChip>` exists to enforce is kept: a swatch is decorative
  * and `aria-hidden`, and every class carries its text label everywhere it
  * appears.
- *
- * Step 4 of the six (`#3987e5`) is the one dropped. The middle of the ramp has
- * the smallest step-to-step separation, so removing a middle step costs the
- * least legibility between neighbours.
  */
 export const CLASS_RAMP: readonly string[] = [
-  sequential.light[0],
-  sequential.light[1],
-  sequential.light[2],
-  sequential.light[4],
-  sequential.light[5],
+  "var(--data-seq-1)",
+  "var(--data-seq-2)",
+  "var(--data-seq-3)",
+  "var(--data-seq-4)",
+  "var(--data-seq-5)",
 ];
 
 /** The colour for a 1-based class number, wrapping is impossible by clamp. */

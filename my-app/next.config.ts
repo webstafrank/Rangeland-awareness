@@ -71,6 +71,14 @@ const nextConfig: NextConfig = {
   // framework's advisories to read and tells a user nothing.
   poweredByHeader: false,
 
+  // Fluent UI's two packages are barrels over thousands of modules: the icon
+  // package alone re-exports every Fluent System Icon in every size. Neither
+  // is on Next's default optimise list, so without this one icon import makes
+  // the compiler walk the whole barrel on every cold route.
+  experimental: {
+    optimizePackageImports: ["@fluentui/react-components", "@fluentui/react-icons"],
+  },
+
   async headers() {
     return [
       {

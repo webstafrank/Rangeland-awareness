@@ -31,6 +31,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import RunningScreen from "@/components/run/RunningScreen";
 import RunProblem from "@/components/run/RunProblem";
+import { Notice } from "@/components/ui/Notice";
 import { buildRequest } from "@/services/analysis/request";
 import { requestId } from "@/services/analysis/request-id";
 import { stepHref } from "@/services/analysis/steps";
@@ -281,11 +282,23 @@ export default function StartRun({
   if (phase.kind === "starting") {
     return (
       <div
-        className="mx-auto w-full max-w-band px-gutter py-16 lg:px-gutter-lg"
+        className="mx-auto w-full max-w-band px-gutter py-12 lg:px-gutter-lg"
         role="status"
         aria-live="polite"
       >
-        <p className="text-sm text-ink-muted">Submitting the run...</p>
+        {/*
+          A CSS ring rather than Fluent's Spinner: the Spinner is a
+          `progressbar`, and the running screen that replaces this in a moment
+          has the one real progress bar on the route. Two would make "the
+          progress bar" ambiguous for anything that looks it up by role.
+        */}
+        <p className="type-body1 flex items-center gap-3 text-ink-muted">
+          <span
+            aria-hidden="true"
+            className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-accent-soft border-t-accent"
+          />
+          Submitting the run...
+        </p>
       </div>
     );
   }
@@ -325,22 +338,16 @@ function PlanNotes({ notes }: { notes: readonly PlanNote[] }) {
   if (notes.length === 0) return null;
 
   return (
-    <div className="mx-auto w-full max-w-band px-gutter pt-6 lg:px-gutter-lg">
-      <div
-        data-testid="plan-notes"
-        className="rounded-xl border border-warn-border bg-warn-soft px-5 py-4"
-      >
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink">
-          What was adjusted
-        </p>
-        <ul className="mt-2 space-y-1.5">
+    <div className="mx-auto w-full max-w-band px-gutter pt-5 lg:px-gutter-lg">
+      {/* A Fluent MessageBar in the info intent: a statement about the
+          request, not a warning about the run. */}
+      <Notice intent="info" title="What was adjusted" data-testid="plan-notes" className="max-w-step">
+        <ul className="mt-1 list-disc space-y-1 pl-4">
           {notes.map((note) => (
-            <li key={note.areaId} className="text-sm leading-relaxed text-ink">
-              {note.message}
-            </li>
+            <li key={note.areaId}>{note.message}</li>
           ))}
         </ul>
-      </div>
+      </Notice>
     </div>
   );
 }

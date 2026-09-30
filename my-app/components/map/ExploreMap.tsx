@@ -66,7 +66,7 @@ function ViewReadout() {
       data-zoom={zoom}
       role="status"
       aria-live="polite"
-      className="pointer-events-none absolute bottom-2 left-2 z-map-overlay rounded bg-surface/90 px-2 py-1 font-mono text-[11px] text-ink-muted shadow-sm"
+      className="type-caption1 pointer-events-none absolute bottom-2 left-2 z-map-overlay rounded-fluent-medium bg-surface/90 px-2 py-1 font-mono text-ink-muted shadow-8"
     >
       Centre {lat}, {lng} at zoom {zoom}
     </p>

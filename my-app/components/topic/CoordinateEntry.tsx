@@ -20,6 +20,10 @@ import {
   parseCoordinatePair,
 } from "@/services/geo/box";
 import { draftAreaFromGeometry, type DraftArea } from "@/services/analysis/selection";
+import { Add16Regular } from "@/components/ui/icons";
+import { Button } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/Notice";
+import { inputClasses } from "@/components/ui/input-classes";
 
 export interface CoordinateEntryProps {
   onAreas: (areas: DraftArea[]) => void;
@@ -84,9 +88,12 @@ export default function CoordinateEntry({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1">
-          <label htmlFor={coordId} className="block text-xs font-medium">
+      {/* Wraps rather than squeezes: at 360px the Add button drops to its own
+          line instead of crushing the coordinate field below a readable
+          width. */}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-36 flex-1">
+          <label htmlFor={coordId} className="type-caption1 block font-semibold text-ink">
             Coordinates
           </label>
           <input
@@ -110,12 +117,12 @@ export default function CoordinateEntry({
                 submit();
               }
             }}
-            className="mt-1 w-full rounded-md border border-edge-strong bg-surface px-2.5 py-1.5 font-mono text-xs disabled:cursor-not-allowed disabled:opacity-60"
+            className={inputClasses({ mono: true, className: "mt-1" })}
           />
         </div>
 
         <div className="w-20 shrink-0">
-          <label htmlFor={radiusId} className="block text-xs font-medium">
+          <label htmlFor={radiusId} className="type-caption1 block font-semibold text-ink">
             Radius km
           </label>
           <input
@@ -136,43 +143,36 @@ export default function CoordinateEntry({
                 submit();
               }
             }}
-            className="mt-1 w-full rounded-md border border-edge-strong bg-surface px-2.5 py-1.5 font-mono text-xs disabled:cursor-not-allowed disabled:opacity-60"
+            className={inputClasses({ mono: true, className: "mt-1" })}
           />
         </div>
 
-        <button
+        <Button
           type="button"
           onClick={submit}
           disabled={!canAdd}
-          className="shrink-0 rounded-md border border-edge-strong bg-surface px-3 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+          icon={<Add16Regular />}
+          className="shrink-0"
         >
           Add area
-        </button>
+        </Button>
       </div>
 
-      <p className="text-xs leading-snug text-ink-faint">
+      <p className="type-caption1 text-ink-faint">
         Latitude first. Radius 0 selects the exact point; any radius selects a
         square of that half-width around it.
       </p>
 
       {error !== null && (
-        <p
-          role="alert"
-          data-testid="coordinate-error"
-          className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-xs text-danger"
-        >
+        <Notice intent="error" role="alert" data-testid="coordinate-error">
           {error}
-        </p>
+        </Notice>
       )}
 
       {warning !== null && (
-        <p
-          role="status"
-          aria-live="polite"
-          className="rounded-md border border-warn-border bg-warn-soft px-3 py-2 text-xs text-warn"
-        >
+        <Notice intent="warning" role="status" aria-live="polite">
           {warning}
-        </p>
+        </Notice>
       )}
     </div>
   );

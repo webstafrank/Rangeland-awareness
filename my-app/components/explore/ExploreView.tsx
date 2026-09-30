@@ -21,7 +21,7 @@ export function ExploreView() {
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-      <div className="order-2 overflow-y-auto lg:order-1">
+      <div className="order-2 min-h-0 lg:order-1">
         <WmsLayerControl
           resolution={resolution}
           layers={layers}
@@ -31,7 +31,7 @@ export function ExploreView() {
         />
       </div>
 
-      <div className="order-1 h-[60vh] overflow-hidden rounded-lg border border-edge shadow-card lg:order-2 lg:h-full lg:min-h-[480px]">
+      <div className="card order-1 h-[60vh] overflow-hidden lg:order-2 lg:h-full lg:min-h-[480px]">
         <ExplorePanel
           wms={{ source: resolution.source, layers, dateWindow, state, dispatch }}
         />

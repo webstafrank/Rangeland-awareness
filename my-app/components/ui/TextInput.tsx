@@ -1,59 +1,59 @@
+"use client";
+
 import type { ComponentProps } from "react";
+import { Input, Select as FluentSelect } from "@fluentui/react-components";
 import type { Tone } from "./tone";
 
-type TextInputProps = ComponentProps<"input"> & {
+type NativeInput = Omit<ComponentProps<"input">, "size" | "type">;
+
+type TextInputProps = NativeInput & {
+  type?: "text" | "email" | "password" | "search" | "tel" | "url" | "number" | "date";
+  /** Accepted for compatibility. There is one light theme. */
   tone?: Tone;
   invalid?: boolean;
 };
 
 /**
- * One input skin for the whole app.
+ * One input for the whole app: a Fluent `Input`, large size.
  *
- * `invalid` drives both the border and `aria-invalid`, so the visual state and
- * the announced state cannot disagree. That pairing is the point: a red border
- * alone tells a sighted mouse user something and tells a screen reader user
- * nothing.
+ * Fluent owns the parts a hand-rolled input gets wrong: the brand underline
+ * that grows on focus, the colorNeutralStrokeAccessible bottom edge that gives
+ * the field 3:1 against the page, and the forced-colors rendering. Large
+ * (40px) rather than medium, because these are the sign-in and sign-up
+ * forms, where the input is the whole screen's job.
+ *
+ * `invalid` drives `aria-invalid` on the real `<input>`, and Fluent paints
+ * its danger border from that same attribute, so the visual state and the
+ * announced state cannot disagree. The id, name, type and every aria-* prop
+ * land on the native input rather than Fluent's wrapper span, which is what
+ * keeps `<label htmlFor>` and the server action's FormData working unchanged.
  */
-export function TextInput({ tone = "light", invalid = false, className = "", ...rest }: TextInputProps) {
-  const skin =
-    tone === "dark"
-      ? "bg-navy-950 border-navy-700 text-ink-dark-primary placeholder:text-ink-dark-muted"
-      : "bg-white border-edge text-ink-light-primary placeholder:text-ink-light-muted";
-  const invalidSkin = invalid
-    ? tone === "dark"
-      ? "border-scarlet-ink-dark"
-      : "border-scarlet-ink-light"
-    : "";
-
+export function TextInput({ invalid = false, className, tone: _tone, ...rest }: TextInputProps) {
+  void _tone;
   return (
-    <input
+    <Input
+      size="large"
       aria-invalid={invalid || undefined}
-      className={`h-11 w-full rounded border px-3.5 text-sm transition-colors duration-150 ${skin} ${invalidSkin} ${className}`}
-      {...rest}
+      className={className}
+      style={{ width: "100%" }}
+      {...(rest as ComponentProps<typeof Input>)}
     />
   );
 }
 
-type SelectProps = ComponentProps<"select"> & { tone?: Tone; invalid?: boolean };
+type SelectProps = Omit<ComponentProps<"select">, "size"> & { tone?: Tone; invalid?: boolean };
 
-export function Select({ tone = "light", invalid = false, className = "", children, ...rest }: SelectProps) {
-  const skin =
-    tone === "dark"
-      ? "bg-navy-950 border-navy-700 text-ink-dark-primary"
-      : "bg-white border-edge text-ink-light-primary";
-  const invalidSkin = invalid
-    ? tone === "dark"
-      ? "border-scarlet-ink-dark"
-      : "border-scarlet-ink-light"
-    : "";
-
+/** Fluent's `Select`: a native `<select>` in Fluent's field skin. */
+export function Select({ invalid = false, className, children, tone: _tone, ...rest }: SelectProps) {
+  void _tone;
   return (
-    <select
+    <FluentSelect
+      size="large"
       aria-invalid={invalid || undefined}
-      className={`h-11 w-full rounded border px-3 text-sm transition-colors duration-150 ${skin} ${invalidSkin} ${className}`}
-      {...rest}
+      className={className}
+      {...(rest as ComponentProps<typeof FluentSelect>)}
     >
       {children}
-    </select>
+    </FluentSelect>
   );
 }

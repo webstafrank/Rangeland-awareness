@@ -15,6 +15,7 @@
  */
 
 import { useId } from "react";
+import { Warning12Filled } from "@/components/ui/icons";
 
 export interface RadioCardOption<T extends string> {
   id: T;
@@ -65,7 +66,7 @@ export default function RadioCards<T extends string>({
         className={
           hideLegend
             ? "sr-only"
-            : "block eyebrow"
+            : "type-body1 block font-semibold text-ink"
         }
       >
         {legend}
@@ -75,7 +76,7 @@ export default function RadioCards<T extends string>({
         role="radiogroup"
         aria-labelledby={labelId}
         className={[
-          hideLegend ? "gap-2.5" : "mt-2 gap-2.5",
+          hideLegend ? "gap-3" : "mt-2 gap-3",
           layout === "row"
             ? "grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr"
             : "flex flex-col",
@@ -123,29 +124,34 @@ export default function RadioCards<T extends string>({
               <label
                 htmlFor={inputId}
                 className={[
-                  "flex h-full cursor-pointer flex-col rounded-lg border px-3.5 py-3 text-sm transition-colors",
+                  // A Fluent selectable card: shadow4 at rest, shadow8 on
+                  // hover, and when chosen the brand stroke doubled by an
+                  // inset ring on colorBrandBackground2. Selection is the
+                  // stroke AND the fill AND the filled radio dot, never one.
+                  "type-body1 flex h-full cursor-pointer flex-col rounded-fluent-large border bg-surface px-3.5 py-3 shadow-4 transition-[box-shadow,background-color,border-color] duration-100",
                   "peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent",
                   checked
-                    ? "border-accent bg-accent-soft"
-                    : "border-edge bg-surface hover:border-edge-strong hover:bg-sunken",
-                  option.disabled ? "cursor-not-allowed opacity-50" : "",
+                    ? "border-accent bg-accent-soft ring-1 ring-inset ring-accent"
+                    : "border-transparent hover:shadow-8",
+                  option.disabled ? "cursor-not-allowed text-ink-faint shadow-none" : "",
                 ].join(" ")}
               >
-                <span className="flex items-center gap-2 font-medium">
+                <span className="flex items-center gap-2 font-semibold text-ink">
                   <span
                     aria-hidden="true"
                     className={[
-                      "grid h-4 w-4 shrink-0 place-items-center rounded-full border-[1.5px] bg-surface",
+                      "grid h-4 w-4 shrink-0 place-items-center rounded-full border bg-surface",
                       // ink-faint, not edge-strong. The ring is the only thing
                       // saying "not selected", so it is a meaningful graphic
                       // and WCAG 1.4.11 wants 3:1 against the card behind it.
-                      // edge-strong (#d0d5dd) is 1.24:1 on white and fails;
-                      // ink-faint (#667085) is about 5:1 and passes.
-                      checked ? "border-accent" : "border-ink-faint",
+                      // edge-strong (#d1d1d1) is about 1.5:1 on white and
+                      // fails; ink-muted (#424242, Fluent's
+                      // colorNeutralStrokeAccessible family) passes easily.
+                      checked ? "border-accent" : "border-ink-muted",
                     ].join(" ")}
                   >
                     {checked && (
-                      <span className="h-2 w-2 rounded-full bg-accent" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-accent" />
                     )}
                   </span>
                   {option.label}
@@ -154,7 +160,7 @@ export default function RadioCards<T extends string>({
                 {!compact && option.description && (
                   <span
                     id={descId}
-                    className="mt-1.5 pl-6 text-xs leading-relaxed text-ink-muted"
+                    className="type-caption1 mt-1 pl-6 text-ink-muted"
                   >
                     {option.description}
                   </span>
@@ -163,8 +169,9 @@ export default function RadioCards<T extends string>({
                 {option.note && (
                   <span
                     id={noteId}
-                    className="mt-1.5 pl-6 text-xs font-medium leading-relaxed text-warn"
+                    className="type-caption1 mt-1.5 flex gap-1 pl-6 font-semibold text-warn"
                   >
+                    <Warning12Filled aria-hidden="true" className="mt-0.5 shrink-0" />
                     {option.note}
                   </span>
                 )}

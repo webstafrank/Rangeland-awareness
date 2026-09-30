@@ -17,6 +17,8 @@
     "geo:build": "node services/geo/scripts/build-counties.mjs"
   },
   "dependencies": {
+    "@fluentui/react-components": "^9.74.9",
+    "@fluentui/react-icons": "^2.0.341",
     "@geoman-io/leaflet-geoman-free": "^2.20.0",
     "leaflet": "^1.9.4",
     "next": "16.3.4",

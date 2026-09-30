@@ -252,12 +252,91 @@
  * replace that misses one.
  */
 @utility eyebrow {
-  font-size: 11px;
-  line-height: 1.4;
+  /* Fluent caption1Strong. Sentence case, not a tracked all-caps overline:
+     the design system's content rule is sentence case for every label, and a
+     CSS text-transform would only fake it. */
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--color-ink-faint);
+}
+
+/*
+ * The Fluent 2 web type ramp, one utility per step.
+ *
+ * Utilities rather than @theme tokens so the @theme block above stays exactly
+ * what lib/theme/palette.ts mirrors. Each sets size AND line height together,
+ * because the ramp is a set of pairs, and the title steps carry their 600
+ * weight with them (Fluent uses 400 and 600 only). Body steps leave weight to
+ * the caller, which adds `font-semibold` for the "Strong" variants.
+ */
+@utility type-caption2 {
+  font-size: 10px;
+  line-height: 14px;
+}
+@utility type-caption1 {
+  font-size: 12px;
+  line-height: 16px;
+}
+@utility type-body1 {
+  font-size: 14px;
+  line-height: 20px;
+}
+@utility type-body2 {
+  font-size: 16px;
+  line-height: 22px;
+}
+@utility type-subtitle2 {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+@utility type-subtitle1 {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+@utility type-title3 {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+@utility type-title2 {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+}
+@utility type-title1 {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+}
+@utility type-large-title {
+  font-size: 40px;
+  line-height: 52px;
+  font-weight: 600;
+}
+
+/*
+ * A Fluent card: the panel tier on the canvas. borderRadiusXLarge and
+ * shadow4, no border, which is the design system's own card recipe. Named
+ * once because a card is the most repeated shape in the app.
+ */
+@utility card {
+  background: var(--color-surface);
+  border-radius: var(--radius-fluent-xlarge);
+  box-shadow: var(--shadow-4);
+}
+
+/*
+ * shadow4, cast upward, for the sticky action bar on the bottom edge of the
+ * viewport. The same neutral recipe as the four Fluent steps with the offset
+ * inverted; the navy-tinted --shadow-lifted it replaces is deprecated.
+ */
+@utility shadow-up {
+  box-shadow:
+    0 0 2px rgba(0, 0, 0, 0.12),
+    0 -2px 4px rgba(0, 0, 0, 0.08);
 }
 
 /*
@@ -337,6 +416,19 @@
 @utility band-chrome {
   background: var(--color-sunken);
   color: var(--color-ink);
+}
+
+/*
+ * The brand panel: colorBrandBackground with colorNeutralForegroundOnBrand.
+ * One surface in the app wears it, the explanatory half of the sign-in and
+ * sign-up screens, the way Microsoft's own sign-in pages set a brand panel
+ * beside the form. White on #0f6cbd is 5.4:1, so everything inked on it,
+ * body copy included, clears AA. Like every band, it sets its ground and its
+ * ink as one decision.
+ */
+@utility band-brand {
+  background: var(--color-accent);
+  color: var(--color-surface);
 }
 
 /* Scarlet hairline used to open a band. Decorative, never load-bearing. */

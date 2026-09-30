@@ -17,7 +17,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowCounterclockwise16Regular } from "@/components/ui/icons";
 import RunAction from "@/components/topic/RunAction";
+import { Button } from "@/components/ui/Button";
 import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
 import { resetSelection } from "@/services/analysis/selection-store";
@@ -115,15 +117,15 @@ function SummaryRow({
   editStep: "scope" | "model" | "areas";
 }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-edge py-4 first:border-t-0 first:pt-0">
-      <dt className="w-28 shrink-0 eyebrow">{label}</dt>
+    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 border-t border-edge px-4 py-3 first:border-t-0 lg:px-5">
+      <dt className="type-caption1 w-24 shrink-0 text-ink-faint">{label}</dt>
       <dd className="min-w-0 flex-1">
-        <span className="text-[15px] font-semibold tracking-tight">{value}</span>
-        <span className="ml-2 text-sm text-ink-muted">{detail}</span>
+        <span className="type-body1 font-semibold text-ink">{value}</span>
+        <span className="type-body1 ml-2 text-ink-muted">{detail}</span>
       </dd>
       <Link
         href={stepHref(topic, editStep, query)}
-        className="rounded text-xs font-semibold text-accent hover:underline"
+        className="type-body1 rounded-fluent-small font-semibold text-accent-link hover:underline"
       >
         Change
         <span className="sr-only"> {label.toLowerCase()}</span>
@@ -168,7 +170,7 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
     >
       <dl
         data-testid="review-summary"
-        className="rounded-2xl border border-edge bg-surface p-6 shadow-card lg:p-7"
+        className="card"
       >
         {row("Topic", topic.name, topic.question, "scope")}
         {row("Scope", spec.label, spec.description, "scope")}
@@ -199,36 +201,39 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
         `null` as the history state. The fix is in useWizard; this button is
         where it shows up, so if it ever regresses, look there first.
       */}
-      <div className="mt-4 flex justify-end">
-        <button
+      <div className="mt-2 flex justify-end">
+        <Button
           type="button"
+          variant="subtle"
+          size="sm"
           data-testid="start-over"
+          icon={<ArrowCounterclockwise16Regular />}
           onClick={() => {
             resetSelection(topic.slug);
             router.replace(stepHref(topic.slug, "scope"));
           }}
-          className="rounded text-xs font-semibold text-ink-faint underline hover:text-danger"
         >
           Start over
           <span className="sr-only"> and clear this topic&apos;s selection</span>
-        </button>
+        </Button>
       </div>
 
       {state.areas.length > 0 && (
         <ol
           data-testid="review-areas"
-          className="mt-5 divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-surface shadow-card"
+          aria-label="Selected areas for this request"
+          className="card mt-3 divide-y divide-edge overflow-hidden"
         >
           {state.areas.map((area, index) => (
             <li
               key={area.id}
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-6 py-3 text-sm"
+              className="type-body1 flex min-h-10 flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5 lg:px-5"
             >
-              <span className="font-mono text-xs text-ink-faint">
+              <span className="type-caption1 font-mono text-ink-faint">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <span className="font-medium">{area.label}</span>
-              <span className="text-xs text-ink-faint">
+              <span className="font-semibold text-ink">{area.label}</span>
+              <span className="type-caption1 text-ink-faint">
                 {area.source} &middot; {formatArea(area.areaKm2)}
               </span>
             </li>

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { token } from "@/lib/theme/palette";
+import { FluentRoot } from "@/components/shell/FluentRoot";
+import { Logo } from "@/components/ui/Logo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,17 +50,23 @@ export const metadata: Metadata = {
  * before first paint.
  */
 export const viewport: Viewport = {
-  // The header, not the page. This paints the browser's own bar, which sits
-  // directly above the header band; matching the page instead would put a pale
-  // strip above a dark blue one and make the app look like it starts at a seam.
-  themeColor: token("--color-accent-hover"),
+  // The header's own ground, so the browser's bar and the app header read as
+  // one continuous strip of Fluent's light neutral chrome.
+  themeColor: token("--color-sunken"),
   colorScheme: "light",
 };
+
+const FOOTER_LINKS = [
+  ["About", "/about"],
+  ["Help", "/help"],
+  ["Contact", "/contact"],
+  ["Account", "/account"],
+] as const;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="en-GB"
       /* Next 16 stopped overriding scroll-behavior during SPA navigation by
          default. This attribute opts back in, so an in-page anchor scrolls
          smoothly while a route change still jumps instantly to the top. */
@@ -72,83 +80,90 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         */}
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-skip-link focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-raised"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-skip-link focus:rounded-fluent-medium focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-16"
         >
           Skip to content
         </a>
 
-        {/*
-          The header is a dark blue band, not a white bar. Two reasons, and
-          neither is taste: the app's content is white panels on a pale ground,
-          so a white header has nothing separating it from the page it is
-          pinned over; and the four-colour system has to be stated somewhere
-          before the analyst meets it as a button, which is what the red mark
-          in the wordmark and the red-and-navy rule underneath are for.
-        */}
-        <header className="band-chrome sticky top-0 z-header">
-          <div className="mx-auto flex h-16 w-full max-w-band items-center gap-4 px-gutter lg:px-gutter-lg">
-            <Link href="/" className="flex items-center gap-3 rounded-lg">
-              <span
-                aria-hidden="true"
-                className="relative grid h-9 w-9 place-items-center rounded-lg bg-white text-[13px] font-bold tracking-tight text-accent"
-              >
-                RA
-                {/* The red mark. Decorative: the wordmark beside it carries the
-                    name, so nothing is lost if this does not render. */}
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-action ring-2 ring-[var(--color-accent-hover)]" />
+        <FluentRoot>
+          {/*
+            Fluent's app header: 48px (layout-header-height) of light neutral
+            chrome, colorNeutralBackground4 with dark ink, separated from the
+            canvas by a colorNeutralStroke2 hairline rather than by a change
+            of ground. The dark navy band it replaces told the eye where the
+            chrome ended by contrast alone; Fluent does it with the stroke,
+            which is also what keeps the header from being the loudest thing
+            on a screen whose job is a map and a table.
+          */}
+          <header className="band-chrome sticky top-0 z-header border-b border-edge">
+            <div className="mx-auto flex h-12 w-full max-w-band items-center gap-3 px-gutter lg:px-gutter-lg">
+              <Link href="/" className="flex min-w-0 items-center rounded-fluent-medium">
+                <Logo size={30} />
+              </Link>
+
+              <span aria-hidden="true" className="hidden h-6 w-px bg-edge-strong md:block" />
+              <span className="type-caption1 hidden text-ink-faint md:block">
+                Earth observation decision support
               </span>
-              <span className="flex flex-col leading-tight">
-                <span className="text-[15px] font-semibold tracking-tight text-white">
-                  Rangeland Awareness
-                </span>
-                <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-on-chrome-muted">
-                  Kenya Space Agency
-                </span>
-              </span>
-            </Link>
 
-            <span className="ml-auto hidden text-xs text-on-chrome-muted sm:block">
-              Earth observation decision support
-            </span>
-          </div>
-          <div aria-hidden="true" className="rule-action h-[3px] w-full" />
-        </header>
-
-        <main id="main" className="flex flex-1 flex-col">
-          {children}
-        </main>
-
-        <footer className="band-chrome mt-auto">
-          <div aria-hidden="true" className="rule-action h-[3px] w-full" />
-          <div className="mx-auto w-full max-w-band px-gutter py-8 lg:px-gutter-lg">
-            <div className="flex flex-col gap-6 sm:flex-row sm:justify-between">
-              <div className="flex flex-col gap-1 text-xs leading-relaxed text-on-chrome-muted">
-                <p>
-                  Earth observation analysis for Kenya&apos;s rangelands. Model
-                  outputs are decision support, not a forecast of record.
-                </p>
-                <p>
-                  Basemaps &copy; OpenStreetMap contributors. Imagery &copy; Esri,
-                  Maxar, Earthstar Geographics.
-                </p>
-              </div>
-              <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-on-chrome-muted">
-                <Link href="/about" className="rounded font-medium hover:text-white hover:underline">
-                  About
+              <nav aria-label="Primary" className="ml-auto flex items-center gap-1">
+                <Link
+                  href="/"
+                  className="type-body1 hidden rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink sm:block"
+                >
+                  Topics
                 </Link>
-                <Link href="/help" className="rounded font-medium hover:text-white hover:underline">
+                <Link
+                  href="/data"
+                  className="type-body1 hidden rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink sm:block"
+                >
+                  Explore data
+                </Link>
+                <Link
+                  href="/help"
+                  className="type-body1 rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink"
+                >
                   Help
-                </Link>
-                <Link href="/contact" className="rounded font-medium hover:text-white hover:underline">
-                  Contact
-                </Link>
-                <Link href="/account" className="rounded font-medium hover:text-white hover:underline">
-                  Account
                 </Link>
               </nav>
             </div>
-          </div>
-        </footer>
+          </header>
+
+          <main id="main" className="flex flex-1 flex-col">
+            {children}
+          </main>
+
+          <footer className="band-chrome mt-auto border-t border-edge">
+            <div className="mx-auto w-full max-w-band px-gutter py-6 lg:px-gutter-lg">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="type-caption1 flex max-w-2xl flex-col gap-1 text-ink-faint">
+                  <p>
+                    Earth observation analysis for Kenya&apos;s rangelands. Model
+                    outputs are decision support, not a forecast of record.
+                  </p>
+                  <p>
+                    Basemaps &copy; OpenStreetMap contributors. Imagery &copy; Esri,
+                    Maxar, Earthstar Geographics.
+                  </p>
+                </div>
+                <nav
+                  aria-label="Footer navigation"
+                  className="type-caption1 flex flex-wrap gap-x-5 gap-y-2"
+                >
+                  {FOOTER_LINKS.map(([label, href]) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="rounded-fluent-small font-semibold text-accent-link hover:underline"
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </footer>
+        </FluentRoot>
       </body>
     </html>
   );

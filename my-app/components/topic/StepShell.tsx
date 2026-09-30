@@ -14,7 +14,7 @@
  *                 more now than it did on the single page: the analyst can no
  *                 longer scroll up to check which model they picked, because
  *                 it is on another URL.
- *   the movement  Back, and the one red control that goes forward.
+ *   the movement  Back, and the one primary control that goes forward.
  *
  * Continue is a Link, not a button with a router.push. It is a real navigation
  * to a real URL, so it should be middle-clickable, openable in a new tab and
@@ -24,7 +24,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
+import { ArrowLeft20Regular, ArrowRight20Regular } from "@/components/ui/icons";
 import RequestReceipt from "@/components/topic/RequestReceipt";
+import { Button } from "@/components/ui/Button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import StepRail from "@/components/topic/StepRail";
 import { getStep, nextStep, previousStep, stepHref, type StepId } from "@/services/analysis/steps";
 import type { Topic } from "@/services/analysis/topics";
@@ -116,7 +119,7 @@ export default function StepShell({
       {/* The rail sits on the page ground, directly under the topic band, so
           it reads as a property of the topic rather than of this one step. */}
       <div className="border-b border-edge bg-surface">
-        <div className={`${container} py-2.5 lg:py-3`}>
+        <div className={container}>
           <StepRail
             topic={topic.slug}
             current={step}
@@ -126,20 +129,20 @@ export default function StepShell({
         </div>
       </div>
 
-      <div className={`${container} pt-6 lg:pt-8`}>
+      <div className={`${container} pt-5 lg:pt-7`}>
         <div className={column}>
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="text-xl font-semibold tracking-tight outline-none lg:text-2xl"
+            className="type-subtitle1 text-ink outline-none lg:type-title3"
           >
             {spec.title}
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted lg:text-[15px]">
+          <p className="type-body1 mt-1 max-w-2xl text-ink-muted">
             {spec.hint}
           </p>
 
-          <div className="mt-6">{children}</div>
+          <div className="mt-5">{children}</div>
         </div>
       </div>
 
@@ -163,7 +166,7 @@ export default function StepShell({
         gives way is the padding, and the receipt's own wrapping: see
         RequestReceipt, which is one scrollable line below `sm`.
       */}
-      <div className="sticky bottom-0 z-action-bar mt-auto border-t border-edge bg-surface shadow-lifted">
+      <div className="sticky bottom-0 z-action-bar mt-auto border-t border-edge bg-surface shadow-up">
         <div
           className={`${container} flex flex-col gap-2 py-2 lg:flex-row lg:items-center lg:gap-6 lg:py-3`}
         >
@@ -179,9 +182,10 @@ export default function StepShell({
             {back !== null && (
               <Link
                 href={stepHref(topic.slug, back, query)}
-                className="rounded-lg border border-edge-strong bg-surface px-4 py-2 text-sm font-semibold text-ink-muted hover:bg-sunken hover:text-ink"
+                className={buttonClasses()}
               >
-                <span aria-hidden="true">&larr;</span> {back.label}
+                <ArrowLeft20Regular aria-hidden="true" />
+                {back.label}
               </Link>
             )}
 
@@ -191,9 +195,10 @@ export default function StepShell({
                   <Link
                     href={stepHref(topic.slug, forward, query)}
                     data-testid="step-continue"
-                    className="rounded-lg bg-action px-6 py-2 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover"
+                    className={buttonClasses({ appearance: "primary", className: "min-w-28" })}
                   >
-                    Continue <span aria-hidden="true">&rarr;</span>
+                    Continue
+                    <ArrowRight20Regular aria-hidden="true" />
                   </Link>
                 ) : (
                   // A disabled anchor is not a thing, so a refusing Continue is
@@ -202,18 +207,21 @@ export default function StepShell({
                   <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:gap-4">
                     <p
                       data-testid="step-blocked-reason"
-                      className="order-2 max-w-xs text-xs leading-snug text-ink-muted lg:order-1 lg:text-right"
+                      className="type-caption1 order-2 max-w-xs text-ink-muted lg:order-1 lg:text-right"
                     >
                       {blockedReason}
                     </p>
-                    <button
+                    <Button
                       type="button"
+                      variant="primary"
                       disabled
                       data-testid="step-continue"
-                      className="order-1 cursor-not-allowed rounded-lg bg-sunken px-6 py-2 text-sm font-semibold text-ink-faint lg:order-2"
+                      icon={<ArrowRight20Regular />}
+                      iconAfter
+                      className="order-1 lg:order-2"
                     >
-                      Continue <span aria-hidden="true">&rarr;</span>
-                    </button>
+                      Continue
+                    </Button>
                   </div>
                 )))}
           </div>

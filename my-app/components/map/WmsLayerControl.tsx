@@ -12,6 +12,11 @@
  * It owns no rules either. `useWmsLayers` wires the reducer in services/wms/state.ts
  * to the registry in services/wms/layers.ts, and every sentence rendered here was
  * composed by a pure function in services/wms/ so its wording is asserted in node.
+ *
+ * Styled on the Fluent 2 "Spatial Analytics Dashboard" tokens the rest of the
+ * app now uses: the card recipe (`Panel`), MessageBar for anything the analyst
+ * must be told (`Notice`), Fluent System Icons for tile status (never colour
+ * alone), and the `type-*` classes for every piece of text.
  */
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -31,7 +36,15 @@ import {
   type WmsLayerSpec,
   type WmsPanelAction,
   type WmsPanelState,
+  type WmsTileStatus,
 } from "@/services/wms";
+import { Panel } from "@/components/ui/Panel";
+import { Notice } from "@/components/ui/Notice";
+import {
+  ArrowSync16Regular,
+  CheckmarkCircle16Regular,
+  ErrorCircle16Regular,
+} from "@/components/ui/icons";
 
 export interface WmsLayerControlProps {
   resolution: SourceResolution;
@@ -84,6 +97,35 @@ export function useWmsLayers(topic: TopicSlug): WmsLayersBinding {
   return { resolution, layers, state, dispatch };
 }
 
+/** Icon plus text for a tile's fetch state, never colour alone. */
+function TileStatusBadge({ status }: { status: WmsTileStatus }) {
+  if (status === "loading") {
+    return (
+      <span className="type-caption1 inline-flex items-center gap-1 text-ink-faint">
+        <ArrowSync16Regular className="animate-spin" aria-hidden="true" />
+        Loading
+      </span>
+    );
+  }
+  if (status === "ready") {
+    return (
+      <span className="type-caption1 inline-flex items-center gap-1 text-success">
+        <CheckmarkCircle16Regular aria-hidden="true" />
+        Loaded
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className="type-caption1 inline-flex items-center gap-1 text-danger">
+        <ErrorCircle16Regular aria-hidden="true" />
+        Failed
+      </span>
+    );
+  }
+  return null;
+}
+
 /**
  * The legend image, or the reason there is not one.
  *
@@ -97,7 +139,7 @@ function Legend({ legend, title }: { legend: LegendSource; title: string }) {
 
   if (legend.kind === "none" || failed) {
     return (
-      <p className="text-xs text-ink-faint">
+      <p className="type-caption1 text-ink-faint">
         {legend.kind === "none"
           ? legend.reason
           : "The published legend image did not load."}
@@ -120,7 +162,7 @@ function Legend({ legend, title }: { legend: LegendSource; title: string }) {
       height={legend.kind === "published" ? legend.height : undefined}
       loading="lazy"
       onError={() => setFailed(true)}
-      className="max-w-full rounded border border-edge bg-surface"
+      className="max-w-full rounded-fluent-medium border border-edge bg-surface"
     />
   );
 }
@@ -162,10 +204,13 @@ function LayerRow({
           className="mt-0.5 size-4 shrink-0 accent-accent"
         />
         <div className="min-w-0 flex-1">
-          <label htmlFor={toggleId} className="text-sm font-medium text-ink">
-            {layer.title}
-          </label>
-          <p id={describedBy} className="mt-0.5 text-xs text-ink-muted">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <label htmlFor={toggleId} className="type-body1 font-semibold text-ink">
+              {layer.title}
+            </label>
+            {visible && entry ? <TileStatusBadge status={entry.status} /> : null}
+          </div>
+          <p id={describedBy} className="type-caption1 mt-0.5 text-ink-muted">
             {layer.description}
           </p>
         </div>
@@ -179,22 +224,22 @@ function LayerRow({
           <p
             className={
               time.kind === "unavailable"
-                ? "text-xs text-warn"
-                : "text-xs text-ink-faint"
+                ? "type-caption1 text-warn"
+                : "type-caption1 text-ink-faint"
             }
           >
             {describeLayerTime(time)}
           </p>
 
           {entry?.errorMessage !== null && entry?.errorMessage !== undefined ? (
-            <p role="alert" className="text-xs text-danger">
+            <p role="alert" className="type-caption1 text-danger">
               {entry.errorMessage}
             </p>
           ) : null}
 
           {time.kind === "unavailable" ? null : (
             <div className="flex items-center gap-2">
-              <label htmlFor={opacityId} className="text-xs text-ink-muted">
+              <label htmlFor={opacityId} className="type-caption1 text-ink-muted">
                 Opacity
               </label>
               <input
@@ -220,7 +265,7 @@ function LayerRow({
               <output
                 id={`${opacityId}-value`}
                 htmlFor={opacityId}
-                className="w-9 text-right font-mono text-xs text-ink-muted"
+                className="type-caption1 w-9 text-right text-ink-muted tabular-nums"
               >
                 {percent}%
               </output>
@@ -246,15 +291,8 @@ export default function WmsLayerControl({
   const { source, problems } = resolution;
 
   return (
-    <section
-      data-testid="wms-layer-control"
-      aria-labelledby="wms-layers-heading"
-      className="rounded-lg border border-edge bg-surface p-4 shadow-card"
-    >
-      <h3 id="wms-layers-heading" className="text-sm font-semibold text-ink">
-        Map layers
-      </h3>
-      <p className="mt-0.5 text-xs text-ink-faint">
+    <Panel as="section" title="Map layers" className="h-full overflow-y-auto">
+      <p className="type-caption1 text-ink-faint">
         Satellite imagery from {source.label}, drawn over the basemap for the
         run&rsquo;s date window.
       </p>
@@ -263,27 +301,24 @@ export default function WmsLayerControl({
           endpoint that quietly reverted to the default would be
           indistinguishable from a working deployment. */}
       {problems.length > 0 ? (
-        <ul role="alert" className="mt-2 space-y-1">
+        <div role="alert" className="mt-2 space-y-1.5">
           {problems.map((problem) => (
-            <li
-              key={problem}
-              className="rounded border border-warn bg-warn-soft px-2 py-1.5 text-xs text-warn"
-            >
+            <Notice key={problem} intent="warning">
               {problem}
-            </li>
+            </Notice>
           ))}
-        </ul>
+        </div>
       ) : null}
 
       {layers.length === 0 ? (
         // The designed empty state. Reached when a source is selected whose
         // layer registry has not been filled in yet, which is exactly where a
         // KSA deployment starts.
-        <div className="mt-3 rounded border border-dashed border-edge-strong bg-sunken p-3">
-          <p className="text-xs font-medium text-ink-muted">
+        <div className="mt-3 rounded-fluent-medium border border-dashed border-edge-strong bg-page p-3">
+          <p className="type-body1 font-semibold text-ink-muted">
             No layers are configured for this source.
           </p>
-          <p className="mt-1 text-xs text-ink-faint">
+          <p className="type-caption1 mt-1 text-ink-faint">
             {source.note ??
               "Add entries to this source's layer registry in services/wms/layers.ts."}
           </p>
@@ -291,7 +326,7 @@ export default function WmsLayerControl({
       ) : (
         <fieldset className="mt-3">
           {/* A real legend on the checkbox group, so a screen reader announces
-              what the eleven controls inside it belong to. */}
+              what the controls inside it belong to. */}
           <legend className="sr-only">Layers to show on the map</legend>
           <ul>
             {layers.map((layer) => (
@@ -308,10 +343,10 @@ export default function WmsLayerControl({
         </fieldset>
       )}
 
-      <p className="mt-3 border-t border-edge pt-2 text-[11px] text-ink-faint">
+      <p className="type-caption1 mt-3 border-t border-edge pt-2 text-ink-faint">
         Source: {source.label} &middot;{" "}
         <span className="font-mono break-all">{source.endpoint}</span>
       </p>
-    </section>
+    </Panel>
   );
 }

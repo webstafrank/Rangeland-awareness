@@ -38,8 +38,8 @@ export default function RequestReceipt({
       key={field}
       className={
         blockedField === field
-          ? "underline decoration-warn decoration-dotted decoration-2 underline-offset-2"
-          : undefined
+          ? "font-semibold text-ink underline decoration-warn decoration-dotted decoration-2 underline-offset-2"
+          : "text-ink"
       }
     >
       {text}
@@ -59,7 +59,7 @@ export default function RequestReceipt({
      */
     <p
       data-testid="request-receipt"
-      className="flex min-w-0 items-center gap-x-1.5 gap-y-1 overflow-x-auto whitespace-nowrap rounded-lg border border-edge bg-surface px-3 py-1.5 text-xs text-ink-muted sm:flex-wrap sm:overflow-visible sm:whitespace-normal lg:py-2"
+      className="type-caption1 flex min-h-8 min-w-0 items-center gap-x-1.5 gap-y-1 overflow-x-auto whitespace-nowrap rounded-fluent-medium bg-page px-3 py-1.5 text-ink-muted sm:flex-wrap sm:overflow-visible sm:whitespace-normal"
     >
       {chip("topic", topic.name)}
       <span aria-hidden="true" className="text-ink-faint">

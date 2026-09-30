@@ -77,13 +77,22 @@ export function TimeSeries({
   const [showTable, setShowTable] = useState(false);
   const titleId = useId();
 
+  /*
+   * CHROME ONLY below. The series colours (`line.color`) come from the caller
+   * and design/tokens.ts and are never touched here; everything that is not a
+   * data mark (the ground the marker rings cut into, gridlines, the axis, the
+   * text, the readout card) sits on the Fluent chrome tokens on a light ground:
+   * colorNeutralStroke2 gridlines, colorNeutralStroke1 axis, the three neutral
+   * foregrounds for text. The dark branch is kept for the chart module's own
+   * contract and nothing in the app passes it.
+   */
   const surface = tone === "dark" ? navy[800] : light.white;
-  const gridStroke = tone === "dark" ? chromeTokens.gridOnDark : chromeTokens.gridOnLight;
-  const axisStroke = tone === "dark" ? chromeTokens.axisOnDark : chromeTokens.axisOnLight;
-  const inkPrimary = tone === "dark" ? "text-ink-dark-primary" : "text-ink-light-primary";
-  const inkSecondary = tone === "dark" ? "text-ink-dark-secondary" : "text-ink-light-secondary";
-  const inkMuted = tone === "dark" ? "text-ink-dark-muted" : "text-ink-light-muted";
-  const axisTextFill = tone === "dark" ? "var(--color-ink-dark-muted)" : "var(--color-ink-light-muted)";
+  const gridStroke = tone === "dark" ? chromeTokens.gridOnDark : "var(--color-edge)";
+  const axisStroke = tone === "dark" ? chromeTokens.axisOnDark : "var(--color-edge-strong)";
+  const inkPrimary = tone === "dark" ? "text-ink-dark-primary" : "text-ink";
+  const inkSecondary = tone === "dark" ? "text-ink-dark-secondary" : "text-ink-muted";
+  const inkMuted = tone === "dark" ? "text-ink-dark-muted" : "text-ink-faint";
+  const axisTextFill = tone === "dark" ? "var(--color-ink-dark-muted)" : "var(--color-ink-faint)";
 
   const plotW = Math.max(120, width - MARGIN.left - MARGIN.right);
   const plotH = height - MARGIN.top - MARGIN.bottom;
@@ -129,7 +138,7 @@ export function TimeSeries({
   return (
     <figure className="m-0 flex flex-col gap-3">
       <figcaption className="flex flex-wrap items-center justify-between gap-3">
-        <p className={`text-caption font-semibold ${inkSecondary}`} id={titleId}>
+        <p className={`type-caption1 font-semibold ${inkSecondary}`} id={titleId}>
           {axisLabel}
           {unit ? <span className={inkMuted}> ({unit})</span> : null}
         </p>
@@ -138,10 +147,10 @@ export function TimeSeries({
           type="button"
           onClick={() => setShowTable((v) => !v)}
           aria-pressed={showTable}
-          className={`text-micro rounded border px-2 py-1 font-semibold tracking-wide uppercase ${
+          className={`type-caption1 min-h-6 rounded-fluent-medium border px-2 font-semibold ${
             tone === "dark"
               ? "border-navy-700 text-ink-dark-secondary hover:text-white"
-              : "border-edge text-ink-light-secondary hover:text-navy-900"
+              : "border-edge-strong bg-surface text-ink hover:bg-page"
           }`}
         >
           {showTable ? "Show chart" : "Show table"}
@@ -154,7 +163,7 @@ export function TimeSeries({
       {lines.length > 1 ? (
         <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
           {lines.map((line) => (
-            <li key={line.id} className={`text-caption flex items-center gap-2 ${inkSecondary}`}>
+            <li key={line.id} className={`type-caption1 flex items-center gap-2 ${inkSecondary}`}>
               <span
                 aria-hidden="true"
                 className="inline-block h-[2px] w-4 shrink-0 rounded-full"
@@ -167,19 +176,19 @@ export function TimeSeries({
       ) : null}
 
       {showTable ? (
-        <div className={`overflow-x-auto rounded border ${tone === "dark" ? "border-navy-700" : "border-edge"}`}>
+        <div className={`overflow-x-auto rounded-fluent-large border ${tone === "dark" ? "border-navy-700" : "border-edge"}`}>
           <table className="w-full border-collapse text-left text-sm">
             <caption className="sr-only">{axisLabel} by date and area</caption>
             <thead>
               <tr className={tone === "dark" ? "border-navy-700 border-b" : "border-edge border-b"}>
-                <th scope="col" className={`text-micro px-3 py-2 font-semibold uppercase ${inkMuted}`}>
+                <th scope="col" className={`type-body1 bg-surface-subtle px-3 py-2 font-semibold ${inkMuted}`}>
                   Date
                 </th>
                 {lines.map((line) => (
                   <th
                     key={line.id}
                     scope="col"
-                    className={`text-micro px-3 py-2 text-right font-semibold uppercase ${inkMuted}`}
+                    className={`type-body1 bg-surface-subtle px-3 py-2 text-right font-semibold ${inkMuted}`}
                   >
                     {line.name}
                   </th>
@@ -359,7 +368,7 @@ export function TimeSeries({
                         fill={
                           tone === "dark"
                             ? "var(--color-ink-dark-primary)"
-                            : "var(--color-ink-light-primary)"
+                            : "var(--color-ink)"
                         }
                         style={{ fontVariantNumeric: "tabular-nums" }}
                       >
@@ -377,8 +386,8 @@ export function TimeSeries({
             <div
               role="status"
               aria-live="polite"
-              className={`pointer-events-none absolute top-2 rounded border px-3 py-2 text-left shadow-sm ${
-                tone === "dark" ? "border-navy-700 bg-navy-950" : "border-edge bg-white"
+              className={`pointer-events-none absolute top-2 rounded-fluent-large border px-3 py-2 text-left ${
+                tone === "dark" ? "border-navy-700 bg-navy-950" : "border-edge bg-surface shadow-16"
               }`}
               style={{
                 left: Math.min(
@@ -387,7 +396,7 @@ export function TimeSeries({
                 ),
               }}
             >
-              <p className={`text-micro tabular font-semibold ${inkMuted}`}>{dates[hover]}</p>
+              <p className={`type-caption1 font-semibold tabular-nums ${inkMuted}`}>{dates[hover]}</p>
               <ul className="mt-1.5 flex flex-col gap-1">
                 {lines.map((line) => {
                   const value = line.values[hover];
@@ -398,12 +407,12 @@ export function TimeSeries({
                         className="inline-block h-[2px] w-3 shrink-0 rounded-full"
                         style={{ background: line.color }}
                       />
-                      <span className={`tabular font-bold ${inkPrimary}`}>
+                      <span className={`font-semibold tabular-nums ${inkPrimary}`}>
                         {value === null || value === undefined || !Number.isFinite(value)
                           ? "no data"
                           : fmt(value)}
                       </span>
-                      <span className={`text-caption ${inkSecondary}`}>{line.name}</span>
+                      <span className={`type-caption1 ${inkSecondary}`}>{line.name}</span>
                     </li>
                   );
                 })}

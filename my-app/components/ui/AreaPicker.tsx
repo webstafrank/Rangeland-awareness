@@ -76,21 +76,21 @@ export function AreaPicker({ areas, selected, onChange, max, single }: AreaPicke
           scrolled out of sight while you choose the next one. */}
       <div className="flex min-h-9 flex-wrap items-center gap-2" aria-live="polite">
         {selectedAreas.length === 0 ? (
-          <span className="text-caption text-ink-light-muted">No area selected yet.</span>
+          <span className="type-caption1 text-ink-faint">No area selected yet.</span>
         ) : (
           selectedAreas.map((area, index) => (
             <span
               key={area.id}
-              className="border-edge bg-paper text-caption inline-flex items-center gap-2 rounded border py-1 pr-1 pl-2.5 font-medium"
+              className="type-caption1 inline-flex items-center gap-2 rounded-fluent-circular border border-accent/30 bg-accent-soft py-0.5 pr-0.5 pl-2.5 font-semibold text-accent"
             >
               {/* The index is the series colour order on the results charts,
                   so showing it here makes the map/chart legend predictable. */}
-              <span className="text-ink-light-muted tabular text-[0.7rem]">{index + 1}</span>
+              <span className="type-caption2 text-ink-faint tabular-nums">{index + 1}</span>
               {area.name}
               <button
                 type="button"
                 onClick={() => toggle(area.id)}
-                className="text-ink-light-muted hover:bg-navy-900/8 hover:text-scarlet-ink-light flex h-5 w-5 items-center justify-center rounded"
+                className="flex h-6 w-6 items-center justify-center rounded-fluent-circular text-ink-muted hover:bg-surface hover:text-ink"
                 aria-label={`Remove ${area.name}`}
               >
                 <span aria-hidden="true">&times;</span>
@@ -110,19 +110,19 @@ export function AreaPicker({ areas, selected, onChange, max, single }: AreaPicke
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search all 47 counties"
-          className="border-edge text-ink-light-primary placeholder:text-ink-light-muted h-10 w-full rounded border bg-white px-3.5 text-sm"
+          className="type-body1 h-8 w-full rounded-fluent-medium border border-edge-strong border-b-edge-input bg-surface px-2.5 text-ink placeholder:text-ink-faint focus:border-b-accent"
         />
       </div>
 
       {atCap ? (
-        <p className="text-caption text-ink-light-secondary bg-paper border-edge rounded border px-3 py-2" role="status">
+        <p className="type-caption1 rounded-fluent-medium bg-page px-3 py-2 text-ink-muted" role="status">
           {max} areas selected, which is the maximum. Remove one to pick a different county.
         </p>
       ) : null}
 
-      <div className="border-edge max-h-72 overflow-y-auto rounded border">
+      <div className="card max-h-72 overflow-y-auto">
         {grouped.length === 0 ? (
-          <p className="text-caption text-ink-light-muted px-3.5 py-4">
+          <p className="type-caption1 px-3 py-4 text-ink-faint">
             No county matches &ldquo;{query}&rdquo;.
           </p>
         ) : (
@@ -130,7 +130,7 @@ export function AreaPicker({ areas, selected, onChange, max, single }: AreaPicke
             <fieldset key={group.zone} className="border-edge border-b last:border-b-0">
               <legend className="sr-only">{ZONE_LABEL[group.zone]} counties</legend>
               <p
-                className="text-micro text-ink-light-muted bg-paper border-edge sticky top-0 border-b px-3.5 py-1.5 font-semibold tracking-[0.14em] uppercase"
+                className="eyebrow sticky top-0 border-b border-edge bg-surface-subtle px-3 py-1.5"
                 aria-hidden="true"
               >
                 {ZONE_LABEL[group.zone]}
@@ -143,10 +143,10 @@ export function AreaPicker({ areas, selected, onChange, max, single }: AreaPicke
                 return (
                   <label
                     key={area.id}
-                    className={`flex items-center gap-3 px-3.5 py-2 text-sm transition-colors duration-100 ${
+                    className={`type-body1 flex min-h-10 items-center gap-3 px-3 py-2 transition-colors duration-100 ${
                       disabled
-                        ? "cursor-not-allowed opacity-45"
-                        : "hover:bg-paper cursor-pointer"
+                        ? "cursor-not-allowed text-ink-faint"
+                        : "cursor-pointer hover:bg-page"
                     }`}
                   >
                     <input
@@ -155,13 +155,13 @@ export function AreaPicker({ areas, selected, onChange, max, single }: AreaPicke
                       checked={isSelected}
                       disabled={disabled}
                       onChange={() => toggle(area.id)}
-                      className="accent-scarlet-fill h-4 w-4 shrink-0"
+                      className="h-4 w-4 shrink-0 accent-accent"
                     />
-                    <span className="text-ink-light-primary min-w-0 flex-1 truncate font-medium">
+                    <span className="min-w-0 flex-1 truncate text-ink">
                       {area.name}
                     </span>
                     {area.asal ? (
-                      <span className="text-micro text-ink-light-muted border-edge shrink-0 rounded border px-1.5 py-0.5 font-semibold tracking-wide">
+                      <span className="type-caption2 shrink-0 rounded-fluent-small bg-page px-1.5 py-0.5 font-semibold text-ink-muted">
                         ASAL
                       </span>
                     ) : null}

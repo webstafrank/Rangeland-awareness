@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronRight12Regular } from "@/components/ui/icons";
 import { getTopic } from "@/services/analysis/topics";
+import TopicIcon from "@/components/topic/TopicIcon";
 
 /**
  * The topic band, shared by all four steps.
@@ -44,39 +46,36 @@ export default async function TopicLayout({
         beside it on a wide screen rather than under it. Nothing was removed —
         the same four things are on screen, on one line instead of three.
       */}
-      <section className="band-chrome">
-        <div className="mx-auto flex w-full max-w-band flex-wrap items-center gap-x-5 gap-y-2 px-gutter py-3.5 lg:px-gutter-lg lg:py-4">
-          <span
-            aria-hidden="true"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/25 bg-white/10 text-[11px] font-bold tracking-tight text-white"
-          >
-            {topic.glyph}
-          </span>
+      {/*
+        Fluent's neutral chrome, continuing down from the app header: the
+        header says which app, this says which topic, and the white step rail
+        below is where the page itself begins. The breadcrumb is Fluent's
+        Breadcrumb in miniature: a link, a chevron, the current item.
+      */}
+      <section className="band-chrome border-b border-edge">
+        <div className="mx-auto flex w-full max-w-band flex-wrap items-center gap-x-4 gap-y-2 px-gutter py-3 lg:px-gutter-lg">
+          <TopicIcon slug={topic.slug} />
 
           <div className="min-w-0">
             <nav
               aria-label="Breadcrumb"
-              className="text-[11px] leading-tight text-on-chrome-muted"
+              className="type-caption1 flex items-center gap-0.5 text-ink-faint"
             >
               <Link
                 href="/"
-                className="rounded font-medium hover:text-white hover:underline"
+                className="rounded-fluent-small text-accent-link hover:underline"
               >
                 All topics
               </Link>
-              <span aria-hidden="true" className="px-1.5">
-                /
-              </span>
-              <span>{topic.name}</span>
+              <ChevronRight12Regular aria-hidden="true" />
+              <span aria-current="page">{topic.name}</span>
             </nav>
-            <h1 className="text-lg font-semibold leading-tight tracking-tight lg:text-xl">
-              {topic.name}
-            </h1>
+            <h1 className="type-subtitle1 text-ink">{topic.name}</h1>
           </div>
 
           {/* The question. Beside the name where there is room, under it where
               there is not, and never a third row on its own. */}
-          <p className="min-w-0 basis-full text-[13px] leading-snug text-on-chrome-muted sm:basis-auto sm:border-l sm:border-white/20 sm:pl-5">
+          <p className="type-body1 min-w-0 basis-full text-ink-muted sm:basis-auto sm:border-l sm:border-edge-strong sm:pl-4">
             {topic.question}
           </p>
         </div>

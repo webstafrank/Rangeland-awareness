@@ -37,6 +37,7 @@ import {
   type WmsPanelState,
   type WmsSource,
 } from "@/services/wms";
+import { ErrorCircle16Regular, Warning12Filled } from "@/components/ui/icons";
 
 export interface WmsLayersProps {
   source: WmsSource;
@@ -195,10 +196,15 @@ function WmsNoticeOverlay({
           key={notice.layerId}
           className={
             notice.kind === "problem"
-              ? "rounded border border-danger bg-danger-soft px-2 py-1.5 text-xs text-danger shadow-sm"
-              : "rounded border border-warn bg-warn-soft px-2 py-1.5 text-xs text-warn shadow-sm"
+              ? "type-caption1 flex items-center gap-1.5 rounded-fluent-medium border border-danger bg-danger-soft px-2 py-1.5 text-danger shadow-4"
+              : "type-caption1 flex items-center gap-1.5 rounded-fluent-medium border border-warn bg-warn-soft px-2 py-1.5 text-warn shadow-4"
           }
         >
+          {notice.kind === "problem" ? (
+            <ErrorCircle16Regular aria-hidden="true" className="shrink-0" />
+          ) : (
+            <Warning12Filled aria-hidden="true" className="shrink-0" />
+          )}
           {notice.text}
         </p>
       ))}

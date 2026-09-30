@@ -12,10 +12,12 @@
  * is available to a screen reader and to anyone who never hovers.
  *
  * It renders in the review step's footer, in the slot the other three steps
- * give to Continue, which is why it carries the same red: one colour for
- * "forward", all the way through the flow.
+ * give to Continue, which is why it is the same Fluent primary button: one
+ * brand-blue control for "forward", all the way through the flow.
  */
 
+import { Play20Filled } from "@/components/ui/icons";
+import { Button } from "@/components/ui/Button";
 import { blockingReason, type ValidationResult } from "@/services/analysis/request";
 
 export interface RunActionProps {
@@ -31,23 +33,28 @@ export default function RunAction({ validation, onRun }: RunActionProps) {
       {reason !== null && (
         <p
           data-testid="run-blocked-reason"
-          className="order-2 max-w-md text-xs leading-snug text-ink-muted lg:order-1 lg:text-right"
+          className="type-caption1 order-2 max-w-md text-ink-muted lg:order-1 lg:text-right"
         >
           {reason}
         </p>
       )}
 
-      <button
+      {/*
+        Primary, like Continue: Run is the last step of the same forward
+        movement, and a secondary skin would make the only irreversible
+        control on the site look optional. The Play icon is Fluent's own
+        glyph for starting a job.
+      */}
+      <Button
         type="button"
+        variant="primary"
         disabled={!validation.ok}
         onClick={onRun}
-        // Red, like Continue: Run is the last step of the same forward
-        // movement, and painting it navy would make the only irreversible
-        // control on the site look like a secondary one.
-        className="order-1 rounded-lg bg-action px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-faint disabled:shadow-none lg:order-2"
+        icon={<Play20Filled />}
+        className="order-1 lg:order-2"
       >
         Run analysis
-      </button>
+      </Button>
     </div>
   );
 }

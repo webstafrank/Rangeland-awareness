@@ -1,103 +1,142 @@
+"use client";
+
 import Link from "next/link";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { Button as FluentButton } from "@fluentui/react-components";
+import { buttonClasses, type ButtonAppearance, type ButtonScale } from "./button-classes";
 import type { Tone } from "./tone";
 
 /**
- * `scarlet`  the one most important action on a screen. Never two on one screen.
- * `solid`    the ordinary confirming action, in the tone's own contrast colour.
- * `outline`  a real alternative to the primary action.
- * `ghost`    navigation and dismissal, no chrome until hovered.
+ * Fluent's three appearances, plus the four names this kit shipped with.
+ *
+ * `primary`    the one action a view exists for. Fluent brand blue. Never two
+ *              on one screen.
+ * `secondary`  a real alternative to it, and every ordinary action.
+ * `subtle`     navigation and dismissal, no chrome until hovered.
+ *
+ * The legacy names map onto them rather than being removed, because a caller
+ * outside this redesign may still pass them: `scarlet` and `solid` were both
+ * "the confirming action" and are `primary` now that there is one brand hue;
+ * `outline` is `secondary`; `ghost` is `subtle`.
  */
-export type ButtonVariant = "scarlet" | "solid" | "outline" | "ghost";
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonVariant =
+  | ButtonAppearance
+  | "scarlet"
+  | "solid"
+  | "outline"
+  | "ghost";
+export type ButtonSize = ButtonScale;
 
-const base =
-  "inline-flex items-center justify-center gap-2 rounded font-semibold " +
-  "transition-[background-color,color,border-color,transform] duration-150 " +
-  "ease-[var(--ease-out-soft)] active:translate-y-px " +
-  "disabled:pointer-events-none disabled:opacity-45 " +
-  "aria-disabled:pointer-events-none aria-disabled:opacity-45";
-
-const sizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-caption",
-  md: "h-11 px-5 text-sm",
-  lg: "h-13 px-7 text-base",
+const APPEARANCE: Record<ButtonVariant, ButtonAppearance> = {
+  primary: "primary",
+  secondary: "secondary",
+  subtle: "subtle",
+  scarlet: "primary",
+  solid: "primary",
+  outline: "secondary",
+  ghost: "subtle",
 };
 
-/**
- * Scarlet is tone-independent: its fill is dark enough to carry a white label
- * (5.24:1) and it reads as the accent on both grounds. Every other variant
- * has to know its ground.
- */
-const variants: Record<ButtonVariant, Record<Tone, string>> = {
-  scarlet: {
-    dark: "bg-scarlet-fill text-white hover:bg-scarlet-fill-deep",
-    light: "bg-scarlet-fill text-white hover:bg-scarlet-fill-deep",
-  },
-  solid: {
-    dark: "bg-white text-navy-900 hover:bg-edge",
-    light: "bg-navy-900 text-white hover:bg-navy-800",
-  },
-  outline: {
-    dark: "border border-ink-dark-secondary/55 text-white hover:border-white hover:bg-white/10",
-    light: "border border-navy-900/30 text-navy-900 hover:border-navy-900 hover:bg-navy-900/5",
-  },
-  ghost: {
-    dark: "text-ink-dark-secondary hover:text-white hover:bg-white/10",
-    light: "text-ink-light-secondary hover:text-navy-900 hover:bg-navy-900/5",
-  },
+const FLUENT_SIZE: Record<ButtonSize, "small" | "medium" | "large"> = {
+  sm: "small",
+  md: "medium",
+  lg: "large",
 };
 
 interface CommonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /**
+   * Accepted for compatibility and ignored. There is one light theme and no
+   * dark band left for a button to sit on, so a button's skin no longer
+   * depends on its ground.
+   */
   tone?: Tone;
   /** Stretches to the container width, for stacked mobile actions. */
   block?: boolean;
+  /** A Fluent System Icon, 20px Regular. Decorative: the label names the button. */
+  icon?: ReactElement;
+  /** Put the icon after the label, for forward arrows. */
+  iconAfter?: boolean;
   children: ReactNode;
   className?: string;
 }
 
-function classes({
-  variant = "solid",
+export type ButtonProps = CommonProps &
+  Omit<ComponentProps<"button">, "className" | "children" | "color">;
+
+/**
+ * A real Fluent `Button`, behind this kit's API.
+ *
+ * Internals replaced rather than re-skinned: Fluent's button owns its focus
+ * ring, pressed state, disabled contrast and forced-colors rendering, and a
+ * Tailwind copy would have to re-derive all four. Every prop a caller already
+ * passed keeps working, so no call site had to move.
+ *
+ * `block` is an inline style, not `w-full`: Fluent caps a button's width with
+ * a Griffel rule, and Griffel's rules sit outside Tailwind's cascade layers,
+ * so a utility cannot override them. An inline style can.
+ */
+export function Button({
+  variant = "secondary",
   size = "md",
-  tone = "light",
   block,
-  className = "",
-}: CommonProps): string {
-  return [base, sizes[size], variants[variant][tone], block ? "w-full" : "", className]
-    .filter(Boolean)
-    .join(" ");
-}
-
-export type ButtonProps = CommonProps & Omit<ComponentProps<"button">, "className" | "children">;
-
-export function Button({ variant, size, tone, block, children, className, ...rest }: ButtonProps) {
+  icon,
+  iconAfter = false,
+  children,
+  className,
+  tone: _tone,
+  ...rest
+}: ButtonProps) {
+  void _tone;
   return (
-    <button className={classes({ variant, size, tone, block, children, className })} {...rest}>
+    <FluentButton
+      appearance={APPEARANCE[variant]}
+      size={FLUENT_SIZE[size]}
+      icon={icon}
+      iconPosition={iconAfter ? "after" : "before"}
+      className={className}
+      style={block ? { width: "100%", maxWidth: "none" } : undefined}
+      {...rest}
+    >
       {children}
-    </button>
+    </FluentButton>
   );
 }
 
-export type ButtonLinkProps = CommonProps & Omit<ComponentProps<typeof Link>, "className" | "children">;
+export type ButtonLinkProps = CommonProps &
+  Omit<ComponentProps<typeof Link>, "className" | "children">;
 
 /**
  * Same skin, real navigation. A link that looks like a button must still be a
- * link, so it opens in a new tab on a middle click and is announced correctly.
+ * link, so it opens in a new tab on a middle click and is announced as one.
+ * See button-classes.ts for why this is not a Fluent `Button as="a"`.
  */
 export function ButtonLink({
-  variant,
-  size,
-  tone,
+  variant = "secondary",
+  size = "md",
   block,
+  icon,
+  iconAfter = false,
   children,
   className,
+  tone: _tone,
   ...rest
 }: ButtonLinkProps) {
+  void _tone;
   return (
-    <Link className={classes({ variant, size, tone, block, children, className })} {...rest}>
+    <Link
+      className={buttonClasses({
+        appearance: APPEARANCE[variant],
+        size,
+        block,
+        className,
+      })}
+      {...rest}
+    >
+      {icon && !iconAfter ? icon : null}
       {children}
+      {icon && iconAfter ? icon : null}
     </Link>
   );
 }

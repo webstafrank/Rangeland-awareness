@@ -35,31 +35,36 @@
  * has not failed. Collapsing them into "something went wrong" is how an analyst
  * ends up mailing an administrator about a server that is running fine.
  *
- * COLOUR. Red (`bg-action`) is the control that advances the flow, and on this
- * screen there is normally no such control: the flow advances by itself when
- * the run finishes. So red appears in exactly one place, "Try again", which is
- * the only button that can move a stuck screen forward. Back to review is a
- * recovery, not an advance, so it takes the same bordered treatment StepShell
- * gives its Back link. A failed stage is a STATUS, not a control, so it takes
- * `--color-danger` (the deeper status red) and never the action red.
+ * THE DESIGN SYSTEM'S JOBSTATUS. This is the pipeline view that component was
+ * written for, so its rules are followed as written: every row is icon plus
+ * word plus time and never a coloured dot; the run's own state is a Fluent
+ * `Badge` in the tint appearance (brand while running, the success, danger or
+ * neutral pair after); progress is a Fluent `ProgressBar` in brand; a failure
+ * shows its error in full, never truncated, with the way out beside it; job
+ * and run ids are set in dataMono.
  *
- * WHY THE KIT IS USED ONLY PARTLY. `Eyebrow` and `Panel` come from
- * `components/ui/`. `Button` does not, and that is deliberate: `Button` is
- * built on the data-viz namespace (`bg-scarlet-fill`, `bg-navy-900`), while
- * every screen in this wizard - StepShell, ResultsStep - is built on the chrome
- * namespace (`bg-action`, `bg-accent`). The two reds and the two navies are
- * different hex values by design; see the header of app/globals.css. Dropping a
- * `Button` in here would give the running screen a red that the review step it
- * came from does not have. So the controls copy StepShell's classes exactly and
- * the layout components, whose light skin is already `bg-white border-edge`,
- * come from the kit.
+ * COLOUR. Brand blue is the primary action, and on this screen there is
+ * normally no such control: the flow advances by itself when the run
+ * finishes. So a primary button appears in exactly one place, "Try again",
+ * the only control that can move a stuck screen forward. Back to review is a
+ * recovery, not an advance, so it is secondary. A failed stage is a STATUS,
+ * not a control, so it takes the danger pair and never a button's fill.
  */
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Route } from "next";
-import { Eyebrow } from "@/components/ui/Eyebrow";
+import { ProgressBar } from "@fluentui/react-components";
+import {
+  ArrowClockwise20Regular,
+  ArrowLeft20Regular,
+  ErrorCircle20Filled,
+  PlugDisconnected20Regular,
+} from "@/components/ui/icons";
+import { JobBadge } from "@/components/run/JobBadge";
+import { Button } from "@/components/ui/Button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { Panel } from "@/components/ui/Panel";
 import {
   MAX_CONSECUTIVE_FAILURES,
@@ -112,61 +117,23 @@ export interface RunningScreenProps {
 /* ------------------------------------------------------- stage appearance */
 
 /**
- * The five stage states, each with a word.
+ * How each stage state weights its label. The word, the icon and the colour
+ * live in `<JobBadge>`, which every row renders, so no state is carried by
+ * colour alone.
  *
  * A `Record<StageState, ...>` rather than a lookup with a default, so a sixth
  * state added to the contract is a type error in this file rather than a row
- * that silently renders blank. That is the only way a UI keeps up with a schema
- * it does not own.
- *
- * Every state ships a WORD as well as a glyph and a colour, and the word is the
- * thing tests and screen readers read. `skipped` in particular has to be
- * legible as skipped: rubric R3 and the GitHub Actions reference both turn on a
- * skipped step being visibly present rather than quietly dropped.
+ * that silently renders blank. `skipped` in particular has to be legible as
+ * skipped: rubric R3 and the GitHub Actions reference both turn on a skipped
+ * step being visibly present rather than quietly dropped. It is greyed, but at
+ * full opacity: a skipped stage is information, not a disabled control.
  */
-const STAGE_PRESENTATION: Record<
-  StageState,
-  { word: string; glyph: string; glyphInk: string; labelInk: string; wordInk: string }
-> = {
-  pending: {
-    word: "Pending",
-    glyph: "○",
-    glyphInk: "text-ink-faint",
-    labelInk: "text-ink-muted",
-    wordInk: "text-ink-faint",
-  },
-  running: {
-    word: "Running",
-    glyph: "●",
-    // animate-pulse is honoured by the reduced-motion block in globals.css,
-    // which flattens every animation to 0.01ms app-wide.
-    glyphInk: "text-accent animate-pulse",
-    labelInk: "text-ink font-semibold",
-    wordInk: "text-accent",
-  },
-  done: {
-    word: "Done",
-    glyph: "✓",
-    glyphInk: "text-accent",
-    labelInk: "text-ink",
-    wordInk: "text-ink-muted",
-  },
-  skipped: {
-    word: "Skipped",
-    glyph: "–",
-    // Greyed, per R3. Still full opacity on the row so the label stays legible:
-    // a skipped stage is information, not a disabled control.
-    glyphInk: "text-ink-faint",
-    labelInk: "text-ink-faint",
-    wordInk: "text-ink-faint",
-  },
-  failed: {
-    word: "Failed",
-    glyph: "✕",
-    glyphInk: "text-danger",
-    labelInk: "text-ink font-semibold",
-    wordInk: "text-danger",
-  },
+const STAGE_LABEL_INK: Record<StageState, string> = {
+  pending: "text-ink-muted",
+  running: "text-ink font-semibold",
+  done: "text-ink",
+  skipped: "text-ink-faint",
+  failed: "text-ink font-semibold",
 };
 
 /* ------------------------------------------------------------- pure bits */
@@ -465,17 +432,18 @@ export default function RunningScreen({
     // max-w-band / px-gutter are the same frame StepShell uses, so arriving
     // here from review does not shift the page sideways. R10: everything below
     // is a single column with min-w-0 children, so 360px needs no scrollbar.
-    <div className="mx-auto w-full max-w-band px-gutter pt-6 pb-16 lg:px-gutter-lg lg:pt-8">
+    <div className="mx-auto w-full max-w-band px-gutter pt-5 pb-12 lg:px-gutter-lg lg:pt-7">
       <div
         className="w-full max-w-step"
         aria-busy={!state.settled}
         data-run-status={state.status}
       >
-        <Eyebrow>Running analysis</Eyebrow>
-        <h1 className="mt-3 text-xl font-semibold tracking-tight lg:text-2xl">
-          {topic.name}
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+        <div className="flex flex-wrap items-center gap-2">
+          <JobBadge kind="run" state={state.status} />
+          <span className="type-caption1 text-ink-faint">Analysis run</span>
+        </div>
+        <h1 className="type-subtitle1 mt-2 text-ink lg:type-title3">{topic.name}</h1>
+        <p className="type-body1 mt-1 text-ink-muted">
           The service is computing the weighted overlay. Nothing is calculated in
           this browser; the list below is what the service reports it has done.
         </p>
@@ -489,76 +457,72 @@ export default function RunningScreen({
           aria-live="polite"
           aria-atomic="true"
           data-testid="run-announcement"
-          className="mt-4 min-h-5 text-sm leading-5 font-medium text-ink"
+          className="type-body1 mt-3 min-h-5 font-semibold text-ink"
         >
           {announcement}
         </p>
 
-        <div className="mt-5 flex flex-col gap-4">
+        <div className="mt-4 flex flex-col gap-4">
           <Panel title="Progress">
             <div className="flex items-center gap-4">
               {/*
                 R2. The number is `state.progress`, which `advance` has already
-                made monotonic; this element only renders it. aria-valuetext is
-                the percentage and nothing else - the stage belongs to the live
-                region, and duplicating it here would have a screen reader read
-                the stage twice.
+                made monotonic; this element only renders it. A Fluent
+                ProgressBar in brand, determinate because the step count is
+                known. aria-valuetext is the percentage and nothing else: the
+                stage belongs to the live region, and duplicating it here would
+                have a screen reader read the stage twice.
               */}
-              <div
-                role="progressbar"
+              <ProgressBar
+                value={percent}
+                max={100}
+                thickness="large"
                 aria-label="Analysis progress"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={percent}
                 aria-valuetext={`${percent}%`}
-                className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-sunken"
-              >
-                <div
-                  className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out"
-                  // A computed width, not a design value. Tokens govern colour
-                  // and spacing; this one number comes from the service.
-                  style={{ width: `${percent}%` }}
-                />
-              </div>
-              <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">
+                className="min-w-0 flex-1"
+              />
+              <span className="type-subtitle2 w-12 shrink-0 text-right text-ink tabular-nums">
                 {percent}%
               </span>
             </div>
-            <p className="mt-2.5 text-xs leading-relaxed text-ink-faint">
+            <p className="type-caption1 mt-2 text-ink-faint">
               {finished} of {rows.length} stages finished. Run{" "}
-              <code className="font-mono break-all">{runId}</code>.
+              <code className="font-mono break-all text-ink-muted">{runId}</code>.
             </p>
           </Panel>
 
-          <Panel title="Stages" pad="tight">
+          <Panel title="Stages" pad="none">
             {rows.length === 0 ? (
-              <p className="text-sm text-ink-muted">
+              <p className="type-body1 p-4 text-ink-muted">
                 The service accepted the run but named no stages for it.
               </p>
             ) : (
               <ol className="divide-y divide-edge">
-                {rows.map((stage) => {
-                  const look = STAGE_PRESENTATION[stage.state];
+                {rows.map((stage, index) => {
+                  const duration = durationLabel(stage);
                   return (
                     <li
                       key={stage.id}
                       data-stage={stage.id}
                       data-state={stage.state}
-                      // Three fixed tracks. The middle one is minmax(0,1fr) so
-                      // a long label wraps instead of widening the row past
-                      // 360px, and the outer two never change width, so the
+                      // A JobStatus row. Three fixed tracks: the step number,
+                      // the label (minmax(0,1fr), so a long one wraps rather
+                      // than widening the row past 360px), and the state with
+                      // its time. The outer two never change width, so the
                       // columns stay aligned as states change.
-                      className="grid grid-cols-[1.25rem_minmax(0,1fr)_4.5rem] items-start gap-x-3 py-2.5 first:pt-1 last:pb-1"
+                      className={`grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-x-3 px-4 py-2.5 ${
+                        stage.state === "running" ? "bg-accent-soft" : ""
+                      }`}
                     >
                       <span
                         aria-hidden="true"
-                        className={`text-center text-xs leading-5 ${look.glyphInk}`}
+                        className="type-caption1 pt-0.5 text-center font-mono text-ink-faint tabular-nums"
                       >
-                        {look.glyph}
+                        {index + 1}
                       </span>
 
                       <span className="min-w-0">
-                        <span className={`block text-sm leading-5 ${look.labelInk}`}>
+                        <span className={`type-body1 block ${STAGE_LABEL_INK[stage.state]}`}>
                           {stage.label}
                         </span>
                         {/*
@@ -570,22 +534,18 @@ export default function RunningScreen({
                           it to one line however long the service makes it.
                         */}
                         <span
-                          className="block h-4 truncate text-xs leading-4 text-ink-faint"
+                          className="type-caption1 block h-4 truncate text-ink-faint"
                           title={stage.detail ?? undefined}
                         >
                           {stage.detail ?? ""}
                         </span>
                       </span>
 
-                      <span className="text-right">
-                        <span
-                          className={`block text-xs leading-5 font-semibold ${look.wordInk}`}
-                        >
-                          {look.word}
-                        </span>
+                      <span className="flex flex-col items-end gap-0.5">
+                        <JobBadge kind="stage" state={stage.state} />
                         {/* Reserved for the same reason as the detail line. */}
-                        <span className="block h-4 text-xs leading-4 text-ink-faint tabular-nums">
-                          {durationLabel(stage)}
+                        <span className="type-caption1 block h-4 text-ink-faint tabular-nums">
+                          {duration}
                         </span>
                       </span>
                     </li>
@@ -595,94 +555,101 @@ export default function RunningScreen({
             )}
           </Panel>
 
-          {/* R4: the failing stage and its message, in place, with the way out. */}
+          {/*
+            R4: the failing stage and its message, in place, with the way out.
+            A region rather than a Fluent MessageBar, because a MessageBar is a
+            `group` and this needs to be a named landmark an analyst can jump
+            to; it wears the MessageBar's error skin so it reads as one.
+          */}
           {runFailed && (
             <section
               aria-labelledby="run-failed-heading"
               data-testid="run-failed"
-              className="rounded-lg border border-danger-border bg-danger-soft p-4 sm:p-5"
+              className="flex gap-3 rounded-fluent-large border border-danger/30 bg-danger-soft p-4"
             >
-              <h2
-                id="run-failed-heading"
-                className="text-sm font-semibold text-ink"
-              >
-                {failingLabel
-                  ? `The run failed at "${failingLabel}"`
-                  : "The run failed"}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed break-words text-ink-muted">
-                {state.error?.message ??
-                  "The service reported the run as failed without naming a stage."}
-              </p>
-              <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                The analysis service answered, so it is reachable. This is the run
-                itself, not the connection. Change the configuration on the review
-                step and start it again.
-              </p>
-              <Link
-                href={reviewHref}
-                className="mt-4 inline-flex rounded-lg border border-edge-strong bg-surface px-4 py-2 text-sm font-semibold text-ink-muted hover:bg-sunken hover:text-ink"
-              >
-                <span aria-hidden="true">&larr;</span>&nbsp;Back to review
-              </Link>
+              <ErrorCircle20Filled aria-hidden="true" className="mt-0.5 shrink-0 text-danger" />
+              <div className="min-w-0">
+                <h2 id="run-failed-heading" className="type-body1 font-semibold text-ink">
+                  {failingLabel
+                    ? `The run failed at "${failingLabel}"`
+                    : "The run failed"}
+                </h2>
+                {/* Never truncated: the design system's JobStatus rule. */}
+                <p className="type-body1 mt-1 break-words text-ink">
+                  {state.error?.message ??
+                    "The service reported the run as failed without naming a stage."}
+                </p>
+                <p className="type-caption1 mt-1 text-ink-muted">
+                  The analysis service answered, so it is reachable. This is the run
+                  itself, not the connection. Change the configuration on the review
+                  step and start it again.
+                </p>
+                <Link href={reviewHref} className={buttonClasses({ className: "mt-3" })}>
+                  <ArrowLeft20Regular aria-hidden="true" />
+                  Back to review
+                </Link>
+              </div>
             </section>
           )}
 
           {/*
-            R6: the other red. Warn tokens rather than danger tokens, because a
-            service that is not answering is not the same severity as work that
-            failed, and the two blocks can be on screen at once.
+            R6: not the same severity as work that failed, so the warning pair
+            rather than the danger pair, and the two blocks can be on screen at
+            once.
           */}
           {state.transportFailure && (
             <section
               aria-labelledby="transport-heading"
               data-testid="transport-failure"
-              className="rounded-lg border border-warn-border bg-warn-soft p-4 sm:p-5"
+              className="flex gap-3 rounded-fluent-large border border-warn/30 bg-warn-soft p-4"
             >
-              <h2 id="transport-heading" className="text-sm font-semibold text-ink">
-                {stopped
-                  ? "Lost contact with the analysis service"
-                  : "Waiting for the analysis service"}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed break-words text-ink-muted">
-                {failureMessage(state.transportFailure)}
-              </p>
-              <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                {stopped
-                  ? `${MAX_CONSECUTIVE_FAILURES} polls in a row went unanswered, so this screen stopped asking. The run has not failed: it is very likely still going, and its result is kept under this run id once the service answers again.`
-                  : `Attempt ${state.consecutiveFailures} of ${MAX_CONSECUTIVE_FAILURES}, waiting longer between each. This is the connection to the service, not the run: the run has not failed.`}
-              </p>
-              {stopped && (
-                // The single red control on this screen: the only button that
-                // can move a stuck flow forward.
-                <button
-                  type="button"
-                  onClick={retry}
-                  className="mt-4 rounded-lg bg-action px-5 py-2 text-sm font-semibold text-white shadow-card transition-colors hover:bg-action-hover"
-                >
-                  Try again
-                </button>
-              )}
+              <PlugDisconnected20Regular aria-hidden="true" className="mt-0.5 shrink-0 text-warn" />
+              <div className="min-w-0">
+                <h2 id="transport-heading" className="type-body1 font-semibold text-ink">
+                  {stopped
+                    ? "Lost contact with the analysis service"
+                    : "Waiting for the analysis service"}
+                </h2>
+                <p className="type-body1 mt-1 break-words text-ink">
+                  {failureMessage(state.transportFailure)}
+                </p>
+                <p className="type-caption1 mt-1 text-ink-muted">
+                  {stopped
+                    ? `${MAX_CONSECUTIVE_FAILURES} polls in a row went unanswered, so this screen stopped asking. The run has not failed: it is very likely still going, and its result is kept under this run id once the service answers again.`
+                    : `Attempt ${state.consecutiveFailures} of ${MAX_CONSECUTIVE_FAILURES}, waiting longer between each. This is the connection to the service, not the run: the run has not failed.`}
+                </p>
+                {stopped && (
+                  // The single primary control on this screen: the only
+                  // button that can move a stuck flow forward.
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={retry}
+                    icon={<ArrowClockwise20Regular />}
+                    className="mt-3"
+                  >
+                    Try again
+                  </Button>
+                )}
+              </div>
             </section>
           )}
         </div>
 
-        <footer className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <footer className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
           {/*
             Rendered whether or not the run failed. Leaving mid-run is a normal
             thing to want, and a screen whose only exit appears on failure
             traps anyone who simply changed their mind.
           */}
           {!runFailed && (
-            <Link
-              href={reviewHref}
-              className="text-sm font-semibold text-accent underline underline-offset-4 hover:text-accent-hover"
-            >
+            <Link href={reviewHref} className={buttonClasses({ appearance: "subtle" })}>
+              <ArrowLeft20Regular aria-hidden="true" />
               Back to review
             </Link>
           )}
           {paused && (
-            <p className="text-xs text-ink-faint">
+            <p className="type-caption1 text-ink-faint">
               Paused while this tab is in the background.
             </p>
           )}

@@ -1,20 +1,22 @@
 /**
- * `Tone` is which band a component is sitting on, not a user preference.
+ * `Tone` is which ground a component is sitting on, not a user preference.
  *
- * This app alternates dark-blue and white sections, so the same button can
- * appear on either ground within one scroll. A media query cannot know which,
- * and a CSS `currentColor` trick only solves text, not borders and fills. So
- * every component that can appear on both grounds takes an explicit `tone`.
+ * The old four-colour system alternated dark-blue and white sections, so the
+ * same button could appear on either ground within one scroll, and every
+ * component that could appear on both took an explicit `tone`.
  *
- * The payoff: a component's colours are a pure function of its props, which
- * means a test can assert them and a reviewer can read them.
+ * The Fluent redesign has one light theme and no dark band: the header, the
+ * footer and the hero are all light neutral chrome with dark ink. `dark` is
+ * kept as a value so existing call sites and the chart module still type-check,
+ * but every kit component now renders the same Fluent light skin for both.
+ * Nothing in the app passes `dark` any more.
  */
 export type Tone = "dark" | "light";
 
-/** The ground colour each tone sits on, for components that need to know. */
+/** The ground each tone sits on: Fluent's colorNeutralBackground1 for both. */
 export const toneGround: Readonly<Record<Tone, string>> = {
-  dark: "var(--color-navy-900)",
-  light: "var(--color-white)",
+  dark: "var(--color-surface)",
+  light: "var(--color-surface)",
 };
 
 /** Flip a tone, for a nested panel that inverts its parent band. */
