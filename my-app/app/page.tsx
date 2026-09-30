@@ -1,11 +1,10 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight16Regular, ArrowRight20Regular, ChevronRight16Regular } from "@/components/ui/icons";
 import { TOPICS } from "@/services/analysis/topics";
 import { MODELS } from "@/services/analysis/models";
 import { STEPS } from "@/services/analysis/steps";
-import { CoverStrip } from "@/components/shell/CoverStrip";
 import TopicIcon from "@/components/topic/TopicIcon";
-import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Notice } from "@/components/ui/Notice";
 import { buttonClasses } from "@/components/ui/button-classes";
 
@@ -16,10 +15,10 @@ import { buttonClasses } from "@/components/ui/button-classes";
  * as client JavaScript. The one Fluent component on it (the note at the end)
  * is its own small client island.
  *
- * Four sections: a hero on the panel tier under the design system's cover
- * strip, the four topics on the canvas, the flow on white, and the models
- * on the canvas. The alternation of the two neutral tiers is what gives a
- * long page its sections, with a colorNeutralStroke2 rule where they meet.
+ * Four sections: a hero over a full-bleed brand image, the four topics on the
+ * canvas, the flow on white, and the models on the canvas. The alternation of
+ * the two neutral tiers is what gives a long page its sections, with a
+ * colorNeutralStroke2 rule where they meet.
  *
  * The cards and the step list are driven entirely by the registries, so adding
  * a topic to services/analysis/topics.ts or a step to services/analysis/steps.ts
@@ -33,28 +32,53 @@ export default function Home() {
 
   return (
     <>
-      <section className="border-b border-edge bg-surface">
-        <div className={FRAME}>
-          <CoverStrip />
-        </div>
+      {/*
+        The one photographic surface in the app. Everywhere else is data
+        before decoration; the homepage hero is the one place that is about
+        the brand rather than about a dataset, the same exception the design
+        system's cover motif was carved out for (this replaces CoverStrip,
+        which is now unused and deleted). A dark scrim (ink at falling
+        opacity, left to right) sits between the image and the text so the
+        white type holds AA regardless of which part of the image lands
+        behind it — the image is vivid and uncontrolled, the scrim is not.
+      */}
+      <section className="relative overflow-hidden border-b border-edge">
+        <Image
+          src="/hero-fluent-abstract.webp"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-linear-to-r from-ink/90 via-ink/65 to-ink/25"
+        />
 
         <div
-          className={`${FRAME} grid items-start gap-8 pt-8 pb-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 lg:pt-12 lg:pb-14`}
+          className={`${FRAME} relative grid items-start gap-8 pt-14 pb-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 lg:pt-24 lg:pb-24`}
         >
           <div className="max-w-3xl">
-            <Eyebrow marked>Kenya Space Agency &middot; Earth observation</Eyebrow>
+            <p className="type-caption1 flex items-center gap-2 font-semibold text-white/85">
+              <span
+                aria-hidden="true"
+                className="inline-block h-3 w-[3px] shrink-0 rounded-full bg-accent"
+              />
+              Kenya Space Agency &middot; Earth observation
+            </p>
             {/*
               The h1 names the app, not a tagline. Someone jumping straight to
               the first heading with a screen reader should hear what this is,
               and the value statement reads perfectly well as the lead below it.
             */}
-            <h1 className="type-title1 mt-4 text-ink sm:type-large-title">
+            <h1 className="type-title1 mt-4 text-white sm:type-large-title">
               Rangeland Awareness
             </h1>
-            <p className="type-subtitle1 mt-4 max-w-2xl font-normal text-ink">
+            <p className="type-subtitle1 mt-4 max-w-2xl font-normal text-white">
               Turn satellite and climate data into rangeland decisions.
             </p>
-            <p className="type-body2 mt-3 max-w-2xl text-ink-muted">
+            <p className="type-body2 mt-3 max-w-2xl text-white/85">
               Run analysis over Kenya&apos;s rangelands in four steps, one screen
               each: choose the scope, pick the model, select the areas, then
               review and run a request you can trace back to its inputs.
@@ -76,11 +100,16 @@ export default function Home() {
 
           {/*
             A working entry point in the fold, rather than leaving half the
-            hero empty and making the reader scroll to find the topics. These
-            are the same four links as the cards below, compact: a Fluent list
-            of navigation rows in a card.
+            hero to the image and making the reader scroll to find the topics.
+            These are the same four links as the cards below, compact: a
+            Fluent list of navigation rows in a card, floating on the image
+            with shadow16 so it reads as raised above it rather than painted
+            on it.
           */}
-          <nav aria-label="Start an analysis" className="card p-2 lg:sticky lg:top-16">
+          <nav
+            aria-label="Start an analysis"
+            className="card shadow-16 p-2 lg:sticky lg:top-16"
+          >
             <p className="eyebrow px-3 pt-2 pb-2">Start an analysis</p>
             <ul>
               {TOPICS.map((topic) => (
