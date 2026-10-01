@@ -7,7 +7,7 @@ import { buttonClasses } from "@/components/ui/button-classes";
 export const metadata: Metadata = {
   title: "Account",
   description:
-    "Manage your Rangeland Awareness account, saved runs, and preferences.",
+    "Manage your Disaster Monitor account, saved runs, and preferences.",
 };
 
 const BENEFITS = [

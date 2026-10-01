@@ -5,7 +5,7 @@ import { ExploreView } from "@/components/explore/ExploreView";
 export const metadata: Metadata = {
   title: "Explore data",
   description:
-    "Browse the satellite layers behind Rangeland Awareness on a map, independent of any analysis run.",
+    "Browse the satellite layers behind Disaster Monitor on a map, independent of any analysis run.",
 };
 
 export default function DataPage() {

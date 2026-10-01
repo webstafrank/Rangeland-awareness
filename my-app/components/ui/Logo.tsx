@@ -9,6 +9,8 @@ interface LogoProps {
   /** The mark's height in px. Its width follows the artwork's 207:165 ratio. */
   size?: number;
   className?: string;
+  /** Classes for the wordmark alone, e.g. to hide it below a breakpoint. */
+  wordmarkClassName?: string;
 }
 
 const RATIO = 207 / 165;
@@ -22,11 +24,16 @@ const RATIO = 207 / 165;
  * stretches.
  *
  * With the wordmark beside it the image is decorative (alt=""): the text names
- * the link, and a screen reader hearing "Kenya Space Agency logo, Rangeland
- * Awareness, Kenya Space Agency" is hearing one name three times. Mark only,
+ * the link, and a screen reader hearing "Kenya Space Agency logo, Disaster
+ * Monitor, Kenya Space Agency" is hearing one name three times. Mark only,
  * the image carries the name itself.
  */
-export function Logo({ markOnly = false, size = 32, className = "" }: LogoProps) {
+export function Logo({
+  markOnly = false,
+  size = 32,
+  className = "",
+  wordmarkClassName = "flex",
+}: LogoProps) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <Image
@@ -38,9 +45,9 @@ export function Logo({ markOnly = false, size = 32, className = "" }: LogoProps)
         className="shrink-0"
       />
       {markOnly ? null : (
-        <span className="flex min-w-0 flex-col">
+        <span className={`min-w-0 flex-col ${wordmarkClassName}`}>
           <span className="type-body1 font-semibold whitespace-nowrap text-ink">
-            Rangeland Awareness
+            Disaster Monitor
           </span>
           <span className="type-caption1 whitespace-nowrap text-ink-faint">
             Kenya Space Agency

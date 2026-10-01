@@ -8,7 +8,7 @@ import { buttonClasses } from "@/components/ui/button-classes";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "About Rangeland Awareness: Earth observation analysis for Kenya's rangelands.",
+    "About Disaster Monitor: Earth observation analysis for Kenya's rangelands.",
 };
 
 const AUDIENCES = [
@@ -64,7 +64,7 @@ export default function AboutPage() {
     <>
       <PageHero
         eyebrow="About the platform"
-        title="Rangeland Awareness"
+        title="Disaster Monitor"
         lead="Earth observation decision support for Kenya's rangelands."
       />
 
@@ -74,7 +74,7 @@ export default function AboutPage() {
         intro={
           <>
             <p>
-              Rangeland Awareness connects Kenya&apos;s rangeland managers with analysis built
+              Disaster Monitor connects Kenya&apos;s rangeland managers with analysis built
               on satellite imagery and climate data. The platform makes earth observation
               accessible to the people who manage Kenya&apos;s vast rangelands, from Marsabit
               to the coast.

@@ -41,8 +41,15 @@ export default function Home() {
         opacity, left to right) sits between the image and the text so the
         white type holds AA regardless of which part of the image lands
         behind it — the image is vivid and uncontrolled, the scrim is not.
+
+        It fills the screen below the header (48px, h-12, plus its 1px border)
+        and centres its
+        content in that height. svh rather than vh, so a mobile browser's
+        collapsing address bar does not leave the fold under the toolbar. On
+        a phone the stacked content is already taller than the screen, so
+        the minimum is moot there and the section grows to fit as before.
       */}
-      <section className="relative overflow-hidden border-b border-edge">
+      <section className="relative flex min-h-[calc(100svh-3rem-1px)] flex-col justify-center overflow-hidden border-b border-edge">
         <Image
           src="/hero-fluent-abstract.webp"
           alt=""
@@ -73,7 +80,7 @@ export default function Home() {
               and the value statement reads perfectly well as the lead below it.
             */}
             <h1 className="type-title1 mt-4 text-white sm:type-large-title">
-              Rangeland Awareness
+              Disaster Monitor
             </h1>
             <p className="type-subtitle1 mt-4 max-w-2xl font-normal text-white">
               Turn satellite and climate data into rangeland decisions.

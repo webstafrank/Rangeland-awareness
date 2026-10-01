@@ -7,7 +7,7 @@ import { SignUpForm } from "./SignUpForm";
 
 export const metadata: Metadata = {
   title: "Create an account",
-  description: "Create a Rangeland Awareness account to save and revisit your analysis runs.",
+  description: "Create a Disaster Monitor account to save and revisit your analysis runs.",
 };
 
 export default function SignUpPage() {

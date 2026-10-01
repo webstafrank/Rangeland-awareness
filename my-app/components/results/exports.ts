@@ -160,7 +160,7 @@ export function resultJson(result: RunResult): string {
         "Omitted. The service reports the index and class rasters as paths on " +
         "its own filesystem, which are not meaningful outside it.",
       contract: "contracts/backend-api.md v1, GET /api/v1/runs/{id}/result",
-      exportedFrom: "Rangeland awareness, results screen",
+      exportedFrom: "Disaster Monitor, results screen",
       ...rest,
     },
     null,

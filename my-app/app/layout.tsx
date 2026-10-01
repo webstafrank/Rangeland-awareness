@@ -4,6 +4,7 @@ import Link from "next/link";
 import { token } from "@/lib/theme/palette";
 import { FluentRoot } from "@/components/shell/FluentRoot";
 import { Logo } from "@/components/ui/Logo";
+import { PrimaryNav } from "@/components/shell/PrimaryNav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,13 +21,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Rangeland Awareness",
-    template: "%s | Rangeland Awareness",
+    default: "Disaster Monitor",
+    template: "%s | Disaster Monitor",
   },
   description:
     "Earth observation analysis for flood risk, drought, rangeland condition " +
     "and food security across Kenya's rangelands.",
-  applicationName: "Rangeland Awareness",
+  applicationName: "Disaster Monitor",
 };
 
 /*
@@ -97,8 +98,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           */}
           <header className="band-chrome sticky top-0 z-header border-b border-edge">
             <div className="mx-auto flex h-12 w-full max-w-band items-center gap-3 px-gutter lg:px-gutter-lg">
-              <Link href="/" className="flex min-w-0 items-center rounded-fluent-medium">
-                <Logo size={30} />
+              {/*
+                The wordmark needs ~180px, and at 360px the three nav links
+                need the rest, so below sm the mark stands alone and the link
+                is named by its aria-label instead of by the hidden text. One
+                Logo either way, so the mark is preloaded once.
+              */}
+              <Link
+                href="/"
+                aria-label="Disaster Monitor home"
+                className="flex min-w-0 items-center rounded-fluent-medium"
+              >
+                <Logo size={30} wordmarkClassName="hidden sm:flex" />
               </Link>
 
               <span aria-hidden="true" className="hidden h-6 w-px bg-edge-strong md:block" />
@@ -106,26 +117,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 Earth observation decision support
               </span>
 
-              <nav aria-label="Primary" className="ml-auto flex items-center gap-1">
-                <Link
-                  href="/"
-                  className="type-body1 hidden rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink sm:block"
-                >
-                  Topics
-                </Link>
-                <Link
-                  href="/data"
-                  className="type-body1 hidden rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink sm:block"
-                >
-                  Explore data
-                </Link>
-                <Link
-                  href="/help"
-                  className="type-body1 rounded-fluent-medium px-2.5 py-1.5 text-ink-muted hover:bg-page hover:text-ink"
-                >
-                  Help
-                </Link>
-              </nav>
+              <PrimaryNav />
             </div>
           </header>
 

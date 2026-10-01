@@ -24,7 +24,7 @@ export function SiteHeader({ session, compact = false }: SiteHeaderProps) {
   return (
     <header className="band-chrome border-b border-edge">
       <div className="mx-auto flex h-12 w-full max-w-band items-center justify-between gap-4 px-gutter lg:px-gutter-lg">
-        <Link href="/" className="rounded-fluent-medium" aria-label="Rangeland Awareness home">
+        <Link href="/" className="rounded-fluent-medium" aria-label="Disaster Monitor home">
           <Logo markOnly={compact} size={30} />
         </Link>
 
