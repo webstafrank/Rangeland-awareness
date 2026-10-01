@@ -20,6 +20,9 @@ import { buttonClasses } from "@/components/ui/button-classes";
  * the two neutral tiers is what gives a long page its sections, with a
  * colorNeutralStroke2 rule where they meet.
  *
+ * The three sections below the hero carry `reveal`, a scroll-driven fade-up
+ * defined in globals.css. It is CSS only, so the page stays a server component.
+ *
  * The cards and the step list are driven entirely by the registries, so adding
  * a topic to services/analysis/topics.ts or a step to services/analysis/steps.ts
  * changes this page with no edit to it.
@@ -92,16 +95,21 @@ export default function Home() {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
+              {/*
+                Run Analysis opens the first topic's flow, the same route as
+                the quick-start card's first row. Explore Terrain goes to the
+                data explorer, the header's Explore destination.
+              */}
               <Link
                 href={`/topics/${first.slug}`}
                 className={buttonClasses({ appearance: "primary", size: "lg" })}
               >
-                Start with {first.name.toLowerCase()}
+                Run Analysis
                 <ArrowRight20Regular aria-hidden="true" />
               </Link>
-              <a href="#topics" className={buttonClasses({ size: "lg" })}>
-                See all {TOPICS.length} topics
-              </a>
+              <Link href="/data" className={buttonClasses({ size: "lg" })}>
+                Explore Terrain
+              </Link>
             </div>
           </div>
 
@@ -143,7 +151,7 @@ export default function Home() {
 
       {/* The four topics. The main event, so it gets the widest grid and the
           largest cards. */}
-      <section id="topics" className={`${FRAME} scroll-mt-16 py-10 lg:py-14`}>
+      <section id="topics" className={`${FRAME} reveal scroll-mt-16 py-10 lg:py-14`}>
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
           <h2 className="type-title3 text-ink">Choose a topic</h2>
           <p className="type-body1 text-ink-faint">
@@ -206,7 +214,7 @@ export default function Home() {
       {/* How a request is built. The same four steps the wizard walks, read
           from the same registry, so this can never describe a flow the app
           does not have. */}
-      <section className="border-y border-edge bg-surface">
+      <section className="reveal border-y border-edge bg-surface">
         <div className={`${FRAME} py-10 lg:py-14`}>
           <h2 className="type-title3 text-ink">Four steps, one screen each</h2>
           <p className="type-body1 mt-2 max-w-2xl text-ink-muted">
@@ -241,7 +249,7 @@ export default function Home() {
 
       {/* The models, with their trade-offs. Read once, on the way in, so the
           choice on step two is not a guess. */}
-      <section className={`${FRAME} py-10 lg:py-14`}>
+      <section className={`${FRAME} reveal py-10 lg:py-14`}>
         <h2 className="type-title3 text-ink">The models</h2>
         <p className="type-body1 mt-2 max-w-2xl text-ink-muted">
           The same three are available for every topic. Pick on the trade-off,

@@ -484,6 +484,77 @@ body {
   border-radius: 3px;
 }
 
+/* ------------------------------------------------------------------ Motion */
+/*
+ * Three pieces, all CSS, all off for a user who asked for less motion. Each
+ * sits in a no-preference query rather than relying on the reduce block below,
+ * because that block shortens durations and a scroll-driven animation has no
+ * duration to shorten: it would still run, tied to the scrollbar.
+ *
+ * 1. Smooth in-page anchors. The <html> element already carries
+ *    data-scroll-behavior="smooth" (app/layout.tsx), which tells Next to turn
+ *    this off for the jump to the top on a route change. Without this rule
+ *    that attribute had nothing to switch.
+ *
+ * 2. page-enter: the route fade, on the wrapper in app/template.tsx. Opacity
+ *    only, no transform. A transform on an ancestor makes it the containing
+ *    block for every position: fixed and sticky descendant, so the hero's
+ *    sticky card and the map controls would jump for the length of the fade.
+ *    `backwards` fill, not `both`: once it ends the wrapper carries no opacity
+ *    at all, so it creates no stacking context to trap a z-index below it.
+ *
+ * 3. reveal: a fade-up as a section scrolls into view, driven by the scroll
+ *    position (animation-timeline: view()), so it runs both ways and needs no
+ *    observer script. The range ends at 40% of entry, which every section on
+ *    the homepage reaches before the page runs out of scroll, so none can be
+ *    left half-faded at the bottom. Browsers without scroll timelines skip the
+ *    @supports block and show the sections as they always were. `backwards`
+ *    again: a `both` fill holds transform at an identity matrix after the
+ *    range, which is not `none`, and turns every revealed section into a
+ *    containing block for good (evals/journey.spec.ts M2 caught it).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  .page-enter {
+    animation: page-enter 240ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
+  }
+
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal linear backwards;
+      /* The shorthand resets duration to 0s; auto is what a scroll timeline
+         wants, and it is not left to each engine's reading of the reset. */
+      animation-duration: auto;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+
+    /* The fade follows scroll position, not "has been seen", so a card that
+       keyboard focus or find-in-page scrolls just barely into view would
+       otherwise sit there faded and 24px low, its focus ring past the fold.
+       Whatever holds focus is shown at full strength, now. */
+    .reveal:focus-within {
+      animation: none;
+    }
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
 /* Respect a user who has asked for less motion. A map pans and zooms a lot. */
 @media (prefers-reduced-motion: reduce) {
   *,

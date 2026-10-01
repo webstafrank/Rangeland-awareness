@@ -267,7 +267,9 @@ test.describe("homepage", () => {
 
   test("the hero fills the screen below the header", async ({ page }, testInfo) => {
     await page.goto("/");
-    const hero = await page.locator("main > section").first().boundingBox();
+    // Descendant, not child: app/template.tsx wraps every page in the route
+    // fade's div, so the hero sits one level below <main>.
+    const hero = await page.locator("main section").first().boundingBox();
     const viewport = page.viewportSize();
     expect(hero && viewport).toBeTruthy();
     if (testInfo.project.name === "desktop") {
@@ -327,6 +329,162 @@ test.describe("homepage", () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test("H6: the hero's two calls to action are Run Analysis and Explore Terrain", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await page.goto("/");
+    const hero = page.locator("main section").first();
+
+    const run = hero.getByRole("link", { name: "Run Analysis", exact: true });
+    const explore = hero.getByRole("link", { name: "Explore Terrain", exact: true });
+    await expect(run).toBeVisible();
+    await expect(run).toHaveAttribute("href", `/topics/${TOPICS[0].slug}`);
+    await expect(explore).toBeVisible();
+    await expect(explore).toHaveAttribute("href", "/data");
+
+    await explore.click();
+    await expect(page).toHaveURL(/\/data$/);
+    expect(problems).toEqual([]);
+  });
+});
+
+/* -------------------------------------------------------------------- motion */
+
+/** Records every CSS animation that starts, by name, from here on. */
+async function recordAnimations(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __anims: string[] };
+    w.__anims = [];
+    document.addEventListener("animationstart", (e) => w.__anims.push(e.animationName));
+  });
+}
+const startedAnimations = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __anims: string[] }).__anims);
+
+/** Computed opacity and animation of every `.reveal` section on the page. */
+const revealState = (page: Page) =>
+  page.$$eval(".reveal", (els) =>
+    els.map((el) => {
+      const s = getComputedStyle(el);
+      return { opacity: Number(s.opacity), transform: s.transform, animation: s.animationName };
+    }),
+  );
+
+test.describe("motion", () => {
+  test("M1: a client-side route change fades the new page in, and leaves nothing behind", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await page.goto("/");
+    await recordAnimations(page);
+
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Reports" }).click();
+    await expect(page).toHaveURL(/\/reports$/);
+    await expect.poll(() => startedAnimations(page)).toContain("page-enter");
+
+    // Once it ends the wrapper is fully opaque and carries no animated
+    // opacity, so it cannot trap the header or a map control under it.
+    const wrapper = page.getByTestId("page-enter");
+    await expect(wrapper).toHaveCount(1);
+    await expect
+      .poll(() => wrapper.evaluate((el) => el.getAnimations().length))
+      .toBe(0);
+    await expect(wrapper).toHaveCSS("opacity", "1");
+    expect(problems).toEqual([]);
+  });
+
+  test("M1b: moving between one topic's steps does not replay the fade", async ({ page }) => {
+    // The root template re-mounts only when the first URL segment changes, so
+    // the step rail and the map stay put inside a topic. Pushed through the
+    // router directly, so this needs no selection to unlock a step.
+    const push = (href: string) =>
+      page.evaluate(
+        (h) =>
+          (window as unknown as { next: { router: { push: (x: string) => void } } }).next.router.push(h),
+        href,
+      );
+    await page.goto(`/topics/${TOPICS[0].slug}`);
+    await recordAnimations(page);
+
+    await push(`/topics/${TOPICS[0].slug}/model`);
+    await expect(page).toHaveURL(/\/model$/);
+    await page.waitForTimeout(500);
+    expect(await startedAnimations(page)).not.toContain("page-enter");
+
+    // And the control: leaving the topic does fade.
+    await push("/reports");
+    await expect(page).toHaveURL(/\/reports$/);
+    await expect.poll(() => startedAnimations(page)).toContain("page-enter");
+  });
+
+  test("M2: homepage sections fade up as they scroll in, and all finish visible", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const initial = await revealState(page);
+    expect(initial).toHaveLength(3);
+    expect(initial.every((s) => s.animation === "reveal")).toBe(true);
+
+    // Put the top of the first section 20px above the fold, independent of
+    // how tall the hero happens to be: it has started to enter, not finished.
+    await page.evaluate(() => {
+      const top = document.querySelector(".reveal")!.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: top - window.innerHeight + 20, behavior: "instant" });
+    });
+    await expect
+      .poll(async () => (await revealState(page))[0].opacity)
+      .toBeGreaterThan(0);
+    expect((await revealState(page))[0].opacity).toBeLessThan(1);
+
+    // The bottom of the page is the hardest case: the last section must have
+    // reached the end of its range before the scroll runs out.
+    await page.evaluate(() =>
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }),
+    );
+    await expect
+      .poll(async () => (await revealState(page)).map((s) => [s.opacity, s.transform]))
+      .toEqual([
+        [1, "none"],
+        [1, "none"],
+        [1, "none"],
+      ]);
+  });
+
+  test("M4: a focused card is shown at full strength, however little of it has scrolled in", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    // Same edge position as M2: the section has only just started to enter.
+    await page.evaluate(() => {
+      const top = document.querySelector(".reveal")!.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: top - window.innerHeight + 20, behavior: "instant" });
+    });
+    // preventScroll, so the test holds the worst case rather than letting the
+    // browser scroll the card further in for us.
+    await topicCard(page, TOPICS[0].name).evaluate((el) =>
+      (el as HTMLElement).focus({ preventScroll: true }),
+    );
+    await expect
+      .poll(async () => (await revealState(page))[0])
+      .toEqual({ opacity: 1, transform: "none", animation: "none" });
+  });
+
+  test("M3: reduced motion turns off the fade, the reveal and smooth scrolling", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+
+    expect(await revealState(page)).toEqual([
+      { opacity: 1, transform: "none", animation: "none" },
+      { opacity: 1, transform: "none", animation: "none" },
+      { opacity: 1, transform: "none", animation: "none" },
+    ]);
+    await expect(page.getByTestId("page-enter")).toHaveCSS("animation-name", "none");
+    await expect(page.locator("html")).toHaveCSS("scroll-behavior", "auto");
   });
 });
 
@@ -1442,7 +1600,9 @@ test.describe("fits the screen", () => {
     // And it is sticky: scrolling the tool column past it leaves the map
     // fully on screen, so a selection can never move a viewport the analyst
     // cannot see. That was the whole reason the tools moved beside it.
-    await page.evaluate(() => window.scrollTo(0, 500));
+    // Instant: <html> scrolls smoothly, and a smooth 500px scroll can still
+    // be moving when the 300ms settle below runs out.
+    await page.evaluate(() => window.scrollTo({ top: 500, behavior: "instant" }));
     await page.waitForTimeout(300);
 
     const box = await page.getByTestId("aoi-map").boundingBox();
