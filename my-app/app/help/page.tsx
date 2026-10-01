@@ -4,7 +4,7 @@ import { PageHero, PageSection } from "@/components/shell/Page";
 export const metadata: Metadata = {
   title: "Help",
   description:
-    "How to use Rangeland Awareness: guides for running analysis, selecting areas, and interpreting results.",
+    "How to use Disaster Monitor: guides for running analysis, selecting areas, and interpreting results.",
 };
 
 const QUICK_START = [
@@ -97,7 +97,7 @@ export default function HelpPage() {
     <>
       <PageHero
         eyebrow="Help and documentation"
-        title="Using Rangeland Awareness"
+        title="Using Disaster Monitor"
         lead="Guides for running analysis, selecting areas, and interpreting results."
       />
 

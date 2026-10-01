@@ -207,7 +207,7 @@ test.describe("homepage", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      /rangeland awareness/i,
+      /disaster monitor/i,
     );
 
     for (const topic of TOPICS) {
@@ -225,6 +225,61 @@ test.describe("homepage", () => {
     }
 
     expect(problems).toEqual([]);
+  });
+
+  test("primary nav: Explore, Analysis and Reports, the current one marked", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    const expected = [
+      ["Explore", "/data"],
+      ["Analysis", "/#topics"],
+      ["Reports", "/reports"],
+    ] as const;
+
+    await page.goto("/");
+    // In this order, and nothing else: the header is these three.
+    await expect(nav.getByRole("link")).toHaveText(expected.map(([label]) => label));
+    for (const [label, href] of expected) {
+      // Visible at 360px too: the wordmark gives way, the links do not.
+      await expect(nav.getByRole("link", { name: label })).toBeVisible();
+      await expect(nav.getByRole("link", { name: label })).toHaveAttribute("href", href);
+    }
+
+    await nav.getByRole("link", { name: "Reports" }).click();
+    await expect(page).toHaveURL(/\/reports$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Reports");
+    await expect(nav.getByRole("link", { name: "Reports" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(nav.locator("[aria-current]")).toHaveCount(1);
+
+    await page.goto(`/topics/${TOPICS[0].slug}`);
+    await expect(nav.getByRole("link", { name: "Analysis" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    expect(problems).toEqual([]);
+  });
+
+  test("the hero fills the screen below the header", async ({ page }, testInfo) => {
+    await page.goto("/");
+    const hero = await page.locator("main > section").first().boundingBox();
+    const viewport = page.viewportSize();
+    expect(hero && viewport).toBeTruthy();
+    if (testInfo.project.name === "desktop") {
+      // Content is shorter than the screen here, so the minimum is what sets
+      // the height: it must end exactly at the fold, neither short of it nor
+      // a pixel past it (the header's 1px border is the easy one to miss).
+      expect(Math.abs(hero!.y + hero!.height - viewport!.height)).toBeLessThanOrEqual(0.5);
+    } else {
+      // A phone stacks the quick-start card under the copy, which is taller
+      // than the screen, so the hero grows to fit and still reaches the fold.
+      expect(hero!.y + hero!.height).toBeGreaterThanOrEqual(viewport!.height);
+    }
   });
 
   test("H2: the homepage describes the same four steps the app walks", async ({

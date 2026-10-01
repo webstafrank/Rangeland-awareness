@@ -1,4 +1,4 @@
-# Rangeland Awareness
+# Disaster Monitor
 
 Earth observation analysis for Kenya's rangelands. An analyst picks a topic,
 then walks four steps, one screen each: the scope, the model, the areas, and a
@@ -132,6 +132,8 @@ app/                      routes only, no business logic
     results/page.tsx      the result, or the request receipt for a topic with
                           no method behind it
   api/health/route.ts     liveness, plus whether the backend answers
+  data/page.tsx           Explore: the layer explorer, no run needed
+  reports/page.tsx        Reports: announced, not built. Says what exists today
   not-found.tsx           the 404, same design language as the homepage
   layout.tsx              shell, header, footer, skip link
   globals.css             the whole design system, as one Tailwind @theme block

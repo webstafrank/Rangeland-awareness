@@ -6,7 +6,7 @@ import { buttonClasses } from "@/components/ui/button-classes";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Get in touch with the Rangeland Awareness team at the Kenya Space Agency.",
+    "Get in touch with the Disaster Monitor team at the Kenya Space Agency.",
 };
 
 const CHANNELS = [
@@ -50,7 +50,7 @@ export default function ContactPage() {
       <PageSection
         eyebrow="Contact information"
         title="Reach the team"
-        intro="The Rangeland Awareness team is based at the Kenya Space Agency. We respond to enquiries within two working days."
+        intro="The Disaster Monitor team is based at the Kenya Space Agency. We respond to enquiries within two working days."
       >
         <InfoGrid items={CHANNELS} columns={2} />
       </PageSection>
@@ -59,7 +59,7 @@ export default function ContactPage() {
         tier="panel"
         eyebrow="Location"
         title="Kenya Space Agency"
-        intro="The Kenya Space Agency is the national space agency responsible for coordinating and promoting Kenya's space activities. Rangeland Awareness is one of its earth observation initiatives."
+        intro="The Kenya Space Agency is the national space agency responsible for coordinating and promoting Kenya's space activities. Disaster Monitor is one of its earth observation initiatives."
       >
         <dl className="card divide-y divide-edge">
           {LOCATION.map(([term, value]) => (
