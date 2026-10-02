@@ -22,7 +22,7 @@
  */
 
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { Route } from "next";
 
 import type { RunResult } from "@/services/backend-api";
@@ -131,6 +131,18 @@ function classTableEl(): HTMLElement {
   return screen.getByRole("table", { name: /class table/i });
 }
 
+/*
+ * The first render in this file's VM context pays a one-off ~0.7s (Fluent and
+ * Griffel setting up their style machinery), measured as 935ms for the first
+ * class-table test against ~265ms for its near-identical neighbours. Billed
+ * to whichever test ran first, that pushed it past the 2s gate budget when
+ * the full suite ran in parallel. Paid here instead, under the hook timeout,
+ * so the budget measures the test again.
+ */
+beforeAll(() => {
+  renderView().unmount();
+});
+
 /* -------------------------------------------------------------- S2 classes */
 
 describe("ResultView, the class table", () => {
@@ -153,17 +165,18 @@ describe("ResultView, the class table", () => {
       { label: "Very high", pixels: "185,506", area: "167.0", share: "14.0%" },
     ];
 
+    // By position, with the rowheader checked, rather than five by-name row
+    // queries: each of those computes the accessible name of every row, and
+    // together they were most of this test's time and put it over the 2s gate
+    // budget under a parallel run. Same claim: this label, in this order.
     expected.forEach((want, index) => {
-      const row = within(classTableEl()).getByRole("row", {
-        name: new RegExp(`^${want.label}\\b`),
-      });
+      const row = rows[index + 1];
       const cells = within(row).getAllByRole("cell");
       // rowheader is the label; the four cells are range, pixels, area, share.
-      expect(within(row).getByRole("rowheader")).toHaveTextContent(want.label);
+      expect(within(row).getByRole("rowheader")).toHaveTextContent(new RegExp(`^${want.label}\\b`));
       expect(cells[1]).toHaveTextContent(want.pixels);
       expect(cells[2]).toHaveTextContent(want.area);
       expect(cells[3]).toHaveTextContent(want.share);
-      expect(rows[index + 1]).toBe(row);
     });
   });
 

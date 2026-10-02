@@ -341,7 +341,7 @@ test.describe("homepage", () => {
     const run = hero.getByRole("link", { name: "Run Analysis", exact: true });
     const explore = hero.getByRole("link", { name: "Explore Terrain", exact: true });
     await expect(run).toBeVisible();
-    await expect(run).toHaveAttribute("href", `/topics/${TOPICS[0].slug}`);
+    await expect(run).toHaveAttribute("href", "/#topics");
     await expect(explore).toBeVisible();
     await expect(explore).toHaveAttribute("href", "/data");
 
@@ -486,7 +486,168 @@ test.describe("motion", () => {
     await expect(page.getByTestId("page-enter")).toHaveCSS("animation-name", "none");
     await expect(page.locator("html")).toHaveCSS("scroll-behavior", "auto");
   });
+
+  test("M5: Run Analysis glides to the four topics and staggers the cards in", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await page.goto("/");
+    await recordAnimations(page);
+    await recordScroll(page);
+
+    await runAnalysis(page).click();
+    await expect(page).toHaveURL(/\/#topics$/);
+    await expectTopicsLanded(page);
+
+    // Smooth, not a jump: the scroll passed through positions between the
+    // hero and the topics on the way down.
+    const ys = await scrollSamples(page);
+    const end = ys[ys.length - 1];
+    expect(ys.filter((y) => y > 0 && y < end).length).toBeGreaterThanOrEqual(3);
+
+    // One entrance per card, from the registry. The section's own reveal does
+    // not also play: it was already done or is swapped out, never stacked.
+    await expect.poll(() => arrivals(page)).toBe(TOPICS.length);
+    await expectCardsSettled(page);
+
+    // Focus went to the section heading, so a screen reader hears where the
+    // click went, and the next Tab is the first card.
+    await expect(topicsHeading(page)).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(topicCard(page, TOPICS[0].name)).toBeFocused();
+
+    // Scrolled back up by hand, the hash is still #topics, so Next sees the
+    // same URL and does not scroll. A second click must still get there and
+    // replay the entrance (it did neither before TopicsArrival handled it).
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await runAnalysis(page).click();
+    await expect.poll(() => arrivals(page)).toBe(TOPICS.length * 2);
+    await expectTopicsLanded(page);
+    await expectCardsSettled(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("M5c: Back from a topic reached through Run Analysis shows the homepage again", async ({
+    page,
+  }) => {
+    // The regression a plain <a href="#topics"> introduced: its history entry
+    // has no Next state, Next ignores the popstate, and the topic page stayed
+    // on screen under the /#topics URL.
+    const problems = watchConsole(page);
+    await page.goto("/");
+    await runAnalysis(page).click();
+    await expect(page).toHaveURL(/\/#topics$/);
+    await expectTopicsLanded(page);
+
+    await topicCard(page, TOPICS[0].name).click();
+    await expect(page).toHaveURL(new RegExp(`/topics/${TOPICS[0].slug}$`));
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/#topics$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Disaster Monitor");
+    await expect(topicsHeading(page)).toBeVisible();
+    await expectCardsSettled(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("M5d: the header's Analysis link from another page plays the same entrance", async ({
+    page,
+  }) => {
+    await page.goto("/data");
+    // Survives the client-side route change: the document is the same one.
+    await recordAnimations(page);
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Analysis" }).click();
+    await expect(page).toHaveURL(/\/#topics$/);
+    await expectTopicsLanded(page);
+    await expect.poll(() => arrivals(page)).toBe(TOPICS.length);
+    await expect(topicsHeading(page)).toBeFocused();
+    await expectCardsSettled(page);
+  });
+
+  test("M5b: under reduced motion Run Analysis jumps to the topics with no entrance", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await recordAnimations(page);
+    await recordScroll(page);
+
+    await runAnalysis(page).click();
+    await expect(page).toHaveURL(/\/#topics$/);
+    await expectTopicsLanded(page);
+
+    // A jump lands in one step: no position between the two is ever seen.
+    const ys = await scrollSamples(page);
+    const end = ys[ys.length - 1];
+    expect(ys.filter((y) => y > 0 && y < end)).toEqual([]);
+
+    await page.waitForTimeout(800);
+    expect(await startedAnimations(page)).not.toContain("topic-arrive");
+    await expectCardsSettled(page);
+    // The focus move is not motion, so it still happens.
+    await expect(topicsHeading(page)).toBeFocused();
+  });
 });
+
+const runAnalysis = (page: Page) =>
+  page.locator("main section").first().getByRole("link", { name: "Run Analysis", exact: true });
+
+const topicsHeading = (page: Page) =>
+  page.getByRole("heading", { name: "Choose a topic", level: 2 });
+
+/** How many topic-arrive animations have started since recordAnimations. */
+const arrivals = async (page: Page) =>
+  (await startedAnimations(page)).filter((n) => n === "topic-arrive").length;
+
+/** Records window.scrollY on every scroll event from here on. */
+async function recordScroll(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __ys: number[] };
+    w.__ys = [];
+    window.addEventListener("scroll", () => w.__ys.push(window.scrollY), { passive: true });
+  });
+}
+const scrollSamples = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __ys: number[] }).__ys);
+
+/** The topics section has come to rest at the top, below the sticky header. */
+async function expectTopicsLanded(page: Page) {
+  const heading = page.getByRole("heading", { name: "Choose a topic", level: 2 });
+  // Settled means two reads 100ms apart agree, so a scroll still in flight
+  // cannot pass as landed.
+  await expect
+    .poll(async () => {
+      const a = await page.evaluate(() => window.scrollY);
+      await page.waitForTimeout(100);
+      return a === (await page.evaluate(() => window.scrollY));
+    })
+    .toBe(true);
+  const top = await page.locator("#topics").evaluate((el) => el.getBoundingClientRect().top);
+  // scroll-mt-16 is 64px; a little slack for the header's border and rounding.
+  expect(top).toBeGreaterThanOrEqual(0);
+  expect(top).toBeLessThanOrEqual(80);
+  await expect(heading).toBeInViewport();
+}
+
+/**
+ * Every card is fully shown and holds no transform or running animation, and
+ * the section has dropped data-arriving so its scroll reveal is back.
+ */
+async function expectCardsSettled(page: Page) {
+  await expect(page.locator("#topics")).not.toHaveAttribute("data-arriving");
+  const cards = page.getByRole("list", { name: "Analysis topics" }).locator(":scope > li");
+  await expect(cards).toHaveCount(TOPICS.length);
+  await expect
+    .poll(() =>
+      cards.evaluateAll((els) =>
+        els.map((el) => {
+          const s = getComputedStyle(el);
+          return [Number(s.opacity), s.transform, el.getAnimations().length];
+        }),
+      ),
+    )
+    .toEqual(TOPICS.map(() => [1, "none", 0]));
+}
 
 /* ------------------------------------------------------- one flow, four URLs */
 

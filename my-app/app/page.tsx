@@ -5,6 +5,7 @@ import { TOPICS } from "@/services/analysis/topics";
 import { MODELS } from "@/services/analysis/models";
 import { STEPS } from "@/services/analysis/steps";
 import TopicIcon from "@/components/topic/TopicIcon";
+import TopicsArrival from "@/components/shell/TopicsArrival";
 import { Notice } from "@/components/ui/Notice";
 import { buttonClasses } from "@/components/ui/button-classes";
 
@@ -22,6 +23,9 @@ import { buttonClasses } from "@/components/ui/button-classes";
  *
  * The three sections below the hero carry `reveal`, a scroll-driven fade-up
  * defined in globals.css. It is CSS only, so the page stays a server component.
+ * Arriving at #topics by a link (Run Analysis, the header's Analysis) swaps
+ * that section's reveal for a staggered card entrance: the CSS is topic-arrive,
+ * the trigger is TopicsArrival, a client island that renders nothing.
  *
  * The cards and the step list are driven entirely by the registries, so adding
  * a topic to services/analysis/topics.ts or a step to services/analysis/steps.ts
@@ -31,8 +35,6 @@ import { buttonClasses } from "@/components/ui/button-classes";
 const FRAME = "mx-auto w-full max-w-band px-gutter lg:px-gutter-lg";
 
 export default function Home() {
-  const first = TOPICS[0];
-
   return (
     <>
       {/*
@@ -96,12 +98,17 @@ export default function Home() {
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               {/*
-                Run Analysis opens the first topic's flow, the same route as
-                the quick-start card's first row. Explore Terrain goes to the
-                data explorer, the header's Explore destination.
+                Run Analysis glides to the four topics, since an analysis
+                starts with picking one: the same /#topics the header's
+                Analysis link uses. next/link on purpose, so Next owns the
+                history entry and Back from a topic works (TopicsArrival
+                explains why a plain fragment link broke that). The smooth
+                scroll is the html rule in globals.css; the cards' entrance is
+                TopicsArrival. Explore Terrain goes to the data explorer, the
+                header's Explore destination.
               */}
               <Link
-                href={`/topics/${first.slug}`}
+                href="/#topics"
                 className={buttonClasses({ appearance: "primary", size: "lg" })}
               >
                 Run Analysis
@@ -152,8 +159,12 @@ export default function Home() {
       {/* The four topics. The main event, so it gets the widest grid and the
           largest cards. */}
       <section id="topics" className={`${FRAME} reveal scroll-mt-16 py-10 lg:py-14`}>
+        <TopicsArrival id="topics" />
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-          <h2 className="type-title3 text-ink">Choose a topic</h2>
+          {/* Focusable by script only, for TopicsArrival's focus move. */}
+          <h2 tabIndex={-1} className="type-title3 text-ink">
+            Choose a topic
+          </h2>
           <p className="type-body1 text-ink-faint">
             Each topic answers one question and returns one kind of result.
           </p>
@@ -165,8 +176,13 @@ export default function Home() {
           be addressed by link text alone.
         */}
         <ul aria-label="Analysis topics" className="mt-6 grid gap-4 md:grid-cols-2">
-          {TOPICS.map((topic) => (
-            <li key={topic.slug}>
+          {TOPICS.map((topic, index) => (
+            <li
+              key={topic.slug}
+              className="topic-arrive"
+              // The card's place in the stagger, read by topic-arrive.
+              style={{ "--i": index } as React.CSSProperties}
+            >
               <Link
                 href={`/topics/${topic.slug}`}
                 className="card group flex h-full flex-col p-5 transition-shadow duration-150 hover:shadow-8 lg:p-6"

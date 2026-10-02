@@ -540,6 +540,34 @@ body {
       animation: none;
     }
   }
+
+  /* 4. topic-arrive: arriving at the homepage's #topics by a link (Run
+     Analysis, the header's Analysis, Back, a reload of /#topics) sets
+     data-arriving on the section (components/shell/TopicsArrival.tsx, which
+     says why this is not :target). While it is set, the section's own
+     scroll-tied reveal is off and the cards rise in one after another
+     instead, so the click gets one clear motion rather than two layered ones.
+     Each card's place in the stagger comes from --i, set inline from the
+     registry index, so a fifth topic needs no edit here. The delay starts it
+     while the smooth scroll is still landing. Every click replays it, and the
+     attribute comes off when the last card finishes. `backwards` fill and
+     opacity plus transform only, for the same containing-block reason as
+     reveal; a card holds nothing fixed or sticky anyway. */
+  #topics[data-arriving] {
+    animation: none;
+  }
+
+  #topics[data-arriving] .topic-arrive {
+    animation: topic-arrive 420ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
+    animation-delay: calc(160ms + var(--i, 0) * 80ms);
+  }
+}
+
+@keyframes topic-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
 }
 
 @keyframes page-enter {
