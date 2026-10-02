@@ -30,6 +30,8 @@ new_sandbox() {
   cat >"$S/bin/npm" <<'EOF'
 #!/usr/bin/env bash
 echo "npm $* @ $(basename "$PWD")" >>"$SANDBOX/calls"
+[ "${STUB_NPM_FAIL:-0}" = 1 ] && exit 1
+exit 0
 EOF
   cat >"$S/bin/docker" <<'EOF'
 #!/usr/bin/env bash
@@ -39,6 +41,8 @@ if [ "$1 $2" = "compose ps" ]; then
   exit 0
 fi
 echo "docker $*" >>"$SANDBOX/calls"
+[ "${STUB_BUILD_FAIL:-0}" = 1 ] && exit 1
+exit 0
 EOF
   chmod +x "$S/bin/npm" "$S/bin/docker"
   : >"$S/calls"
@@ -98,8 +102,10 @@ case_() { # case_ <name>: start a case in a fresh sandbox
   case_name=$1
   [ -n "${S:-}" ] && rm -rf "$S"
   new_sandbox
-  unset STUB_RUNNING STUB_PS_FAIL
+  unset STUB_RUNNING STUB_PS_FAIL STUB_NPM_FAIL STUB_BUILD_FAIL
 }
+
+backups() { git -C "$S/local" for-each-ref --format='%(refname:short)' 'refs/heads/backup-main-*'; }
 
 # ------------------------------------------------------------------- cases
 
@@ -174,10 +180,94 @@ upstream services/backend/app.py be2 "feat: backend"
 run_sync
 check "exits 0" [ "$status" = 0 ]
 check "HEAD is origin's" [ "$(head_of local)" = "$(head_of up)" ]
-backup=$(git -C "$S/local" for-each-ref --format='%(refname:short)' 'refs/heads/backup/main-*')
+backup=$(backups)
 check "made one backup branch" [ "$(printf '%s\n' "$backup" | grep -c .)" = 1 ]
 check "backup is the old main" [ "$(git -C "$S/local" rev-parse "$backup" 2>/dev/null)" = "$old" ]
-check "prints the undo" grep -q "git reset --hard backup/main-" <<<"$out"
+check "prints the undo" grep -q "git reset --keep backup-main-" <<<"$out"
+
+case_ "diverged, landed, then upstream edited the same lines again: resets"
+# The first real run's shape: the rebased copy landed, and a later upstream
+# commit changed the very lines it introduced. An in-memory merge calls that
+# a conflict; origin did once hold exactly this tree, which is the proof.
+local_commit my-app/page.txt "hero v1" "feat: hero"
+upstream my-app/page.txt "hero v1" "feat: hero (rebased)"
+upstream my-app/page.txt "hero v2" "feat: hero, reworked"
+run_sync
+check "exits 0" [ "$status" = 0 ]
+check "HEAD is origin's" [ "$(head_of local)" = "$(head_of up)" ]
+check "file is upstream's latest" [ "$(cat "$S/local/my-app/page.txt")" = "hero v2" ]
+
+case_ "diverged, upstream squashed two local commits into one: resets"
+# git cherry cannot match a squash (no single local patch equals it), and an
+# unrelated upstream commit landed first, so no upstream tree equals local's
+# either (proof a). Only the in-memory merge (proof b) sees origin holds it all.
+local_commit README "step one" "wip 1"
+local_commit my-app/page.txt "step two" "wip 2"
+upstream services/backend/app.py be2 "unrelated, merged first"
+upstream README "step one" "squash"
+echo "step two" >"$S/up/my-app/page.txt"
+git -C "$S/up" commit -q --amend -a --no-edit
+git -C "$S/up" push -q -f origin main
+run_sync
+check "exits 0" [ "$status" = 0 ]
+check "HEAD is origin's" [ "$(head_of local)" = "$(head_of up)" ]
+
+case_ "diverged, upstream copy differs only in indentation: refuses"
+# git patch ids ignore whitespace, so git cherry calls this landed. In Python
+# it is a different program: y = 3 inside the if locally, outside upstream.
+printf 'if x:\n    y = 1\n' >"$S/local/services/backend/app.py"
+git -C "$S/local" commit -qam "be: base"
+git -C "$S/local" push -q origin main
+git -C "$S/up" pull -q
+printf 'if x:\n    y = 1\n    y = 3\n' >"$S/local/services/backend/app.py"
+git -C "$S/local" commit -qam "be: inside the if"
+upstream services/backend/app.py "$(printf 'if x:\n    y = 1\ny = 3')" "be: outside the if"
+git -C "$S/local" fetch -q origin
+check "setup: git cherry wrongly calls it landed" \
+  [ -z "$(git -C "$S/local" cherry origin/main HEAD | grep '^+')" ]
+before=$(head_of local)
+run_sync
+check "exits non-zero" [ "$status" != 0 ]
+check "HEAD untouched" [ "$(head_of local)" = "$before" ]
+check "local indentation kept" grep -q "^    y = 3" "$S/local/services/backend/app.py"
+check "no backup left behind" [ -z "$(backups)" ]
+
+case_ "diverged and landed, but an untracked file is in the way: refuses"
+# --hard would overwrite notes.txt with origin's version, and the backup
+# branch cannot bring back a file that was never committed.
+local_commit README v2 "docs"
+upstream README v2 "docs (rebased)"
+upstream notes.txt theirs "add notes"
+echo mine >"$S/local/notes.txt"
+before=$(head_of local)
+run_sync
+check "exits non-zero" [ "$status" != 0 ]
+check "untracked file kept" [ "$(cat "$S/local/notes.txt")" = mine ]
+check "HEAD untouched" [ "$(head_of local)" = "$before" ]
+check "no backup left behind" [ -z "$(backups)" ]
+
+case_ "behind, but an untracked file is in the way: refuses"
+upstream notes.txt theirs "add notes"
+echo mine >"$S/local/notes.txt"
+before=$(head_of local)
+run_sync
+check "exits non-zero" [ "$status" != 0 ]
+check "untracked file kept" [ "$(cat "$S/local/notes.txt")" = mine ]
+check "HEAD untouched" [ "$(head_of local)" = "$before" ]
+
+case_ "a branch named backup already exists: still backs up"
+git -C "$S/local" branch backup
+local_commit README v2 "docs"
+upstream README v2 "docs (rebased)"
+run_sync
+check "exits 0" [ "$status" = 0 ]
+check "made a backup" [ -n "$(backups)" ]
+
+case_ "no remote named origin: says so"
+git -C "$S/local" remote rename origin upstream
+run_sync
+check "exits non-zero" [ "$status" != 0 ]
+check "names the problem" grep -q "no remote named origin" <<<"$out"
 
 case_ "diverged through a clean local merge, all landed: resets"
 # The exact shape of the first real run: a feature branch merged into local
@@ -196,10 +286,8 @@ check "HEAD is origin's" [ "$(head_of local)" = "$(head_of up)" ]
 case_ "diverged through a merge that carries its own edit: refuses"
 # Both parents' commits landed upstream, so git cherry marks them all "-".
 # The extra edit lives only in the merge commit, which git cherry never
-# lists, so without the --cc check this would reset it away. (A merge that
-# resolved a conflict is the common way to get one; a conflict scenario does
-# not test this, because a conflicting side's patch never matches upstream
-# and git cherry already refuses on it.)
+# lists; a cherry-based check would reset it away. (A merge that resolved a
+# conflict is the common way to get one.)
 git -C "$S/local" switch -qc feature
 local_commit my-app/page.txt "feature" "feat: feature side"
 git -C "$S/local" switch -q main
@@ -227,7 +315,7 @@ run_sync
 check "exits non-zero" [ "$status" != 0 ]
 check "lists the unlanded commit" grep -q "feat: not pushed" <<<"$out"
 check "HEAD untouched" [ "$(head_of local)" = "$before" ]
-check "no backup made" [ -z "$(git -C "$S/local" branch --list 'backup/*')" ]
+check "no backup made" [ -z "$(backups)" ]
 
 case_ "running web, app changed: rebuilds web only"
 export STUB_RUNNING="backend web"
@@ -236,13 +324,69 @@ run_sync
 check "exits 0" [ "$status" = 0 ]
 check "rebuilt web" grep -qx "docker compose up -d --build web" <<<"$(calls)"
 
-case_ "running both, contract changed: rebuilds both"
+# The services a run rebuilt, sorted, in whatever order compose listed them.
+built() { sed -n 's/^docker compose up -d --build //p' "$S/calls" | tr ' ' '\n' | sort | tr '\n' ' '; }
+
+case_ "running both, root contracts changed: rebuilds backend only"
+# Dockerfile.backend copies contracts/; Dockerfile.web copies only my-app/
+# (the app's @/contracts is my-app/contracts).
 export STUB_RUNNING="backend web"
 upstream contracts/criteria.json '{}' "contract: v2"
 run_sync
-# In whatever order compose listed them; compose does not care.
-built=$(sed -n 's/^docker compose up -d --build //p' "$S/calls" | tr ' ' '\n' | sort | tr '\n' ' ')
-check "rebuilt both, in one call" [ "$built" = "backend web " ]
+check "rebuilt backend only" [ "$(built)" = "backend " ]
+
+case_ "running both, .dockerignore changed: rebuilds both, in one call"
+export STUB_RUNNING="backend web"
+upstream .dockerignore "secrets/" "build: ignore"
+run_sync
+check "rebuilt both" [ "$(built)" = "backend web " ]
+check "in one call" [ "$(grep -c -- '--build' "$S/calls")" = 1 ]
+
+case_ "a failed docker build is retried by the next run"
+export STUB_RUNNING="web"
+upstream my-app/page.txt app2 "feat: page"
+export STUB_BUILD_FAIL=1
+run_sync
+check "first run exits non-zero" [ "$status" != 0 ]
+check "says it will retry" grep -q "run this again" <<<"$out"
+unset STUB_BUILD_FAIL
+: >"$S/calls"
+run_sync
+check "second run exits 0" [ "$status" = 0 ]
+check "second run rebuilds web" [ "$(built)" = "web " ]
+: >"$S/calls"
+run_sync
+check "third run has nothing left to do" [ -z "$(calls)" ]
+
+case_ "a failed npm ci is retried by the next run"
+upstream my-app/package-lock.json '{"lock":2}' "deps"
+export STUB_NPM_FAIL=1
+run_sync
+check "first run exits non-zero" [ "$status" != 0 ]
+unset STUB_NPM_FAIL
+: >"$S/calls"
+run_sync
+check "second run exits 0" [ "$status" = 0 ]
+check "second run reruns npm ci" grep -q "^npm ci" <<<"$(calls)"
+
+case_ "a manual git pull before the run is still rebuilt"
+export STUB_RUNNING="web"
+run_sync # a first successful run records where the app is
+upstream my-app/page.txt app2 "feat: page"
+git -C "$S/local" pull -q
+: >"$S/calls"
+run_sync
+check "exits 0" [ "$status" = 0 ]
+check "rebuilds web" [ "$(built)" = "web " ]
+
+case_ "--no-docker, then a full run: the full run rebuilds"
+export STUB_RUNNING="web"
+run_sync
+upstream my-app/page.txt app2 "feat: page"
+run_sync --no-docker
+check "--no-docker run builds nothing" [ -z "$(calls)" ]
+run_sync
+check "full run rebuilds web" [ "$(built)" = "web " ]
 
 case_ "running backend only, app changed: rebuilds nothing"
 export STUB_RUNNING="backend"

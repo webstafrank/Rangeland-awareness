@@ -8,26 +8,32 @@
 # Run it after a PR merges. In order, it:
 #
 #   1. Refuses unless you are on main with no uncommitted changes to tracked
-#      files. Untracked files are fine; git refuses on its own if one would
-#      be overwritten.
+#      files. Untracked files are fine: every way main moves below refuses,
+#      rather than overwrite one, if origin now tracks a file of that name.
 #   2. Fetches origin and moves main to origin/main:
 #        - behind:   fast-forward.
 #        - ahead:    stops. Commits that exist only on your main go out
 #                    through a branch and a PR, not by this script.
-#        - diverged: if every local-only commit already landed on origin as a
-#                    different commit (a rebase or a cherry-pick, like the
-#                    rebased copies after a PR merge), it saves main to
-#                    backup/main-<time> and resets to origin/main. If any
-#                    commit has not landed, it stops and lists it.
+#        - diverged: if origin/main already contains everything on your main,
+#                    byte for byte (the rebased or squashed copies a merged
+#                    PR leaves behind), it saves your main as
+#                    backup-main-<time> and moves main to origin/main.
+#                    Otherwise it stops and lists the commits involved.
 #   3. Runs `npm ci` in my-app/ if package-lock.json changed, or if
 #      node_modules is missing.
-#   4. Rebuilds the docker compose services that are running AND whose inputs
-#      changed (`docker compose up -d --build <those>`). Stopped services are
-#      left stopped. `npm run dev` needs nothing; it reloads by itself (restart
-#      it if step 3 ran, since npm ci replaces node_modules underneath it).
+#   4. Rebuilds the docker compose services that are running AND whose image
+#      inputs changed (`docker compose up -d --build <those>`). Stopped
+#      services are left stopped. `npm run dev` needs nothing; it reloads by
+#      itself (restart it if step 3 ran, since npm ci replaces node_modules).
 #
-# Never pushes, never touches another branch, never runs a destructive git
-# command without a backup ref first. Exit status is non-zero on any stop.
+# Steps 3 and 4 compare against the commit the last fully successful run
+# finished at (kept in .git/sync-last), not just this run's pull, so a failed
+# npm ci or docker build is retried by simply running this again, a manual
+# `git pull` beforehand is still picked up, and containers skipped with
+# --no-docker are rebuilt by the next run without it.
+#
+# Never pushes, never touches another branch, never moves main without a
+# backup branch when commits would leave it. Exit status is non-zero on any stop.
 #
 # Tests: scripts/tests/test_sync.sh, which CI runs.
 
@@ -56,56 +62,88 @@ dirty=$(git status --porcelain --untracked-files=no)
 [ -z "$dirty" ] || stop "uncommitted changes to tracked files, commit or stash them first:
 $dirty"
 
+git remote get-url origin >/dev/null 2>&1 || stop "this checkout has no remote named origin"
+
 # ------------------------------------------------------------------ 2. update
 say "fetching origin"
-git fetch --quiet origin
+git fetch --quiet origin || stop "git fetch origin failed (offline?). Nothing was changed."
+new=$(git rev-parse -q --verify 'origin/main^{commit}') || stop "origin has no main branch"
 old=$(git rev-parse HEAD)
-new=$(git rev-parse origin/main)
 
 if [ "$old" = "$new" ]; then
   say "main is already at origin/main ($(git log -1 --format='%h %s' HEAD))"
 elif git merge-base --is-ancestor "$old" "$new"; then
-  git merge --quiet --ff-only origin/main
+  git merge --quiet --ff-only origin/main || stop "fast-forward refused (see git's message above). Nothing was changed."
   say "main fast-forwarded:"
   git --no-pager log --oneline "$old..$new"
 elif git merge-base --is-ancestor "$new" "$old"; then
   stop "main has commits that are not on origin. Push them on a branch and open a PR:
 $(git --no-pager log --oneline "$new..$old")"
 else
-  # git cherry marks a local commit "-" when an equivalent patch is already
-  # upstream and "+" when it is not. Only "-" commits are safe to drop. A
-  # multi-commit squash matches no single local patch, so it shows "+" and
-  # stops here: the safe direction for a false negative.
-  unlanded=$(git cherry origin/main HEAD | sed -n 's/^+ //p')
-  # git cherry skips merge commits entirely. A merge is only safe to drop if
-  # it added nothing of its own: an empty combined diff (--cc) means it just
-  # joined its parents. One that resolved a conflict or carried an edit has
-  # content no other commit holds, so it counts as unlanded.
-  for m in $(git rev-list --merges origin/main..HEAD); do
-    [ -z "$(git diff-tree --cc --no-commit-id -p "$m")" ] || unlanded="$unlanded $m"
-  done
-  if [ -n "$unlanded" ]; then
-    stop "main and origin/main have diverged, and these local commits are not on origin:
-$(for c in $unlanded; do git --no-pager log -1 --oneline "$c"; done)
+  # Does origin/main already hold everything local main has? Two exact proofs,
+  # either is enough. Both compare whole trees byte for byte, so unlike git
+  # cherry (whose patch ids ignore whitespace) a change that only moved
+  # Python indentation is never mistaken for landed, and both see what cherry
+  # cannot: a squash, and a merge commit carrying its own edit.
+  #
+  #   a. Origin once had exactly this tree. A PR that rebased the whole local
+  #      stack reproduces its tip's tree, so some commit since the fork point
+  #      matches; everything after it is upstream's own later edits. This is
+  #      the common case, and the one (b) misses when upstream later edited
+  #      the same lines again, which reads as a conflict to a merge.
+  #   b. Merging local main into origin/main in memory changes nothing: the
+  #      result is exactly origin/main's tree. Covers a squash or a partial
+  #      rebase that (a) cannot match.
+  head_tree=$(git rev-parse 'HEAD^{tree}')
+  fork=$(git merge-base origin/main HEAD 2>/dev/null) || fork=""
+  landed=0
+  git log --format=%T "${fork:+$fork..}origin/main" | grep -qx "$head_tree" && landed=1
+  if [ "$landed" = 0 ]; then
+    merged=$(git merge-tree --write-tree origin/main HEAD 2>/dev/null | head -n 1) || merged=""
+    [ "$merged" = "$(git rev-parse 'origin/main^{tree}')" ] && landed=1
+  fi
+  if [ "$landed" = 0 ]; then
+    stop "main and origin/main have diverged, and your main has changes origin does not:
+$(git --no-pager log --oneline "$new..$old")
 Nothing was changed. Move them to a branch and open a PR, then run this again."
   fi
-  backup="backup/main-$(date +%Y%m%d-%H%M%S)"
+  backup="backup-main-$(date +%Y%m%d-%H%M%S)"
+  while git rev-parse -q --verify "refs/heads/$backup" >/dev/null; do backup="$backup-1"; done
   git branch "$backup" "$old"
-  git reset --quiet --hard origin/main
-  say "main had diverged, but every local-only commit is already on origin."
-  say "reset main to origin/main; the old main is saved as $backup"
-  say "  (undo: git reset --hard $backup)"
+  # --keep, not --hard: it refuses, and changes nothing, if an untracked file
+  # is in the way of a file origin now tracks. --hard would overwrite it.
+  if ! git reset --quiet --keep origin/main; then
+    git branch --quiet -D "$backup"
+    stop "an untracked file is in the way (see git's message above). Move it aside and run this again. Nothing was changed."
+  fi
+  say "main had diverged, but origin/main already contains all of it."
+  say "moved main to origin/main; the old main is saved as $backup"
+  say "  (undo: git reset --keep $backup)"
 fi
 
-# Nothing below runs on an unchanged tree, except the missing-node_modules check.
+# ----------------------------------------------------- what the app must catch up on
+# From the last fully successful run's commit when that is still known and is
+# an ancestor of where main is now, so a failed step is retried; otherwise
+# from where main was when this run started.
+marker=$(git rev-parse --git-path sync-last)
+since=$old
+if [ -f "$marker" ]; then
+  last=$(cat "$marker")
+  git merge-base --is-ancestor "$last" HEAD 2>/dev/null && since=$last
+fi
 changed=""
-[ "$old" = "$new" ] || changed=$(git diff --name-only "$old" "$new")
+[ "$since" = "$new" ] || changed=$(git diff --name-only "$since" "$new")
+# Recorded before the steps below, so if one of them fails the next run
+# still starts from here rather than from the main this run already moved.
+printf '%s\n' "$since" >"$marker"
 
-touched() { # touched <path prefix>...: did anything under these change?
-  local p
-  for p in "$@"; do
-    printf '%s\n' "$changed" | grep -q "^$p" && return 0
-  done
+touched() { # touched <path or dir/>...: did a changed file start with one of these?
+  local p f
+  while IFS= read -r f; do
+    for p in "$@"; do
+      [[ -n "$f" && "$f" == "$p"* ]] && return 0
+    done
+  done <<<"$changed"
   return 1
 }
 
@@ -113,14 +151,20 @@ touched() { # touched <path prefix>...: did anything under these change?
 if [ -f my-app/package-lock.json ]; then
   if [ ! -d my-app/node_modules ]; then
     say "my-app/node_modules is missing: npm ci"
-    (cd my-app && npm ci --no-audit --no-fund)
+    (cd my-app && npm ci --no-audit --no-fund) || stop "npm ci failed. Fix it and run this again; it will retry."
   elif touched my-app/package-lock.json; then
     say "my-app/package-lock.json changed: npm ci (restart npm run dev if it is running)"
-    (cd my-app && npm ci --no-audit --no-fund)
+    (cd my-app && npm ci --no-audit --no-fund) || stop "npm ci failed. Fix it and run this again; it will retry."
   fi
 fi
 
 # --------------------------------------------------------------- 4. containers
+# What each image is built from, read off Dockerfile.web and Dockerfile.backend
+# (both build with the repo root as context). The web image copies only
+# my-app/; the app's @/contracts is my-app/contracts, not the root contracts/.
+web_inputs=(my-app/ Dockerfile.web docker-compose.yml .dockerignore)
+backend_inputs=(services/backend/ contracts/ Dockerfile.backend docker-compose.yml .dockerignore)
+
 if [ "$docker_on" = 1 ] && [ -n "$changed" ] && command -v docker >/dev/null 2>&1; then
   # Fails when the daemon is down or .env is missing (the compose file has
   # required variables). Said out loud, so a skipped rebuild is never silent.
@@ -131,16 +175,22 @@ if [ "$docker_on" = 1 ] && [ -n "$changed" ] && command -v docker >/dev/null 2>&
   rebuild=()
   for svc in $running; do
     case "$svc" in
-      web) touched my-app/ contracts/ Dockerfile.web docker-compose.yml && rebuild+=(web) ;;
-      backend) touched services/backend/ contracts/ Dockerfile.backend docker-compose.yml && rebuild+=(backend) ;;
+      web) touched "${web_inputs[@]}" && rebuild+=(web) ;;
+      backend) touched "${backend_inputs[@]}" && rebuild+=(backend) ;;
     esac
   done
   if [ "${#rebuild[@]}" -gt 0 ]; then
     say "rebuilding running containers: ${rebuild[*]}"
-    docker compose up -d --build "${rebuild[@]}"
+    docker compose up -d --build "${rebuild[@]}" || stop "docker compose build failed. Fix it and run this again; it will retry."
   elif [ -n "$running" ]; then
     say "running containers ($(printf '%s' "$running" | tr '\n' ' ' | sed 's/ $//')) are unaffected by this update"
   fi
 fi
 
+# Only now: every step above finished, so the next run starts from here.
+# Not after --no-docker with changes, since the containers were deliberately
+# skipped: the next full run still has to see those changes to rebuild them.
+if [ "$docker_on" = 1 ] || [ -z "$changed" ]; then
+  git rev-parse HEAD >"$marker"
+fi
 say "done: main is at $(git log -1 --format='%h %s' HEAD)"
