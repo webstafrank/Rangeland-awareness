@@ -132,6 +132,24 @@ jobs:
       - name: django test suite
         run: python3 manage.py test --verbosity 2
 
+  # ------------------------------------------------------------------- scripts
+  #
+  # scripts/sync.sh runs git reset --hard in one of its paths, so its tests run
+  # on every push like the rest of the gate. Seconds, no install: real git in
+  # temp repos, with npm and docker stubbed. shellcheck is preinstalled on the
+  # ubuntu runners.
+  scripts:
+    name: scripts (sync.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck scripts/sync.sh scripts/tests/test_sync.sh
+
+      - name: tests
+        run: bash scripts/tests/test_sync.sh
+
   # ------------------------------------------------------------------- compose
   #
   # A third job, and a cheap one: seconds, no image pull beyond the runner's

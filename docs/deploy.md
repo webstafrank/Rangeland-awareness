@@ -453,6 +453,10 @@ git pull
 docker compose up --build -d
 ```
 
+Or `scripts/sync.sh`, which does both, rebuilding only the running services
+whose code changed, and refuses if the checkout has local changes or commits
+that are not on origin.
+
 Migrations run automatically at backend startup, every time. They are
 idempotent, so a version with no new migration costs nothing.
 

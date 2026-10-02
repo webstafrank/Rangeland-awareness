@@ -52,6 +52,18 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
+After a PR merges, bring your checkout and the running app up to date with one
+command, from anywhere in the repo:
+
+```bash
+scripts/sync.sh              # pull main, npm ci if the lockfile changed, rebuild affected running containers
+scripts/sync.sh --no-docker  # same, but leave containers alone
+```
+
+It stops without changing anything if you are not on `main`, have uncommitted
+changes, or have commits on `main` that are not on origin. See the header of
+[`scripts/sync.sh`](../scripts/sync.sh) for exactly what it does.
+
 ## Checks
 
 Two lanes, different budgets.
