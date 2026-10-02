@@ -150,3 +150,17 @@ export function isTopicSlug(value: string): value is TopicSlug {
 export function getTopic(slug: string): Topic | undefined {
   return TOPIC_BY_SLUG.get(slug);
 }
+
+/**
+ * The topic a `?topic=` search param names, or the first topic.
+ *
+ * For pages where a topic is a view, not a route (the reports tabs): a
+ * missing, repeated or stale value still opens the page on a real topic
+ * rather than a 404, the same leniency the step pages give their own params.
+ * A repeated param (`?topic=a&topic=b`) takes the first value, which is what
+ * URLSearchParams.get does.
+ */
+export function topicFromParam(value: string | string[] | undefined): Topic {
+  const slug = Array.isArray(value) ? value[0] : value;
+  return (slug !== undefined && getTopic(slug)) || TOPICS[0];
+}

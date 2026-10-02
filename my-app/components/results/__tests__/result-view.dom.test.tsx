@@ -140,7 +140,12 @@ function classTableEl(): HTMLElement {
  * so the budget measures the test again.
  */
 beforeAll(() => {
-  renderView().unmount();
+  const view = renderView();
+  // And the first role query: dom-testing-library's role and accessible-name
+  // machinery has its own first-use cost, which the render alone left on the
+  // first test (still 603ms against ~250ms, and over budget at load 4.5).
+  classTableEl();
+  view.unmount();
 });
 
 /* -------------------------------------------------------------- S2 classes */

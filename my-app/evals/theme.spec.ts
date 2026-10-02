@@ -49,6 +49,7 @@ const contrast = (a: number, b: number) =>
 const PAGES = [
   { name: "homepage", path: "/" },
   ...TOPICS.map((topic) => ({ name: topic.name, path: `/topics/${topic.slug}` })),
+  { name: "reports", path: "/reports" },
 ];
 
 /** Every step of one topic, so the check covers the four routes, not just the first. */

@@ -561,6 +561,50 @@ body {
     animation: topic-arrive 420ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
     animation-delay: calc(160ms + var(--i, 0) * 80ms);
   }
+
+  /* 5. The Reports page's loading effect (components/reports). A shimmer, a
+     soft band of light, sweeps across the skeleton's grey blocks while a
+     report loads, then the report fades up in its place (report-enter).
+     The sweep is a pseudo-element moved with transform, so it costs no
+     layout or paint per frame. Without motion the blocks stay, still: a
+     plain grey placeholder still says "loading", it just does not move. */
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(255 255 255 / 0.65) 50%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: skeleton-shimmer 1.3s ease-in-out infinite;
+  }
+
+  .report-enter {
+    animation: report-enter 280ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
+  }
+}
+
+/* The skeleton's block itself, motion or not. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-sunken);
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes report-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 @keyframes topic-arrive {

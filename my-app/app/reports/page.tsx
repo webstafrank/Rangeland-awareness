@@ -1,86 +1,37 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight20Regular } from "@/components/ui/icons";
-import { PageHero, PageSection, InfoGrid } from "@/components/shell/Page";
-import { buttonClasses } from "@/components/ui/button-classes";
+import { ReportPanel } from "@/components/reports/ReportPanel";
+import { ReportTabs } from "@/components/reports/ReportTabs";
+import { ReportsFrame } from "@/components/reports/ReportsFrame";
+import { TOPICS, topicFromParam } from "@/services/analysis/topics";
 
 export const metadata: Metadata = {
   title: "Reports",
-  description:
-    "Reports on Disaster Monitor are on the way: finished analysis runs written up to read, print and share.",
+  description: "A report for each of Disaster Monitor's four analysis topics.",
 };
 
 /**
- * Reports, announced rather than faked.
+ * Reports: a heading, the four topics as tabs, and the selected topic's report.
  *
- * There is no reports feature behind this yet, so the page says so and points
- * at what does exist instead of rendering an empty table that looks broken.
- * Its claims are kept to what the app does today: a flood-risk run is stored
- * on the analysis service under its `?run=r_<id>` id, so its result page
- * reloads anywhere; the other three topics stop at a request receipt held in
- * the browser's session storage, which a shared link cannot bring back. The
- * planned items are deliberately not the account page's saved runs, history
- * and comparison, so the two pages never describe one feature twice.
+ * The topic is read from ?topic= here, on the server, so a linked or reloaded
+ * tab renders right on the first paint. Anything missing or unknown opens the
+ * first topic rather than a 404 (topicFromParam). The tabs come from the
+ * registry, so a fifth topic gets a tab with no edit here.
+ *
+ * Switching tabs is a client-side navigation to the new ?topic=, which
+ * re-renders this page for it; ReportTabs shows the skeleton meanwhile. The
+ * route's loading.tsx is the same skeleton, for arriving from another page.
  */
+export default async function ReportsPage({ searchParams }: PageProps<"/reports">) {
+  const topic = topicFromParam((await searchParams).topic);
 
-const PLANNED = [
-  {
-    label: "A report for every run",
-    description:
-      "One page per finished run: the map, the class table, the criteria and weights, and how to trace each back to its inputs.",
-  },
-  {
-    label: "Print and send",
-    description:
-      "The same report as a document you can print, attach to an email or file with a situation brief.",
-  },
-  {
-    label: "Every topic",
-    description:
-      "Reports for drought, rangeland dynamics and food security as each gains an analysis method, not flood risk alone.",
-  },
-] as const;
-
-export default function ReportsPage() {
   return (
-    <>
-      <PageHero
-        eyebrow="Coming soon"
-        title="Reports"
-        lead="Finished analysis runs, written up as reports you can read, print and share."
+    <ReportsFrame>
+      <ReportTabs
+        tabs={TOPICS.map(({ slug, name, question }) => ({ slug, name, question }))}
+        active={topic.slug}
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href="/#topics" className={buttonClasses({ appearance: "primary" })}>
-            Run an analysis
-            <ArrowRight20Regular aria-hidden="true" />
-          </Link>
-          <Link href="/data" className={buttonClasses()}>
-            Explore the data
-          </Link>
-        </div>
-      </PageHero>
-
-      <PageSection
-        eyebrow="Planned"
-        title="What reports will do"
-        intro="Reports gather what a run already produces into something you can keep and hand on."
-      >
-        <InfoGrid items={PLANNED} />
-      </PageSection>
-
-      <PageSection
-        tier="panel"
-        title="Until then"
-        intro={
-          <p>
-            A flood-risk run already has a result page that works as its report: the class
-            table, the breaks and each criterion&apos;s contribution, with CSV, GeoJSON and
-            JSON downloads. The run is kept on the analysis service, so that page&apos;s link
-            brings the same result back for anyone you send it to. The other three topics
-            stop at a request receipt for now, which lives only in the browser that made it.
-          </p>
-        }
-      />
-    </>
+        <ReportPanel topic={topic} />
+      </ReportTabs>
+    </ReportsFrame>
   );
 }
