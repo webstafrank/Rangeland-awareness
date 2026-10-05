@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -353,16 +353,46 @@ test.describe("homepage", () => {
 
 /* -------------------------------------------------------------------- motion */
 
-/** Records every CSS animation that starts, by name, from here on. */
+/**
+ * Records every CSS animation that starts from here on: by name in __anims,
+ * and as "name@element" in __animOn, where the element is named by its
+ * data-testid, else by its first class. animationstart bubbles, so one
+ * listener on the document hears them all, and e.target is the element that
+ * actually animated rather than an ancestor of it.
+ */
 async function recordAnimations(page: Page) {
   await page.evaluate(() => {
-    const w = window as unknown as { __anims: string[] };
+    const w = window as unknown as { __anims: string[]; __animOn: string[] };
     w.__anims = [];
-    document.addEventListener("animationstart", (e) => w.__anims.push(e.animationName));
+    w.__animOn = [];
+    document.addEventListener("animationstart", (e) => {
+      const el = e.target as HTMLElement;
+      w.__anims.push(e.animationName);
+      w.__animOn.push(`${e.animationName}@${el.dataset.testid ?? el.classList[0] ?? el.tagName}`);
+    });
   });
 }
 const startedAnimations = (page: Page) =>
   page.evaluate(() => (window as unknown as { __anims: string[] }).__anims);
+const startedOn = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __animOn: string[] }).__animOn);
+
+/**
+ * A client-side navigation through the router itself, so a test can move to
+ * any step without first making the selection that unlocks its link.
+ */
+const routerPush = (page: Page, href: string) =>
+  page.evaluate(
+    (h) =>
+      (window as unknown as { next: { router: { push: (x: string) => void } } }).next.router.push(h),
+    href,
+  );
+
+/** True once the element has no running animation and is fully opaque. */
+const settled = (locator: Locator) =>
+  locator.evaluate(
+    (el) => el.getAnimations().length === 0 && getComputedStyle(el).opacity === "1",
+  );
 
 /** Computed opacity and animation of every `.reveal` section on the page. */
 const revealState = (page: Page) =>
@@ -396,28 +426,71 @@ test.describe("motion", () => {
     expect(problems).toEqual([]);
   });
 
-  test("M1b: moving between one topic's steps does not replay the fade", async ({ page }) => {
-    // The root template re-mounts only when the first URL segment changes, so
-    // the step rail and the map stay put inside a topic. Pushed through the
-    // router directly, so this needs no selection to unlock a step.
-    const push = (href: string) =>
-      page.evaluate(
-        (h) =>
-          (window as unknown as { next: { router: { push: (x: string) => void } } }).next.router.push(h),
-        href,
-      );
+  test("M1b: moving between one topic's steps fades the step in and holds the rail and footer still", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
     await page.goto(`/topics/${TOPICS[0].slug}`);
     await recordAnimations(page);
 
-    await push(`/topics/${TOPICS[0].slug}/model`);
+    await routerPush(page, `/topics/${TOPICS[0].slug}/model`);
     await expect(page).toHaveURL(/\/model$/);
-    await page.waitForTimeout(500);
-    expect(await startedAnimations(page)).not.toContain("page-enter");
+    await expect.poll(() => startedOn(page)).toContain("content-enter@step-body");
 
-    // And the control: leaving the topic does fade.
-    await push("/reports");
+    // Only the step body. The root fade, the topic fade and the step wrapper
+    // itself all stay still, so the band, the rail and the sticky footer (all
+    // outside step-body) never dip.
+    await page.waitForTimeout(400);
+    expect(await startedOn(page)).toEqual(["content-enter@step-body"]);
+    await expect.poll(() => settled(page.locator(".step-body"))).toBe(true);
+
+    // And the control: leaving the topic plays the route fade.
+    await routerPush(page, "/reports");
     await expect(page).toHaveURL(/\/reports$/);
-    await expect.poll(() => startedAnimations(page)).toContain("page-enter");
+    await expect.poll(() => startedOn(page)).toContain("page-enter@page-enter");
+    expect(problems).toEqual([]);
+  });
+
+  test("M6: a step without the rail (running, results, a problem screen) fades whole", async ({
+    page,
+  }) => {
+    await page.goto(`/topics/${TOPICS[0].slug}/review`);
+    await recordAnimations(page);
+
+    // No run id on the link: the running page answers with RunProblem, which
+    // needs no backend and renders no rail.
+    await routerPush(page, `/topics/${TOPICS[0].slug}/running`);
+    await expect(page.getByTestId("run-problem")).toBeVisible();
+    await expect.poll(() => startedOn(page)).toContain("content-enter@step-enter");
+    expect(await startedOn(page)).not.toContain("page-enter@topic-enter");
+    await expect.poll(() => settled(page.getByTestId("step-enter"))).toBe(true);
+  });
+
+  test("M7: going from one topic straight to another fades the new topic in", async ({ page }) => {
+    // The root template's child segment is `topics` for both, so before
+    // app/topics/template.tsx this move played no fade at all.
+    await page.goto(`/topics/${TOPICS[0].slug}`);
+    await recordAnimations(page);
+
+    await routerPush(page, `/topics/${TOPICS[1].slug}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(TOPICS[1].name);
+    await expect.poll(() => startedOn(page)).toContain("page-enter@topic-enter");
+    expect(await startedOn(page)).not.toContain("page-enter@page-enter");
+    await expect.poll(() => settled(page.getByTestId("topic-enter"))).toBe(true);
+  });
+
+  test("M8: Sign in to Create account fades the form, not the brand panel", async ({ page }) => {
+    // A route group adds no URL segment, so the root template never saw
+    // /login to /signup.
+    await page.goto("/login");
+    await recordAnimations(page);
+
+    await page.locator("main").getByRole("link", { name: "Create one" }).click();
+    await expect(page).toHaveURL(/\/signup$/);
+    await expect.poll(() => startedOn(page)).toContain("content-enter@form-enter");
+    await page.waitForTimeout(400);
+    expect(await startedOn(page)).toEqual(["content-enter@form-enter"]);
+    await expect.poll(() => settled(page.getByTestId("form-enter"))).toBe(true);
   });
 
   test("M2: homepage sections fade up as they scroll in, and all finish visible", async ({
@@ -485,6 +558,15 @@ test.describe("motion", () => {
     ]);
     await expect(page.getByTestId("page-enter")).toHaveCSS("animation-name", "none");
     await expect(page.locator("html")).toHaveCSS("scroll-behavior", "auto");
+
+    // The topic, step and form fades are off as well.
+    await page.goto(`/topics/${TOPICS[0].slug}`);
+    await expect(page.getByTestId("topic-enter")).toHaveCSS("animation-name", "none");
+    await expect(page.locator(".step-body")).toHaveCSS("animation-name", "none");
+    await page.goto(`/topics/${TOPICS[0].slug}/running`);
+    await expect(page.getByTestId("step-enter")).toHaveCSS("animation-name", "none");
+    await page.goto("/login");
+    await expect(page.getByTestId("form-enter")).toHaveCSS("animation-name", "none");
   });
 
   test("M5: Run Analysis glides to the four topics and staggers the cards in", async ({

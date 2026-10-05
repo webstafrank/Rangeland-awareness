@@ -10,9 +10,12 @@
  * (the topic flow, the map pages) still fills the screen through it.
  *
  * Scope: the root template re-mounts when the first URL segment changes
- * (/ to /data, /data to /reports, / to /topics/...). Moving between the steps
- * of one topic does not re-mount it, so the step rail and the map stay put
- * instead of flashing on every Next.
+ * (/ to /data, /data to /reports, / to /topics/...). Three moves it cannot
+ * see each have a template of their own, nearer the change:
+ *   one topic to another        app/topics/template.tsx
+ *   one step to the next        app/topics/[topic]/template.tsx, which fades
+ *                               the step and holds the rail and footer still
+ *   sign in to create account   app/(auth)/template.tsx
  */
 export default function Template({ children }: { children: React.ReactNode }) {
   return (

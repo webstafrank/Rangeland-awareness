@@ -502,6 +502,19 @@ body {
  *    sticky card and the map controls would jump for the length of the fade.
  *    `backwards` fill, not `both`: once it ends the wrapper carries no opacity
  *    at all, so it creates no stacking context to trap a z-index below it.
+ *    The same class fades a new topic in (app/topics/template.tsx), since
+ *    the root template does not re-mount between two topics.
+ *
+ *    content-enter: the same fade, for a page that keeps furniture on screen
+ *    while its content changes, so only the content plays it:
+ *      - a topic step (app/topics/[topic]/template.tsx). On the four wizard
+ *        steps the rail and the sticky footer must not flash, so the template
+ *        stands still when its page has a [data-step-rail] and StepShell's
+ *        .step-body fades instead; on a page without one (running, results,
+ *        the problem screens) the whole template fades.
+ *      - the sign-in and sign-up form (app/(auth)/template.tsx), beside a
+ *        brand panel that stays put.
+ *    A keyframe of its own only so the evals can tell it from page-enter.
  *
  * 3. reveal: a fade-up as a section scrolls into view, driven by the scroll
  *    position (animation-timeline: view()), so it runs both ways and needs no
@@ -520,6 +533,12 @@ body {
 
   .page-enter {
     animation: page-enter 240ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
+  }
+
+  .step-enter:not(:has([data-step-rail])),
+  .step-body,
+  .content-enter {
+    animation: content-enter 240ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
   }
 
   @supports (animation-timeline: view()) {
@@ -615,6 +634,12 @@ body {
 }
 
 @keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes content-enter {
   from {
     opacity: 0;
   }

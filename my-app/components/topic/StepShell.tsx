@@ -117,8 +117,11 @@ export default function StepShell({
   return (
     <div className="flex flex-1 flex-col">
       {/* The rail sits on the page ground, directly under the topic band, so
-          it reads as a property of the topic rather than of this one step. */}
-      <div className="border-b border-edge bg-surface">
+          it reads as a property of the topic rather than of this one step.
+          data-step-rail tells the step template (app/topics/[topic]/template.tsx)
+          that this page has furniture to hold still, so it fades step-body
+          below instead of the whole page. */}
+      <div data-step-rail className="border-b border-edge bg-surface">
         <div className={container}>
           <StepRail
             topic={topic.slug}
@@ -130,7 +133,9 @@ export default function StepShell({
       </div>
 
       <div className={`${container} pt-5 lg:pt-7`}>
-        <div className={column}>
+        {/* The part of the page that is this step's own, and the only part
+            that fades in when the flow moves (step-body in globals.css). */}
+        <div className={`step-body ${column}`}>
           <h2
             ref={headingRef}
             tabIndex={-1}
