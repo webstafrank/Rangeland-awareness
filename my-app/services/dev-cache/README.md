@@ -27,8 +27,15 @@ and reasoning are in the header of `trim.mjs`.
 | Tests | `npm test -- services/dev-cache` |
 
 It never deletes under a running server: Next records that server's pid in
-`.next/dev/lock`, and a live pid means skip. A lock left behind by a crash has
-a dead pid and does not block the trim.
+`.next/dev/lock`, and a pid that is alive and still a Next process means skip.
+A lock left behind by a crash does not block the trim, whether its pid is dead
+or has since been reused by another program (checked via `/proc/<pid>/cmdline`
+on Linux; elsewhere a live pid is treated as a running server).
+
+It is best-effort. Any filesystem error is logged as
+`[dev-cache] skipped, <code>; starting dev anyway` and the script exits 0, so
+it can never stop `next dev` from starting. A `DEV_CACHE_CAP_MB` that is not a
+positive number is logged and replaced with the 300 MB default.
 
 Plain `.mjs` rather than TypeScript so `predev` runs it with bare `node`, no
 loader and no build step in front of every dev start.

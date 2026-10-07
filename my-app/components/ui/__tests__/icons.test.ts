@@ -7,12 +7,13 @@
  * would catch an icon added back the old way, so this test does.
  */
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+/// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
 import * as icons from "@/components/ui/icons";
+// `?raw` rather than readFileSync: the jsdom lane has no file: import.meta.url,
+// and a cwd-relative path breaks when vitest runs from anywhere but my-app.
+import source from "../icons.ts?raw";
 
-const source = readFileSync(resolve("components/ui/icons.ts"), "utf8");
 const specifiers = [...source.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]);
 
 describe("components/ui/icons", () => {

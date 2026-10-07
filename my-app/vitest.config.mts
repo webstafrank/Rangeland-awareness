@@ -102,10 +102,12 @@ export default defineConfig({
           //
           // Startup dominated the run, not the tests, and 1.77s left no
           // headroom under the 2s gate budget: a concurrent Playwright run
-          // pushed it to 2.56s. Both settings are safe here because every test
-          // in this lane is a pure function over its arguments. No service in
-          // this lane holds module-level mutable state, so sharing a worker
-          // between test files changes nothing.
+          // pushed it to 2.56s. Both settings are safe here because no test in
+          // this lane touches a global or module-level mutable state. Nearly
+          // all are pure functions over their arguments; the exception,
+          // services/dev-cache, writes only inside its own mkdtemp directory
+          // and removes it after each test. Sharing a worker between test
+          // files changes nothing.
           //
           // If a future test ever needs a fresh module registry or mutates a
           // global, it gets `isolate: true` in its own file rather than

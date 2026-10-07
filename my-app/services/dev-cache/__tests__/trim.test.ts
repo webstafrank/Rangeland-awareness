@@ -20,6 +20,8 @@ import {
   decide,
   dirSize,
   lockHeld,
+  main,
+  pidAlive,
   trimDevCache,
 } from "@/services/dev-cache/trim.mjs";
 
@@ -66,15 +68,37 @@ describe("decide", () => {
 
 describe("capFromEnv", () => {
   it.each([
-    [undefined, DEFAULT_CAP_MB],
-    ["", DEFAULT_CAP_MB],
-    ["abc", DEFAULT_CAP_MB],
-    ["0", DEFAULT_CAP_MB],
-    ["-5", DEFAULT_CAP_MB],
-    ["150", 150],
-    ["0.5", 0.5],
-  ])("%j -> %d", (value, expected) => {
-    expect(capFromEnv(value)).toBe(expected);
+    [undefined, DEFAULT_CAP_MB, false],
+    ["", DEFAULT_CAP_MB, false],
+    ["abc", DEFAULT_CAP_MB, true],
+    ["0", DEFAULT_CAP_MB, true],
+    ["-5", DEFAULT_CAP_MB, true],
+    ["150", 150, false],
+    ["0.5", 0.5, false],
+  ])("%j -> %d (rejected: %s)", (value, capMb, rejected) => {
+    expect(capFromEnv(value)).toEqual({ capMb, rejected });
+  });
+});
+
+describe("pidAlive", () => {
+  it("is false for a pid with no process", () => {
+    // Above Linux's pid_max ceiling, so never a real process.
+    expect(pidAlive(2 ** 22 + 1)).toBe(false);
+  });
+
+  it("is false when the pid was reused by something that is not Next", () => {
+    expect(pidAlive(process.pid, () => "/opt/google/chrome/chrome\0--type=gpu")).toBe(false);
+  });
+
+  it("is true when the pid is a Next server", () => {
+    expect(pidAlive(process.pid, () => "next-server (v16.3.8)")).toBe(true);
+  });
+
+  it("falls back to liveness where there is no /proc", () => {
+    const noProc = () => {
+      throw Object.assign(new Error("no /proc"), { code: "ENOENT" });
+    };
+    expect(pidAlive(process.pid, noProc)).toBe(true);
   });
 });
 
@@ -97,9 +121,27 @@ describe("lockHeld", () => {
     },
   );
 
-  it("treats this test process as alive with the real pid check", () => {
+  it("is not held by a live pid that is not a Next server", () => {
+    // The real check, against this vitest worker: alive, but its cmdline is node + vitest.
     writeLock(JSON.stringify({ pid: process.pid }));
-    expect(lockHeld(lockPath())).toBe(true);
+    expect(lockHeld(lockPath(), (pid: number) => pidAlive(pid, () => "node vitest"))).toBe(false);
+  });
+});
+
+describe("main", () => {
+  it("logs a rejected cap and still runs with the default", () => {
+    const lines: string[] = [];
+    main({ appDir: app, env: { DEV_CACHE_CAP_MB: "0" }, log: (l: string) => lines.push(l) });
+    expect(lines[0]).toMatch(/DEV_CACHE_CAP_MB="0" is not a positive number, using 300/);
+    expect(lines[1]).toBe("[dev-cache] no Turbopack cache yet");
+  });
+
+  it("never throws, so a filesystem error cannot stop next dev starting", () => {
+    // A file where the .next directory should be: every read below it fails with ENOTDIR.
+    writeFileSync(join(app, ".next"), "not a directory");
+    const lines: string[] = [];
+    expect(() => main({ appDir: app, env: {}, log: (l: string) => lines.push(l) })).not.toThrow();
+    expect(lines.at(-1)).toMatch(/^\[dev-cache\] skipped, ENOTDIR; starting dev anyway$/);
   });
 });
 

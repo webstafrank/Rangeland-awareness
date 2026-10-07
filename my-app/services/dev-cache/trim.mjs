@@ -2,17 +2,20 @@
 /**
  * Cap Turbopack's on-disk dev cache before `next dev` starts.
  *
- * Runs as the `predev` script, so every `npm run dev` passes through it.
+ * Runs as the `predev` script, so every `npm run dev` passes through it. It is
+ * best-effort: any error is logged and the script still exits 0, because a
+ * speed-up that can stop `next dev` from starting is worse than none.
  *
  * Why it exists: Turbopack persists its dev cache in .next/dev/cache/turbopack
  * and never shrinks it. On the dev machine (a 5400rpm laptop HDD, ~23 MB/s
  * measured) it had grown to 685 MB. Reading it back took ~29s on its own,
  * compaction rewrote ~420 MB at a time, and the first GET / after a start
- * took 50 to 325s across ~60 sessions in .next/dev/trace. A fresh `.next`
- * compiles / in ~8s.
+ * took 50 to 325s across ~60 sessions in .next/dev/trace. On a fresh `.next`
+ * the compile of / itself takes ~6 to 8s (Next's own "next.js:" timing).
  *
  * Why a cap rather than turning the cache off: a small cache is the fastest
- * option there is. Measured on the same machine, time from start to / served:
+ * option on a warm restart. Measured on the same machine, wall clock from
+ * process start to / served:
  *
  *                          fresh .next   restart, cold disk   restart, warm
  *   cache on, small            14.8s            55.8s               3.7s
@@ -24,20 +27,26 @@
  * Override with DEV_CACHE_CAP_MB.
  *
  * It never clears a cache a running dev server is using: Next writes
- * .next/dev/lock with that server's pid, and a live pid means skip.
+ * .next/dev/lock with that server's pid, and a live pid that is still a Next
+ * process means skip. A lock left by a crash, whose pid is dead or now belongs
+ * to some other program, does not block the trim.
  *
  *   node services/dev-cache/trim.mjs              (what predev runs)
  *   DEV_CACHE_CAP_MB=150 npm run dev
  */
 
-import { readFileSync, readdirSync, rmSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const DEFAULT_CAP_MB = 300;
 const MB = 1024 * 1024;
 
-/** Total bytes of every file under `dir`; 0 when it does not exist. */
+/**
+ * Total bytes of every file under `dir`; 0 when it does not exist. A file or
+ * directory that disappears mid-walk counts as 0 rather than throwing, since
+ * Turbopack replaces its .sst files while it compacts.
+ */
 export function dirSize(dir) {
   let entries;
   try {
@@ -49,20 +58,38 @@ export function dirSize(dir) {
   let total = 0;
   for (const e of entries) {
     const p = join(dir, e.name);
-    if (e.isDirectory()) total += dirSize(p);
-    else if (e.isFile()) total += statSync(p).size;
+    if (e.isDirectory()) {
+      total += dirSize(p);
+    } else if (e.isFile()) {
+      try {
+        total += statSync(p).size;
+      } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+      }
+    }
   }
   return total;
 }
 
-/** True when the process exists. EPERM means it exists but belongs to someone else. */
-export function pidAlive(pid) {
+/**
+ * True when `pid` is a running Next process. Where /proc exists (Linux) the
+ * command line is checked, so a pid the OS has since handed to an unrelated
+ * program does not count; elsewhere a live pid is the best available signal.
+ * EPERM means the process exists but belongs to another user.
+ */
+export function pidAlive(pid, readCmdline = (p) => readFileSync(`/proc/${p}/cmdline`, "utf8")) {
   try {
     process.kill(pid, 0);
-    return true;
   } catch (err) {
-    return err.code === "EPERM";
+    if (err.code !== "EPERM") return false;
   }
+  let cmdline;
+  try {
+    cmdline = readCmdline(pid);
+  } catch {
+    return true;
+  }
+  return /next/.test(cmdline);
 }
 
 /**
@@ -80,10 +107,16 @@ export function lockHeld(lockPath, isAlive = pidAlive) {
   return Number.isInteger(pid) && pid > 0 && isAlive(pid);
 }
 
-/** Parse DEV_CACHE_CAP_MB; anything that is not a positive number falls back to the default. */
+/**
+ * Parse DEV_CACHE_CAP_MB. Anything that is not a positive number falls back to
+ * the default, and `rejected` says so, so the log can tell the user.
+ */
 export function capFromEnv(value) {
+  if (value == null || value === "") return { capMb: DEFAULT_CAP_MB, rejected: false };
   const n = Number(value);
-  return value != null && value !== "" && Number.isFinite(n) && n > 0 ? n : DEFAULT_CAP_MB;
+  return Number.isFinite(n) && n > 0
+    ? { capMb: n, rejected: false }
+    : { capMb: DEFAULT_CAP_MB, rejected: true };
 }
 
 /** The decision, separated from the filesystem so it can be tested exhaustively. */
@@ -97,8 +130,9 @@ export function decide({ sizeBytes, capMb, serverRunning }) {
 /** Measure, decide, act, and return one log line describing what happened. */
 export function trimDevCache({ appDir, capMb = DEFAULT_CAP_MB, isAlive = pidAlive }) {
   const cacheDir = join(appDir, ".next", "dev", "cache", "turbopack");
-  const sizeBytes = dirSize(cacheDir);
+  // Lock first: walking a cache a live server is compacting is the riskier read.
   const serverRunning = lockHeld(join(appDir, ".next", "dev", "lock"), isAlive);
+  const sizeBytes = dirSize(cacheDir);
   const action = decide({ sizeBytes, capMb, serverRunning });
   const size = `${Math.round(sizeBytes / MB)} MB`;
 
@@ -121,8 +155,38 @@ export function trimDevCache({ appDir, capMb = DEFAULT_CAP_MB, isAlive = pidAliv
   }
 }
 
-// Run only when executed, so the test can import the functions without a delete.
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const appDir = fileURLToPath(new URL("../../", import.meta.url));
-  console.log(trimDevCache({ appDir, capMb: capFromEnv(process.env.DEV_CACHE_CAP_MB) }).message);
+/**
+ * The predev entry point. Never throws, so it can never stop `next dev` starting.
+ *
+ * @param {{ appDir: string, env?: Record<string, string | undefined>, log?: (line: string) => void }} opts
+ */
+export function main({ appDir, env = process.env, log = console.log }) {
+  try {
+    const { capMb, rejected } = capFromEnv(env.DEV_CACHE_CAP_MB);
+    if (rejected) {
+      log(`[dev-cache] DEV_CACHE_CAP_MB=${JSON.stringify(env.DEV_CACHE_CAP_MB)} is not a positive number, using ${capMb}`);
+    }
+    log(trimDevCache({ appDir, capMb }).message);
+  } catch (err) {
+    log(`[dev-cache] skipped, ${err.code ?? err.message}; starting dev anyway`);
+  }
+}
+
+/**
+ * Whether this module is the process entry point. Node reports
+ * `import.meta.url` as the real path but leaves argv[1] as typed, so both are
+ * resolved through symlinks before comparing, or a symlinked checkout would
+ * silently never trim.
+ */
+function isEntryPoint() {
+  if (!process.argv[1]) return false;
+  try {
+    return pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
+  main({ appDir: fileURLToPath(new URL("../../", import.meta.url)) });
 }
