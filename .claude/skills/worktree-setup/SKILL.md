@@ -111,6 +111,10 @@ the names belong to the project, not to git.
 New branch, same worktree, clean tree first. Never a second worktree. In solo mode
 this block is the whole ritual: it is what the setup block already did.
 
+Only for a medium or large task, or when the current branch's PR is already merged
+or closed. A small task skips this block and commits onto the current branch
+("Stacking small changes" in the "Branching" section of CLAUDE.md).
+
 ```bash
 SLUG=next-task                                                  # <- the new task
 # switch -c carries uncommitted work into task two. Base resolved as setup does:

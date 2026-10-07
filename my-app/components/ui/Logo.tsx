@@ -14,9 +14,12 @@ interface LogoProps {
 }
 
 const RATIO = 207 / 165;
+/** The WFP emblem's intrinsic 191:185 ratio. */
+const WFP_RATIO = 191 / 185;
 
 /**
- * The Kenya Space Agency mark beside the product name.
+ * The Kenya Space Agency mark and the World Food Programme emblem beside the
+ * product name, split by a hairline the way co-branded marks are set.
  *
  * The raster is the agency's own artwork, not a redraw: a hand-drawn stand-in
  * for a government agency's logo is exactly the thing that should not ship.
@@ -26,7 +29,8 @@ const RATIO = 207 / 165;
  * With the wordmark beside it the image is decorative (alt=""): the text names
  * the link, and a screen reader hearing "Kenya Space Agency logo, Disaster
  * Monitor, Kenya Space Agency" is hearing one name three times. Mark only,
- * the image carries the name itself.
+ * the image carries the name itself. The WFP emblem always carries its name:
+ * no text beside it says "World Food Programme".
  */
 export function Logo({
   markOnly = false,
@@ -40,6 +44,15 @@ export function Logo({
         src="/ksa-logo.png"
         alt={markOnly ? "Kenya Space Agency" : ""}
         width={Math.round(size * RATIO)}
+        height={size}
+        priority
+        className="shrink-0"
+      />
+      <span aria-hidden="true" className="w-px shrink-0 self-stretch bg-edge" />
+      <Image
+        src="/wfp-logo.png"
+        alt="World Food Programme"
+        width={Math.round(size * WFP_RATIO)}
         height={size}
         priority
         className="shrink-0"
