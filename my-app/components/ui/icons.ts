@@ -15,47 +15,43 @@
  * It is also the one list of what the app draws: 20px Regular in toolbars and
  * lists, 16px beside caption text, Filled for a selected or status state, as
  * the design system's iconography rule sets out.
+ *
+ * Each icon comes from its own file, `@fluentui/react-icons/svg/<kebab-name>`,
+ * never the package root. The root resolves to 60 `sizedIcons/chunk-N.js`
+ * files that hold every icon in every size, and `optimizePackageImports` in
+ * next.config.ts only narrows that to the chunks a name lives in: the dev
+ * build was compiling 30 of them, 22 MB, to draw 41 icons. Per-icon files
+ * took that to 2 chunks and the dev output from 67 MB to 29 MB. The file name
+ * is the icon name without its size and variant, so `ArrowRight16Regular`
+ * comes from `arrow-right`. __tests__/icons.test.ts fails a root import.
  */
-export {
-  Add16Regular,
-  ArrowClockwise20Regular,
-  ArrowCounterclockwise16Regular,
-  ArrowCounterclockwise20Regular,
-  ArrowDownload20Regular,
-  ArrowLeft20Regular,
-  ArrowRepeatAll20Regular,
-  ArrowRight16Regular,
-  ArrowRight20Regular,
-  ArrowSync16Regular,
-  ArrowUpload20Regular,
-  Checkmark16Regular,
-  CheckmarkCircle16Filled,
-  CheckmarkCircle16Regular,
-  ChevronRight12Regular,
-  ChevronRight16Regular,
-  Circle16Regular,
-  Clock16Regular,
-  Copy16Regular,
-  Delete16Regular,
-  DismissCircle16Regular,
-  ErrorCircle12Filled,
-  ErrorCircle16Regular,
-  ErrorCircle20Filled,
-  ErrorCircle20Regular,
-  FoodGrains20Regular,
-  FoodGrains24Regular,
-  LeafThree20Regular,
-  LeafThree24Regular,
-  Location16Regular,
-  LockClosed16Regular,
-  Mail20Regular,
-  Play20Filled,
-  PlugDisconnected20Regular,
-  SubtractCircle16Regular,
-  Warning12Filled,
-  WeatherRainShowersDay20Regular,
-  WeatherRainShowersDay24Regular,
-  WeatherSunny20Regular,
-  WeatherSunny24Regular,
-  ZoomFit16Regular,
-} from "@fluentui/react-icons";
+export { Add16Regular } from "@fluentui/react-icons/svg/add";
+export { ArrowClockwise20Regular } from "@fluentui/react-icons/svg/arrow-clockwise";
+export { ArrowCounterclockwise16Regular, ArrowCounterclockwise20Regular } from "@fluentui/react-icons/svg/arrow-counterclockwise";
+export { ArrowDownload20Regular } from "@fluentui/react-icons/svg/arrow-download";
+export { ArrowLeft20Regular } from "@fluentui/react-icons/svg/arrow-left";
+export { ArrowRepeatAll20Regular } from "@fluentui/react-icons/svg/arrow-repeat-all";
+export { ArrowRight16Regular, ArrowRight20Regular } from "@fluentui/react-icons/svg/arrow-right";
+export { ArrowSync16Regular } from "@fluentui/react-icons/svg/arrow-sync";
+export { ArrowUpload20Regular } from "@fluentui/react-icons/svg/arrow-upload";
+export { Checkmark16Regular } from "@fluentui/react-icons/svg/checkmark";
+export { CheckmarkCircle16Filled, CheckmarkCircle16Regular } from "@fluentui/react-icons/svg/checkmark-circle";
+export { ChevronRight12Regular, ChevronRight16Regular } from "@fluentui/react-icons/svg/chevron-right";
+export { Circle16Regular } from "@fluentui/react-icons/svg/circle";
+export { Clock16Regular } from "@fluentui/react-icons/svg/clock";
+export { Copy16Regular } from "@fluentui/react-icons/svg/copy";
+export { Delete16Regular } from "@fluentui/react-icons/svg/delete";
+export { DismissCircle16Regular } from "@fluentui/react-icons/svg/dismiss-circle";
+export { ErrorCircle12Filled, ErrorCircle16Regular, ErrorCircle20Filled, ErrorCircle20Regular } from "@fluentui/react-icons/svg/error-circle";
+export { FoodGrains20Regular, FoodGrains24Regular } from "@fluentui/react-icons/svg/food-grains";
+export { LeafThree20Regular, LeafThree24Regular } from "@fluentui/react-icons/svg/leaf-three";
+export { Location16Regular } from "@fluentui/react-icons/svg/location";
+export { LockClosed16Regular } from "@fluentui/react-icons/svg/lock-closed";
+export { Mail20Regular } from "@fluentui/react-icons/svg/mail";
+export { Play20Filled } from "@fluentui/react-icons/svg/play";
+export { PlugDisconnected20Regular } from "@fluentui/react-icons/svg/plug-disconnected";
+export { SubtractCircle16Regular } from "@fluentui/react-icons/svg/subtract-circle";
+export { Warning12Filled } from "@fluentui/react-icons/svg/warning";
+export { WeatherRainShowersDay20Regular, WeatherRainShowersDay24Regular } from "@fluentui/react-icons/svg/weather-rain-showers-day";
+export { WeatherSunny20Regular, WeatherSunny24Regular } from "@fluentui/react-icons/svg/weather-sunny";
+export { ZoomFit16Regular } from "@fluentui/react-icons/svg/zoom-fit";
