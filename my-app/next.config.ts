@@ -71,6 +71,10 @@ const nextConfig: NextConfig = {
   // framework's advisories to read and tells a user nothing.
   poweredByHeader: false,
 
+  // The floating "N" badge Next draws bottom-left in `next dev` sits over the
+  // hero. Build and runtime errors still surface in the dev overlay without it.
+  devIndicators: false,
+
   // Fluent UI's two packages are barrels over thousands of modules: the icon
   // package alone re-exports every Fluent System Icon in every size. Neither
   // is on Next's default optimise list, so without this one icon import makes
