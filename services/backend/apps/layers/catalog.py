@@ -98,3 +98,68 @@ def invalidate() -> None:
     global _snapshot
     with _lock:
         _snapshot = None
+
+
+# ----------------------------------------------------------------- features
+#
+# The map's attribute popups read whole vector layers as GeoJSON. The same
+# reasoning as the catalogue applies: the data changes when somebody edits it
+# in GeoServer, which is rarely, and the largest layer published today
+# (Rangelands:rivers) is 6.9MB of JSON that takes GeoServer a second to write.
+# So each layer is kept, gzipped, for the catalogue's TTL. Gzipped because that
+# is the form it is served in (747KB for rivers), and because it is the form
+# that is cheap to hold.
+
+
+@dataclass
+class FeatureSnapshot:
+    gzipped: bytes
+    raw_size: int
+    fetched_at: float
+
+    @property
+    def age_seconds(self) -> float:
+        return time.monotonic() - self.fetched_at
+
+
+_features_lock = threading.Lock()
+_features: dict[str, FeatureSnapshot] = {}
+
+
+def get_features(
+    layer_name: str, *, count: int, client: GeoServerClient | None = None
+) -> FeatureSnapshot:
+    """One layer's GeoJSON, gzipped, fetched only when the cached copy expired.
+
+    A failed refresh serves the stale copy when there is one, for the same
+    reason the catalogue does; with nothing cached, the error propagates.
+    """
+    import gzip
+
+    ttl = settings.GEOSERVER["capabilities_ttl"]
+    with _features_lock:
+        current = _features.get(layer_name)
+        if current is not None and current.age_seconds < ttl:
+            return current
+        try:
+            raw = (client or GeoServerClient()).feature_collection_bytes(
+                layer_name, count=count
+            )
+        except GeoServerError:
+            if current is None:
+                raise
+            log.warning("feature refresh failed for %s, serving stale", layer_name)
+            return current
+        snapshot = FeatureSnapshot(
+            gzipped=gzip.compress(raw, compresslevel=6),
+            raw_size=len(raw),
+            fetched_at=time.monotonic(),
+        )
+        _features[layer_name] = snapshot
+        return snapshot
+
+
+def invalidate_features() -> None:
+    """Drop every cached layer. For tests, and for the refresh endpoint."""
+    with _features_lock:
+        _features.clear()

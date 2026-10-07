@@ -363,6 +363,37 @@ class GeoServerClient:
                 f"WFS returned non-JSON for {type_name}: {response.text[:200]}"
             ) from exc
 
+    def feature_collection_bytes(
+        self, type_name: str, *, count: int, srs: str = "EPSG:4326"
+    ) -> bytes:
+        """A whole layer as GeoJSON, as the bytes GeoServer sent.
+
+        For the map's feature endpoint, which hands the document straight to
+        the browser: parsing several megabytes of JSON only to serialise it
+        again would double the work for nothing. The content type is checked
+        instead, because GeoServer reports errors as a 200 with an XML body.
+        """
+        response = self._get(
+            "wfs",
+            {
+                "SERVICE": "WFS",
+                "VERSION": "2.0.0",
+                "REQUEST": "GetFeature",
+                "typeNames": type_name,
+                "outputFormat": "application/json",
+                "srsName": srs,
+                "count": count,
+            },
+            timeout=self.coverage_timeout,
+        )
+        content_type = response.headers.get("Content-Type", "")
+        if "json" not in content_type:
+            raise GeoServerError(
+                f"WFS returned {content_type or 'no content type'} for {type_name}: "
+                f"{response.text[:200]}"
+            )
+        return response.content
+
     # ------------------------------------------------------------------- wcs
 
     @staticmethod

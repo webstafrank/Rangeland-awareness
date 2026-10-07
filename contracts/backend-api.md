@@ -192,6 +192,23 @@ Passed through, it renders as a broken image and the real message is never seen.
 
 The legend graphic, proxied. `404` when no legend is published.
 
+## `GET /api/v1/layers/{id}/features`
+
+A **vector** layer's features as GeoJSON in WGS84 (`application/geo+json`),
+for the map's attribute popups. The browser cannot ask GeoServer for these
+itself: GeoServer sends no CORS headers and sits on a LAN-only address.
+
+- Only layers in the catalogue, and only vector ones: `404` for an unknown
+  layer, `400` for a raster. This is not an open WFS proxy.
+- Cached for `GEOSERVER_CAPABILITIES_TTL`, like the catalogue, and served
+  gzipped when the client sends `Accept-Encoding: gzip` (every browser does).
+  `Rangelands:rivers` is 6.9MB of JSON and 747KB on the wire.
+- At most 25,000 features per layer, stated in the `X-Feature-Limit` header;
+  GeoServer's own `numberMatched` / `numberReturned` in the body say whether a
+  layer was cut.
+- `502` with GeoServer's text when it refuses, unless a cached copy can be
+  served instead.
+
 ## `POST /api/v1/layers/refresh`
 
 Drop the catalogue cache, for when a layer was just published.
