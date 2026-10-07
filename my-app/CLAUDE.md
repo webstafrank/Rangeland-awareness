@@ -22,7 +22,7 @@ This block is mandatory and verbose on purpose. Franklyn reads it to see what mo
 
 The sizes:
 
-small — typo, copy change, color or styling value, config tweak, rename, any one-or-two-file mechanical edit with no behavior change. Solo, no fan-out, no variant tournament, no critic sub-agent. Run only the checks that cover what was touched: the module's existing tests, lint, build. A non-behavioral change needs no new test. Self-rating is one line, no loop. Commit and push as usual.
+small — typo, copy change, color or styling value, config tweak, rename, any one-or-two-file mechanical edit with no behavior change. Solo, no fan-out, no variant tournament, no critic sub-agent. Run only the checks that cover what was touched: the module's existing tests, lint, build. A non-behavioral change needs no new test. Self-rating is one line, no loop. Commit it onto the current session branch, no new branch: see "Stacking small changes" in "Branching".
 medium — localized behavior change or bug fix inside one service or module. Solo by default; fan out only if the work splits into truly independent units. Run the touched service's test suite, not the whole repo's. Bug fixes still ship the regression test. One cold critic pass, no tournament.
 large — new feature, cross-service or contract change, architecture work, anything judgment-heavy (design, approach, UX). Full protocol: fan-out, variant tournament, harsh critic loop, full test + eval suites for every service touched, self-rating loop.
 Deciding rules:
@@ -36,7 +36,7 @@ This section is non-negotiable and must never be removed. It runs first, before 
 
 Two facts hold at once: Franklyn works with other people, so nothing lands on main directly; and several Claude Code sessions run on the same machine, in the same repo, at the same time.
 
-A branch does not isolate a session, the working tree does. Every session started in the same directory shares one checkout. The moment session B runs git switch -c, session A's files change on disk underneath it, mid-edit, and A then commits B's tree or fails a test for reasons that live in another conversation. So: the worktree is the session, the branch is the task. Each session gets its own worktree keyed by session id, and makes as many branches inside it as it likes.
+A branch does not isolate a session, the working tree does. Every session started in the same directory shares one checkout. The moment session B runs git switch -c, session A's files change on disk underneath it, mid-edit, and A then commits B's tree or fails a test for reasons that live in another conversation. So: the worktree is the session, the branch is the task. Each session gets its own worktree keyed by session id. Medium and large tasks each get their own branch inside it; small tasks stack on whichever session branch is current.
 
 Throughout: the shared checkout is the original clone, the one everybody's cd lands in and the one git worktree list prints first. Nobody works there.
 
@@ -44,7 +44,7 @@ One line turns the worktree off: git config claude.mode solo. Repo-local, and te
 
 Solo is about people, not sessions, and those are two different problems. The PR exists because someone else reviews your work. The worktree exists because two agent sessions in one checkout overwrite each other, and that happens on a project you own alone just as easily. So solo means one session at a time in this repo. Start a second one and the collision this section exists to prevent is back with nothing to catch it, so set git config claude.mode team first.
 
-The procedure lives in the worktree-setup skill: the setup block that creates the session worktree and task branch, the bootstrap block for the untracked files a worktree does not inherit, the second-task block, and the manual cleanup sweep. Invoke it before the first write of a session, again when starting a second task in the same session, and when Franklyn asks to clean worktrees up. Setup prints the worktree path; call EnterWorktree with it (this section is the instruction that authorizes that tool), or cd there outside Claude Code.
+The procedure lives in the worktree-setup skill: the setup block that creates the session worktree and task branch, the bootstrap block for the untracked files a worktree does not inherit, the second-task block, and the manual cleanup sweep. Invoke it before the first write of a session, again when starting a second medium or large task in the same session, and when Franklyn asks to clean worktrees up. Setup prints the worktree path; call EnterWorktree with it (this section is the instruction that authorizes that tool), or cd there outside Claude Code.
 
 The blocks moved out because they are needed at four moments and were resident for every turn of every session. What stays here is what has to be true without invoking anything: the guard below, the prohibitions, and the reasons. Those are load-bearing at times when nothing has prompted a skill to load.
 
@@ -68,7 +68,15 @@ Shipping (full ritual in "After every task"): rebase on the base, push, open a P
 
 Never: edit or commit in the shared checkout, run git switch or git checkout there, commit a worktree directory, or share one branch between two sessions.
 
-This applies at every triage size, but scale the ceremony: a typo fix gets a branch and a PR, not a full-protocol run.
+Stacking small changes. A small task (per "Task sizing") does not get its own branch or PR. It lands as one more commit on the current session branch, and pushing that branch updates the PR already open for it. One commit per small task, so each can still be reverted on its own. Rules:
+
+If the session has no branch yet, setup creates one as usual, named for the first task; later small tasks stack on it.
+If the current branch's PR is already merged or closed, do not stack on it: run the second-task block and start a fresh branch.
+Medium and large tasks never stack. Each gets its own branch (second-task block) and its own PR, so a reviewer reads one change at a time.
+After stacking, update the PR title and body so they list every change on the branch, not just the first one.
+Why: a branch and PR per typo turned ten minutes of tweaks into a stack of PRs to review and merge (Franklyn, 2026-10-07). The branch still keeps every change off main and in front of a reviewer; only the per-tweak ceremony goes.
+
+Scale the ceremony to the size: a typo fix gets a commit on the session branch, not a full-protocol run.
 
 The two machine spaces — read this before doing anything
 Every piece of work you do belongs to one of two spaces. Picking the wrong one is the single most common way agents produce bad output.
@@ -172,7 +180,7 @@ This rating is not the review. Wherever a critic pass applies (medium and large,
 After every task — commit, push, restart
 Once a task is done, two things happen, no exceptions:
 
-Commit, push the branch, open the PR. Stage the work and write a clear commit message. Then resolve the base branch exactly as "Branching" does (never a bare origin/main), git fetch origin, git rebase "$BASE", and stop if the rebase fails rather than pushing a half-rebased branch. Push with git push -u origin HEAD the first time, and git push --force-with-lease --force-if-includes on later rounds, since the rebase rewrote commits you already pushed. Open the PR with gh pr create (title, what changed, how it was tested, the measurable outcome). Don't wait to be asked. Print the PR URL in the final report. A human merges it; you do not, unless Franklyn says so. Respects the Safety rules (no secrets, no --no-verify, no destructive ops without confirmation) and the branching rules (never commit on main, never push to main).
+Commit, push the branch, open the PR. Stage the work and write a clear commit message. Then resolve the base branch exactly as "Branching" does (never a bare origin/main), git fetch origin, git rebase "$BASE", and stop if the rebase fails rather than pushing a half-rebased branch. Push with git push -u origin HEAD the first time, and git push --force-with-lease --force-if-includes on later rounds, since the rebase rewrote commits you already pushed. Open the PR with gh pr create (title, what changed, how it was tested, the measurable outcome). Don't wait to be asked. If the branch already has an open PR (a small task stacked on it, see "Branching"), the push updates that PR: edit its title and body to cover the new commit instead of opening another. Use gh api -X PATCH repos/OWNER/REPO/pulls/N -f title=... -f body=..., not gh pr edit: on this repo gh pr edit fails on the deprecated Projects (classic) GraphQL field. Print the PR URL in the final report. A human merges it; you do not, unless Franklyn says so. Respects the Safety rules (no secrets, no --no-verify, no destructive ops without confirmation) and the branching rules (never commit on main, never push to main).
 Report what to restart. Tell Franklyn exactly which service / system / program needs to be restarted for the change to take effect, with the full list of commands to run. If nothing needs restarting, say so explicitly.
 For restart commands that need sudo: never run them yourself. List them for Franklyn to run, clearly marked as his to execute.
 
