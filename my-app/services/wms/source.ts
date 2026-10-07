@@ -82,9 +82,8 @@ const KSA_GEOSERVER: WmsSource = {
    * arriving. So the app and GeoServer have to agree — both http on the LAN
    * (the normal case here), or GeoServer behind TLS.
    *
-   * Checked 2026-09-09 from 192.168.4.198: the host answers ping in ~9.6ms, and
-   * every common web port including 8080 answers Connection refused. Routing is
-   * fine; nothing was listening. The layer list below is therefore still empty.
+   * Checked 2026-10-07: GeoServer answers on 8080 and publishes the
+   * Rangelands workspace, which is where KSA_LAYERS comes from.
    */
   endpoint: "http://192.168.0.40:8080/geoserver/wms",
   version: "1.3.0",

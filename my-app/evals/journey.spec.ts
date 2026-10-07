@@ -265,22 +265,21 @@ test.describe("homepage", () => {
     expect(problems).toEqual([]);
   });
 
-  test("the hero fills the screen below the header", async ({ page }, testInfo) => {
+  test("the hero is as tall as its content, not the screen", async ({ page }, testInfo) => {
     await page.goto("/");
     // Descendant, not child: app/template.tsx wraps every page in the route
     // fade's div, so the hero sits one level below <main>.
-    const hero = await page.locator("main section").first().boundingBox();
-    const viewport = page.viewportSize();
-    expect(hero && viewport).toBeTruthy();
+    const heroSection = page.locator("main section").first();
+    // No minimum height of any kind: the padding and the content set it.
+    await expect(heroSection).toHaveCSS("min-height", /^(0px|auto)$/);
     if (testInfo.project.name === "desktop") {
-      // Content is shorter than the screen here, so the minimum is what sets
-      // the height: it must end exactly at the fold, neither short of it nor
-      // a pixel past it (the header's 1px border is the easy one to miss).
-      expect(Math.abs(hero!.y + hero!.height - viewport!.height)).toBeLessThanOrEqual(0.5);
-    } else {
-      // A phone stacks the quick-start card under the copy, which is taller
-      // than the screen, so the hero grows to fit and still reaches the fold.
-      expect(hero!.y + hero!.height).toBeGreaterThanOrEqual(viewport!.height);
+      // Content is shorter than the screen here, so the hero ends above the
+      // fold and the topics heading shows without scrolling.
+      const hero = await heroSection.boundingBox();
+      const viewport = page.viewportSize();
+      expect(hero && viewport).toBeTruthy();
+      expect(hero!.y + hero!.height).toBeLessThan(viewport!.height);
+      await expect(page.getByRole("heading", { level: 2, name: "Choose a topic" })).toBeInViewport();
     }
   });
 
@@ -331,15 +330,18 @@ test.describe("homepage", () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
-  test("H6: the hero's two calls to action are Run Analysis and Explore Terrain", async ({
+  test("H6: the hero's two calls to action are Run Analysis and Explore Data", async ({
     page,
   }) => {
     const problems = watchConsole(page);
+    // The click lands on the data explorer, which lists the backend's
+    // catalogue; there is no backend in this lane.
+    await stubKsaCatalog(page);
     await page.goto("/");
     const hero = page.locator("main section").first();
 
     const run = hero.getByRole("link", { name: "Run Analysis", exact: true });
-    const explore = hero.getByRole("link", { name: "Explore Terrain", exact: true });
+    const explore = hero.getByRole("link", { name: "Explore Data", exact: true });
     await expect(run).toBeVisible();
     await expect(run).toHaveAttribute("href", "/#topics");
     await expect(explore).toBeVisible();
@@ -501,16 +503,19 @@ test.describe("motion", () => {
     expect(initial).toHaveLength(3);
     expect(initial.every((s) => s.animation === "reveal")).toBe(true);
 
-    // Put the top of the first section 20px above the fold, independent of
-    // how tall the hero happens to be: it has started to enter, not finished.
+    // Put the top of the second section 20px above the fold: it has started to
+    // enter, not finished. The second, not the first, because the hero is only
+    // as tall as its content, so on desktop the first section already starts
+    // on screen at load and can never be caught part way in.
     await page.evaluate(() => {
-      const top = document.querySelector(".reveal")!.getBoundingClientRect().top + window.scrollY;
+      const top =
+        document.querySelectorAll(".reveal")[1]!.getBoundingClientRect().top + window.scrollY;
       window.scrollTo({ top: top - window.innerHeight + 20, behavior: "instant" });
     });
     await expect
-      .poll(async () => (await revealState(page))[0].opacity)
+      .poll(async () => (await revealState(page))[1].opacity)
       .toBeGreaterThan(0);
-    expect((await revealState(page))[0].opacity).toBeLessThan(1);
+    expect((await revealState(page))[1].opacity).toBeLessThan(1);
 
     // The bottom of the page is the hardest case: the last section must have
     // reached the end of its range before the scroll runs out.
@@ -2075,5 +2080,260 @@ test.describe("measurable outcome", () => {
     await expect(page.getByTestId("analysis-request")).toBeVisible();
 
     expect(loads).toBe(0);
+  });
+});
+
+/* ------------------------------------------------------------ data explorer */
+
+/**
+ * The KSA half of the explorer comes from the backend's catalogue, which is
+ * not running in this lane. These routes stand in for it with a fixed two-layer
+ * workspace and a transparent tile, so the tests measure the explorer and not
+ * whether GeoServer is up today.
+ */
+const TRANSPARENT_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+async function stubKsaCatalog(page: Page) {
+  await page.route(/\/api\/v1\/layers(\?|$)/, (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({
+        endpoint: "http://geoserver.test/geoserver",
+        count: 2,
+        workspaces: ["Rangelands"],
+        stale: false,
+        staleReason: null,
+        fetchedAgoSeconds: 1,
+        layers: [
+          {
+            id: "Rangelands:rivers",
+            name: "Rangelands:rivers",
+            title: "rivers",
+            abstract: "",
+            workspace: "Rangelands",
+            bbox: [38.47, -3.11, 40.48, 0.0],
+            styles: ["Rangelands:rivers"],
+            queryable: true,
+            kind: "vector",
+          },
+          {
+            id: "Rangelands:unmapped_layer",
+            name: "Rangelands:unmapped_layer",
+            title: "unmapped_layer",
+            abstract: "",
+            workspace: "Rangelands",
+            bbox: [39.0, -2.7, 40.5, 0.0],
+            styles: ["polygon"],
+            queryable: true,
+            kind: "vector",
+          },
+        ],
+      }),
+    }),
+  );
+  await page.route(/\/api\/v1\/(tiles\/|layers\/.+\/legend)/, (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: TRANSPARENT_PNG,
+    }),
+  );
+  // One polygon over the whole of the rivers layer's extent, so a click
+  // anywhere in it lands on a feature. Real attribute names, from wards.
+  await page.route(/\/api\/v1\/layers\/.+\/features/, (route) =>
+    route.fulfill({
+      contentType: "application/geo+json",
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            id: "stub.1",
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [38.0, -3.5],
+                    [41.0, -3.5],
+                    [41.0, 0.5],
+                    [38.0, 0.5],
+                    [38.0, -3.5],
+                  ],
+                ],
+              ],
+            },
+            properties: { objectid: 7, ward: "Hirimani", constituency: "Bura", population: 23531 },
+          },
+        ],
+      }),
+    }),
+  );
+}
+
+const stackIds = (page: Page) =>
+  page
+    .getByTestId("stack-row")
+    .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId));
+
+test.describe("data explorer", () => {
+  test("E1: KSA and NASA layers are listed by category, and the filter narrows them", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await stubKsaCatalog(page);
+    await page.goto("/data");
+
+    const headings = page.getByTestId("category").locator("summary");
+    // Every KSA category, empty ones included, in the configured order; NASA
+    // after them; a layer with no line in the mapping file under Other, last.
+    await expect(headings).toHaveCount(11);
+    await expect(headings.nth(0)).toContainText("Administrative boundaries");
+    await expect(headings.nth(6)).toContainText("Natural features1");
+    await expect(headings.nth(9)).toContainText("Satellite imagery");
+    await expect(headings.nth(10)).toContainText("Other1");
+    await headings.nth(0).click();
+    await expect(page.getByText("No layers published in this category yet.").first()).toBeVisible();
+
+    const count = page.locator("#explore-layer-filter-count");
+    const total = Number((await count.innerText()).split(" ")[0]);
+    expect(total).toBeGreaterThan(2);
+
+    const filter = page.getByRole("searchbox", { name: "Filter layers" });
+    await filter.fill("temperature");
+    await expect(count).toHaveText(`2 of ${total} layers match`);
+    await filter.fill("rivers");
+    await expect(page.getByLabel("Rivers", { exact: true })).toBeVisible();
+    await filter.fill("no-such-layer-anywhere");
+    await expect(page.getByText("No layers match")).toBeVisible();
+    await filter.fill("");
+    await expect(count).toHaveText(`${total} layers`);
+    expect(problems).toEqual([]);
+  });
+
+  test("E2: the wheel zooms the map with a mouse, and leaves it alone on touch", async ({
+    page,
+  }, testInfo) => {
+    await stubKsaCatalog(page);
+    await page.goto("/data");
+    const view = page.getByTestId("explore-map-view");
+    await expect(view).toBeVisible();
+    // Wait for the first fit to Kenya to settle before reading the zoom.
+    await page.waitForTimeout(500);
+    const before = Number(await view.getAttribute("data-zoom"));
+
+    const box = (await page.getByTestId("explore-map").boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, -400);
+
+    if (testInfo.project.name === "desktop") {
+      await expect
+        .poll(async () => Number(await view.getAttribute("data-zoom")))
+        .toBeGreaterThan(before);
+    } else {
+      // The mobile project is a touch device, where a wheel is page scroll.
+      await page.waitForTimeout(800);
+      expect(Number(await view.getAttribute("data-zoom"))).toBe(before);
+    }
+  });
+
+  test("E3: layers stack newest on top, and move up and down the stack", async ({ page }) => {
+    const problems = watchConsole(page);
+    await stubKsaCatalog(page);
+    await page.goto("/data");
+
+    await page.getByTestId("category").locator("summary", { hasText: "Natural features" }).click();
+    await page.getByTestId("category").locator("summary", { hasText: "Other" }).click();
+    await page.getByLabel("Unmapped layer", { exact: true }).check();
+    await page.getByLabel("Rivers", { exact: true }).check();
+
+    const rivers = "ksa:Rangelands:rivers";
+    const other = "ksa:Rangelands:unmapped_layer";
+    await expect.poll(() => stackIds(page)).toEqual([rivers, other]);
+
+    // The top row cannot go up, the bottom row cannot go down.
+    await expect(page.getByRole("button", { name: "Move Rivers up" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Move Unmapped layer down" })).toBeDisabled();
+
+    await page.getByRole("button", { name: "Move Rivers down" }).click();
+    await expect.poll(() => stackIds(page)).toEqual([other, rivers]);
+    await page.getByRole("button", { name: "Move Rivers up" }).click();
+    await expect.poll(() => stackIds(page)).toEqual([rivers, other]);
+
+    // Hidden keeps its place; removed leaves the stack and unticks the list.
+    await page.getByRole("button", { name: "Hide Rivers" }).click();
+    await expect(page.getByRole("button", { name: "Show Rivers" })).toBeVisible();
+    await expect.poll(() => stackIds(page)).toEqual([rivers, other]);
+    await page.getByRole("button", { name: "Remove Rivers from the map" }).click();
+    await expect.poll(() => stackIds(page)).toEqual([other]);
+    await expect(page.getByLabel("Rivers", { exact: true })).not.toBeChecked();
+
+    expect(problems).toEqual([]);
+  });
+
+  test("E5: clicking a vector feature opens a popup of its attributes, and a hidden layer does not answer", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await stubKsaCatalog(page);
+    await page.goto("/data");
+    await page.getByTestId("category").locator("summary", { hasText: "Natural features" }).click();
+    await page.getByLabel("Rivers", { exact: true }).check();
+    await page.getByRole("button", { name: "Zoom to layer" }).click();
+    // The fit animation, then the GeoJSON parse in MapLibre's worker.
+    await page.waitForTimeout(1500);
+
+    // Clicked through the locator, which scrolls the map into view first: on
+    // a phone it sits above the panel, out of view after "Zoom to layer".
+    const map = page.getByTestId("explore-maplibre");
+    const clickCentre = async () => {
+      const box = (await map.boundingBox())!;
+      await map.click({ position: { x: box.width / 2, y: box.height / 2 } });
+    };
+    const popup = page.getByTestId("feature-popup");
+    await expect(async () => {
+      await clickCentre();
+      await expect(popup).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
+
+    // The layer's title, the feature's own name, then its attributes as
+    // key/value rows, with the bookkeeping id left out.
+    await expect(popup).toContainText("Rivers");
+    await expect(popup).toContainText("Hirimani");
+    await expect(popup).toContainText("constituency");
+    await expect(popup).toContainText("23531");
+    await expect(popup).not.toContainText("objectid");
+
+    // Hidden is hidden to clicks too.
+    await page.getByRole("button", { name: "Hide Rivers" }).click();
+    await clickCentre();
+    await expect(popup).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
+  test("E4: the NASA layers still work when the KSA catalogue cannot be read", async ({
+    page,
+  }) => {
+    await page.route(/\/api\/v1\/layers(\?|$)/, (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "GeoServer is unreachable, and no catalogue is cached." }),
+      }),
+    );
+    await page.goto("/data");
+    await expect(page.getByText("The KSA GeoServer layers could not be listed")).toBeVisible();
+    const headings = page.getByTestId("category").locator("summary");
+    // The KSA categories are still listed, empty, so the panel's shape does
+    // not change; only NASA has layers in it.
+    await expect(headings).toHaveCount(10);
+    await expect(headings.nth(9)).toContainText("Satellite imagery8");
+    await expect(page.getByTestId("category").filter({ hasText: "Other" })).toHaveCount(0);
   });
 });

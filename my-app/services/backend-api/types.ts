@@ -345,3 +345,44 @@ export const DEFAULT_TARGET_CRS = "EPSG:32637";
 
 /** Metres per pixel. 30 is Landsat-native and what the first real run used. */
 export const DEFAULT_RESOLUTION = 30;
+
+/* ----------------------------------------------------------------- layers */
+
+/**
+ * One published GeoServer layer, as `GET /api/v1/layers` lists it.
+ *
+ * `id` is the qualified `workspace:name` and the identifier everywhere;
+ * `title` is whatever someone typed in the GeoServer UI and is often just the
+ * name again, which is why the app keeps its own display names beside it.
+ */
+export const CatalogLayerSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    title: z.string(),
+    abstract: z.string().optional(),
+    workspace: z.string().nullable().optional(),
+    /** `[west, south, east, north]` in degrees, CRS:84. */
+    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).nullable().optional(),
+    styles: z.array(z.string()).optional(),
+    queryable: z.boolean().optional(),
+    kind: z.enum(["raster", "vector"]).optional(),
+  })
+  .loose();
+
+export type CatalogLayer = z.infer<typeof CatalogLayerSchema>;
+
+export const LayerCatalogSchema = z
+  .object({
+    endpoint: z.string(),
+    count: z.number(),
+    workspaces: z.array(z.string()),
+    /** A cached catalogue is being served because GeoServer did not answer. */
+    stale: z.boolean(),
+    staleReason: z.string().nullable().optional(),
+    fetchedAgoSeconds: z.number().optional(),
+    layers: z.array(CatalogLayerSchema),
+  })
+  .loose();
+
+export type LayerCatalog = z.infer<typeof LayerCatalogSchema>;

@@ -36,6 +36,11 @@ describe("getMapParams", () => {
     });
   });
 
+  it("sends the layer's own style when it names one", () => {
+    const styled: WmsLayerSpec = { ...layer, style: "line" };
+    expect(getMapParams(ksa, styled, { kind: "always" })?.styles).toBe("line");
+  });
+
   it("sends the clamped date, not the requested one", () => {
     const time = resolveLayerTime(layer, { start: "2026-01-01", end: "2026-12-31" });
     expect(getMapParams(gibs, layer, time)?.time).toBe("2026-09-08");
@@ -107,6 +112,15 @@ describe("legendFor", () => {
     expect(url.searchParams.get("layer")).toBe("MODIS_Terra_NDVI_8Day");
     expect(url.searchParams.get("version")).toBe("1.3.0");
     expect(url.searchParams.get("format")).toBe("image/png");
+    // No style named, so none is asked for: the server's default applies.
+    expect(url.searchParams.has("style")).toBe(false);
+  });
+
+  it("asks for the legend of the layer's own style when it names one", () => {
+    const styled: WmsLayerSpec = { ...layer, legendUrl: undefined, style: "line" };
+    const legend = legendFor(ksa, styled);
+    if (legend.kind !== "derived") throw new Error("expected a derived legend");
+    expect(new URL(legend.url).searchParams.get("style")).toBe("line");
   });
 });
 

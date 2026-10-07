@@ -117,3 +117,22 @@ export function tileTemplate(layerId: string): string {
     "&FORMAT=image/png&TRANSPARENT=true"
   );
 }
+
+/**
+ * The proxied legend image for a layer, in the layer's default style.
+ *
+ * Same base and the same unencoded colon as `tileTemplate`, for the same
+ * reasons. The backend answers 404 when GeoServer publishes no legend, which
+ * the image's error handler turns into a sentence.
+ */
+export function legendUrl(layerId: string): string {
+  return `${publicBackendBaseUrl()}/api/v1/layers/${layerId}/legend`;
+}
+
+/**
+ * A vector layer's features as GeoJSON, proxied, for the explorer's popups.
+ * The backend refuses a raster with 400, so only vector layers get one.
+ */
+export function featuresUrl(layerId: string): string {
+  return `${publicBackendBaseUrl()}/api/v1/layers/${layerId}/features`;
+}
