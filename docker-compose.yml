@@ -160,7 +160,11 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
 
     ports:
-      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-3000}:3000"
+      # Published on 8080, served on 3000 inside the container (Dockerfile.web
+      # sets PORT=3000 and its healthcheck reads it). Only the host side moves,
+      # so the analyst opens http://<host>:8080, and that origin, not :3000,
+      # is what CORS_ALLOWED_ORIGINS must list.
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:3000"
 
     depends_on:
       backend:

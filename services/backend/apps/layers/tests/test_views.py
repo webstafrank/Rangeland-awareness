@@ -13,6 +13,8 @@ cannot express.
 
 from __future__ import annotations
 
+import gzip
+import json
 from unittest import mock
 
 from django.test import SimpleTestCase, override_settings
@@ -39,6 +41,12 @@ COUNTIES = Layer(
 )
 
 
+FEATURES = (
+    b'{"type":"FeatureCollection","features":[{"type":"Feature","id":"Kenya_Counties.1",'
+    b'"geometry":{"type":"Point","coordinates":[39.5,-1.5]},"properties":{"name":"Tana River"}}]}'
+)
+
+
 class FakeUpstream:
     """Stands in for a `requests.Response` from GeoServer."""
 
@@ -58,6 +66,7 @@ def fake_client(**overrides):
     """A GeoServerClient stub whose methods can each be overridden."""
     client = mock.MagicMock()
     client.layers.return_value = [SLOPE, COUNTIES]
+    client.feature_collection_bytes.return_value = FEATURES
     client.get_map.return_value = FakeUpstream(content=b"\x89PNG-tile")
     client.legend.return_value = FakeUpstream(content=b"\x89PNG-legend")
     client.probe.return_value = {
@@ -79,7 +88,9 @@ def fake_client(**overrides):
 class LayerApiTests(SimpleTestCase):
     def setUp(self) -> None:
         catalog.invalidate()
+        catalog.invalidate_features()
         self.addCleanup(catalog.invalidate)
+        self.addCleanup(catalog.invalidate_features)
 
     def _patch(self, client):
         patcher = mock.patch(
@@ -264,6 +275,75 @@ class LayerApiTests(SimpleTestCase):
         }
         body = self.client.get("/api/v1/health").json()
         self.assertEqual(body["status"], "degraded")
+
+
+class FeatureApiTests(SimpleTestCase):
+    """`GET /api/v1/layers/{id}/features`, the map's attribute popups."""
+
+    url = f"/api/v1/layers/{COUNTIES.name}/features"
+
+    def setUp(self) -> None:
+        catalog.invalidate()
+        catalog.invalidate_features()
+        self.addCleanup(catalog.invalidate)
+        self.addCleanup(catalog.invalidate_features)
+
+    def _patch(self, client):
+        for target in ("apps.layers.catalog.GeoServerClient", "apps.layers.views.GeoServerClient"):
+            patcher = mock.patch(target, return_value=client)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return client
+
+    def test_serves_a_vector_layer_gzipped(self) -> None:
+        client = self._patch(fake_client())
+        response = self.client.get(self.url, headers={"Accept-Encoding": "gzip, deflate"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/geo+json")
+        self.assertEqual(response["Content-Encoding"], "gzip")
+        body = json.loads(gzip.decompress(response.content))
+        self.assertEqual(body["features"][0]["properties"]["name"], "Tana River")
+        # Asked of GeoServer by the qualified name, with the cap.
+        client.feature_collection_bytes.assert_called_once_with(COUNTIES.name, count=25_000)
+
+    def test_serves_plain_json_to_a_client_that_does_not_accept_gzip(self) -> None:
+        self._patch(fake_client())
+        response = self.client.get(self.url)
+        self.assertNotIn("Content-Encoding", response)
+        self.assertEqual(response.content, FEATURES)
+
+    def test_refuses_a_raster(self) -> None:
+        """WFS knows nothing about a coverage; asking it would be a confusing 502."""
+        self._patch(fake_client())
+        response = self.client.get(f"/api/v1/layers/{SLOPE.name}/features")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("raster", response.json()["error"])
+
+    def test_refuses_a_layer_not_in_the_catalogue(self) -> None:
+        """Not an open WFS proxy: only layers this service publishes."""
+        client = self._patch(fake_client())
+        response = self.client.get("/api/v1/layers/Secret:cadastre/features")
+        self.assertEqual(response.status_code, 404)
+        client.feature_collection_bytes.assert_not_called()
+
+    def test_caches_the_layer_between_requests(self) -> None:
+        client = self._patch(fake_client())
+        self.client.get(self.url)
+        self.client.get(self.url)
+        self.assertEqual(client.feature_collection_bytes.call_count, 1)
+
+    def test_502_when_geoserver_refuses_and_nothing_is_cached(self) -> None:
+        self._patch(fake_client(feature_collection_bytes=GeoServerError("ServiceException")))
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("ServiceException", response.json()["detail"])
+
+    def test_keeps_vary_accept_encoding_beside_the_cors_vary(self) -> None:
+        """A cache ignoring Accept-Encoding would hand gzip to a client that cannot read it."""
+        self._patch(fake_client())
+        response = self.client.get(self.url, headers={"Origin": "http://localhost:3000"})
+        vary = {v.strip() for v in response["Vary"].split(",")}
+        self.assertTrue({"Accept-Encoding", "Origin"} <= vary, vary)
 
 
 class CorsTests(SimpleTestCase):

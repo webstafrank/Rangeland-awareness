@@ -34,5 +34,6 @@ urlpatterns = [
     path("layers/refresh", views.refresh, name="layer-refresh"),
     path("layers/<layerid:layer_id>", views.layer_detail, name="layer-detail"),
     path("layers/<layerid:layer_id>/legend", views.legend, name="layer-legend"),
+    path("layers/<layerid:layer_id>/features", views.features, name="layer-features"),
     path("tiles/<layerid:layer_id>", views.tile, name="layer-tile"),
 ]

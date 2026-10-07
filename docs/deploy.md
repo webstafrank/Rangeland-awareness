@@ -18,7 +18,7 @@ Three pieces. Two of them are in this repository, the third is not.
 ```
   analyst's browser
         │
-        ├── HTML, JS ──────────▶  web       Next.js app, port 3000
+        ├── HTML, JS ──────────▶  web       Next.js app, port 8080 (3000 in the container)
         │                          │
         │                          └── server-side calls ──▶ backend
         │
@@ -78,7 +78,9 @@ You need:
   A `200` means you are on the right network. Anything else, including a hang,
   means fix that first: the app will deploy without it, but no map will draw and
   no analysis can run.
-- **Two free ports**, 3000 and 8000 by default. Both are configurable.
+- **Two free ports**, 8080 (the app) and 8000 (the backend) by default. Both are
+  configurable. The app runs on 3000 inside its container; 8080 is only the
+  host side of the mapping.
 
 You do **not** need Node, Python, GDAL or a virtualenv on the host. Everything
 is built and run inside containers. The development machine this repository
@@ -144,7 +146,7 @@ scheme and the port, no trailing slash. This is the app's address, not the
 backend's.
 
 ```
-CORS_ALLOWED_ORIGINS=http://localhost:3000
+CORS_ALLOWED_ORIGINS=http://localhost:8080
 ```
 
 For a real host:
@@ -304,7 +306,7 @@ here means the image was built from the wrong base.
 ### Check 3: the web tier is up AND can reach the backend
 
 ```bash
-curl -sS http://localhost:3000/api/health
+curl -sS http://localhost:8080/api/health
 ```
 
 This is the app's own health route, and it answers two questions at once:
@@ -340,7 +342,7 @@ You should see the same JSON as check 1. If that URL does not load in an
 analyst's browser, the map will be blank for that analyst no matter how healthy
 everything looks on the server.
 
-Then open the app itself at `http://<host>:3000`, sign in, and open a topic with
+Then open the app itself at `http://<host>:8080`, sign in, and open a topic with
 a map on it. Tiles drawing is the end-to-end proof: it exercises the browser,
 the backend's tile proxy, and GeoServer in one action.
 
@@ -505,7 +507,7 @@ and look at the network tab for requests to `/api/v1/tiles/`.
   A restart alone will not fix this. The wrong value is inside the JavaScript.
 - Requests failing with a CORS error: the app's origin is not in
   `CORS_ALLOWED_ORIGINS`. It must match scheme, host and port exactly.
-  `http://localhost:3000` and `http://127.0.0.1:3000` are different origins to a
+  `http://localhost:8080` and `http://127.0.0.1:8080` are different origins to a
   browser, and both are different from `https://...`. Fix `.env` and
   `docker compose up -d backend`.
 - No tile requests in the network tab at all: the problem is earlier than the

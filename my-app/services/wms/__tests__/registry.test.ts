@@ -57,10 +57,26 @@ describe("sources", () => {
     }
   });
 
-  it("ships the KSA slot empty rather than with guessed layer names", () => {
+  it("ships only KSA layers read from that server's GetCapabilities", () => {
     // A name that does not exist on the target server renders a blank tile, so
     // a plausible guess is worse than nothing: the app would look configured.
-    expect(KSA_LAYERS).toEqual([]);
+    // Every entry therefore carries the date it was checked, and lives in a
+    // GeoServer workspace (`workspace:layer`), which is how that server names
+    // a layer from its shared /wms endpoint.
+    expect(KSA_LAYERS.map((l) => l.layerName)).toEqual(["Rangelands:rivers"]);
+    for (const layer of KSA_LAYERS) {
+      expect(layer.verifiedOn, layer.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(layer.layerName, layer.id).toMatch(/^[A-Za-z0-9_]+:[A-Za-z0-9_]+$/);
+      expect(layer.id, layer.id).toMatch(/^ksa-/);
+    }
+  });
+
+  it("never reuses an app-side layer id across sources", () => {
+    // The data explorer shows every source's layers in one list with one
+    // state record keyed by id, so two sources sharing an id would toggle
+    // each other.
+    const ids = SOURCES.flatMap((s) => s.layers.map((l) => l.id));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

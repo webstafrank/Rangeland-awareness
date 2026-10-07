@@ -172,11 +172,12 @@ describe("layersForTopic", () => {
     }
   });
 
-  it("returns nothing for a source with no registered layers, without throwing", () => {
+  it("serves only the KSA layers registered for a topic, and nothing for the rest, without throwing", () => {
     vi.stubEnv("NEXT_PUBLIC_WMS_SOURCE", "ksa-geoserver");
     try {
       for (const slug of TOPIC_SLUGS) {
-        expect(layersForTopic(slug)).toEqual([]);
+        const ids = layersForTopic(slug).map((l) => l.id);
+        expect(ids).toEqual(slug === "flood-risk" ? ["ksa-rivers"] : []);
       }
     } finally {
       vi.unstubAllEnvs();

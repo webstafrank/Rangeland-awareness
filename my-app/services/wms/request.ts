@@ -54,7 +54,7 @@ export function getMapParams(
 
   const params: WmsGetMapParams = {
     layers: layer.layerName,
-    styles: "",
+    styles: layer.style ?? "",
     format: OVERLAY_FORMAT,
     transparent: true,
     version: source.version,
@@ -124,6 +124,10 @@ export function legendFor(
     url.searchParams.set("request", "GetLegendGraphic");
     url.searchParams.set("format", OVERLAY_FORMAT);
     url.searchParams.set("layer", layer.layerName);
+    // The legend of the style actually drawn, not of the layer's default.
+    if (layer.style !== undefined && layer.style !== "") {
+      url.searchParams.set("style", layer.style);
+    }
     // GeoServer needs this to honour the SLD 1.1 legend rules; MapServer
     // ignores it. Harmless on a server that does not read it.
     url.searchParams.set("sld_version", "1.1.0");

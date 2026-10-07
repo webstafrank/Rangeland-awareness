@@ -76,6 +76,13 @@ export interface WmsLayerSpec {
   id: string;
   /** The WMS `LAYERS` parameter. Server-specific: never guess one. */
   layerName: string;
+  /**
+   * The WMS `STYLES` parameter. Absent means the layer's default style, which
+   * is right unless that default is broken on the server: a GeoServer style
+   * that names an attribute the data does not have answers every GetMap with
+   * a ServiceException instead of a tile.
+   */
+  style?: string;
   /** Human title. The server's own <Title> is often just the layer name again. */
   title: string;
   /** One sentence: what an analyst is looking at. Shown under the toggle. */

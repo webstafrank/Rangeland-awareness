@@ -19,6 +19,7 @@ import {
   API_PREFIX,
   ApiErrorSchema,
   HealthSchema,
+  LayerCatalogSchema,
   RunCreatedSchema,
   RunResultSchema,
   RunStatusResponseSchema,
@@ -28,6 +29,7 @@ import type {
   ApiError,
   CreateRunBody,
   Health,
+  LayerCatalog,
   RunCreated,
   RunResult,
   RunStatusResponse,
@@ -107,6 +109,8 @@ export interface BackendClient {
   createRun(body: CreateRunBody): Promise<BackendResult<RunCreated>>;
   runStatus(runId: string): Promise<BackendResult<RunStatusResponse>>;
   runResult(runId: string): Promise<BackendResult<RunResult>>;
+  /** The GeoServer catalogue, optionally one workspace of it. */
+  layerCatalog(workspace?: string): Promise<BackendResult<LayerCatalog>>;
 }
 
 export function createBackendClient(options: BackendClientOptions = {}): BackendClient {
@@ -144,6 +148,14 @@ export function createBackendClient(options: BackendClientOptions = {}): Backend
 
     runResult: (runId) =>
       call(`/runs/${encodeURIComponent(runId)}/result`, RunResultSchema),
+
+    layerCatalog: (workspace) =>
+      call(
+        workspace === undefined
+          ? "/layers"
+          : `/layers?workspace=${encodeURIComponent(workspace)}`,
+        LayerCatalogSchema,
+      ),
   };
 }
 

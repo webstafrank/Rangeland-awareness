@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
+from django.utils.cache import patch_vary_headers
 
 
 class CorsMiddleware:
@@ -42,7 +43,9 @@ class CorsMiddleware:
             # Vary matters: without it a cache that saw one origin's response
             # serves it to another origin, which then fails in the browser with
             # an error naming the wrong URL entirely.
-            response["Vary"] = "Origin"
+            # Merged, not assigned: a view that also varies (the feature
+            # endpoint varies on Accept-Encoding) must keep its own entry.
+            patch_vary_headers(response, ("Origin",))
             response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
             response["Access-Control-Allow-Headers"] = "Content-Type"
             response["Access-Control-Max-Age"] = "86400"

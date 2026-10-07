@@ -22,7 +22,7 @@ from django.http import (
 )
 from django.views.decorators.http import require_GET
 
-from apps.layers.catalog import get_catalog, invalidate
+from apps.layers.catalog import get_catalog, get_features, invalidate, invalidate_features
 from apps.layers.geoserver import GeoServerClient, GeoServerError
 
 log = logging.getLogger(__name__)
@@ -56,6 +56,13 @@ TILE_PARAMS = {
 TILE_FORMATS = {"image/png", "image/png8", "image/jpeg", "image/gif", "image/webp"}
 
 MAX_TILE_DIMENSION = 4096
+
+#: The most features the feature endpoint will return for one layer. Today's
+#: largest layer is 7,075 points (Rangelands:places); this is headroom, not a
+#: target. A layer over it is cut at the limit and says so in the
+#: X-Feature-Limit header, because the browser has to hold every feature in
+#: memory and a cadastre-sized layer would hang the tab rather than fail.
+MAX_FEATURES = 25_000
 
 
 def _problem(message: str, status: int, **extra) -> JsonResponse:
@@ -297,11 +304,60 @@ def legend(request: HttpRequest, layer_id: str) -> HttpResponse:
     return response
 
 
+@require_GET
+def features(request: HttpRequest, layer_id: str) -> HttpResponse:
+    """A vector layer's features as GeoJSON in WGS84, for the map's popups.
+
+    The browser cannot ask GeoServer itself: GeoServer sends no CORS headers,
+    and it sits on a LAN address an analyst's laptop may not route to. Only
+    layers in the catalogue, and only vector ones, so this cannot be used to
+    pull an arbitrary feature type or to ask WFS about a raster.
+
+    Served gzipped when the client accepts it, which every browser does. The
+    document is cached gzipped, so the common case is a memory copy.
+    """
+    try:
+        snapshot = get_catalog()
+    except GeoServerError as exc:
+        return _problem("GeoServer is unreachable.", status=503, detail=str(exc))
+
+    layer = snapshot.by_name(layer_id)
+    if layer is None:
+        return _problem(f'No layer named "{layer_id}".', status=404)
+    if not layer.vector:
+        return _problem(
+            f'"{layer_id}" is a raster layer and has no features to return.',
+            status=400,
+        )
+
+    try:
+        cached = get_features(layer.name, count=MAX_FEATURES)
+    except GeoServerError as exc:
+        return _problem(
+            "GeoServer refused the features.", status=502, detail=str(exc), layer=layer.name
+        )
+
+    if "gzip" in request.headers.get("Accept-Encoding", ""):
+        response = HttpResponse(cached.gzipped, content_type="application/geo+json")
+        response["Content-Encoding"] = "gzip"
+    else:
+        import gzip
+
+        response = HttpResponse(
+            gzip.decompress(cached.gzipped), content_type="application/geo+json"
+        )
+    response["Vary"] = "Accept-Encoding"
+    response["X-Feature-Limit"] = str(MAX_FEATURES)
+    response["Cache-Control"] = f"public, max-age={settings.GEOSERVER['capabilities_ttl']}"
+    return response
+
+
 def refresh(request: HttpRequest) -> JsonResponse:
     """Drop the catalogue cache, for when a layer was just published."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     invalidate()
+    invalidate_features()
     try:
         snapshot = get_catalog(force=True)
     except GeoServerError as exc:

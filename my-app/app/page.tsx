@@ -46,15 +46,8 @@ export default function Home() {
         opacity, left to right) sits between the image and the text so the
         white type holds AA regardless of which part of the image lands
         behind it — the image is vivid and uncontrolled, the scrim is not.
-
-        It fills the screen below the header (48px, h-12, plus its 1px border)
-        and centres its
-        content in that height. svh rather than vh, so a mobile browser's
-        collapsing address bar does not leave the fold under the toolbar. On
-        a phone the stacked content is already taller than the screen, so
-        the minimum is moot there and the section grows to fit as before.
       */}
-      <section className="relative flex min-h-[calc(100svh-3rem-1px)] flex-col justify-center overflow-hidden border-b border-edge">
+      <section className="relative overflow-hidden border-b border-edge">
         <Image
           src="/hero-fluent-abstract.webp"
           alt=""
@@ -104,7 +97,7 @@ export default function Home() {
                 history entry and Back from a topic works (TopicsArrival
                 explains why a plain fragment link broke that). The smooth
                 scroll is the html rule in globals.css; the cards' entrance is
-                TopicsArrival. Explore Terrain goes to the data explorer, the
+                TopicsArrival. Explore Data goes to the data explorer, the
                 header's Explore destination.
               */}
               <Link
@@ -115,7 +108,7 @@ export default function Home() {
                 <ArrowRight20Regular aria-hidden="true" />
               </Link>
               <Link href="/data" className={buttonClasses({ size: "lg" })}>
-                Explore Terrain
+                Explore Data
               </Link>
             </div>
           </div>

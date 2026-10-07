@@ -12,8 +12,10 @@ export * from "./watch";
 export {
   DEFAULT_BACKEND_URL,
   backendBaseUrl,
+  featuresUrl,
   normaliseBaseUrl,
   publicBackendBaseUrl,
   resolveBaseUrl,
+  legendUrl,
   tileTemplate,
 } from "./config";

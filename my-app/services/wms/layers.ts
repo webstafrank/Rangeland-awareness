@@ -178,16 +178,41 @@ export const GIBS_LAYERS: readonly WmsLayerSpec[] = [
   },
 ];
 
+/** The day the KSA entries below were checked against GetCapabilities. */
+const KSA_VERIFIED_ON = "2026-10-07";
+
 /**
  * The Kenya Space Agency GeoServer's layers.
  *
- * Empty until someone has read that server's GetCapabilities. Every entry here
- * must have had its `layerName` checked against the live document first: a name
- * that does not exist answers HTTP 200 with an XML exception body, which the
- * browser drops as a broken image and which looks identical to "the layer is
- * empty here". README.md has the three-command check.
+ * Every entry here must have had its `layerName` checked against the live
+ * document first: a name that does not exist answers HTTP 200 with an XML
+ * exception body, which the browser drops as a broken image and which looks
+ * identical to "the layer is empty here". README.md has the three-command
+ * check.
  */
-export const KSA_LAYERS: readonly WmsLayerSpec[] = [];
+export const KSA_LAYERS: readonly WmsLayerSpec[] = [
+  {
+    id: "ksa-rivers",
+    layerName: "Rangelands:rivers",
+    title: "Rivers",
+    description:
+      "The river network, drawn as lines. Floodplains sit along these channels, so read flood risk against them.",
+    topics: ["flood-risk"],
+    attribution: "Rivers &copy; Kenya Space Agency",
+    // Vector features with no TIME dimension, so the date window does not
+    // apply. Advertised extent (CRS:84): 38.47 to 40.48 E, 3.11 S to 0.00 N,
+    // the lower Tana basin, not the whole country.
+    //
+    // No `style`: the layer's default style `rivers` (blue #4081ea lines,
+    // labelled by `name`) is the one drawn. It was exported from QGIS as
+    // `Name`, and GeoServer property names are case sensitive while the
+    // database lowercases its columns, so until that was corrected on the
+    // server every GetMap answered "The requested Style can not be used with
+    // this layer". If a style breaks like that again, `style: "line"` is the
+    // stopgap.
+    verifiedOn: KSA_VERIFIED_ON,
+  },
+];
 
 /**
  * Layers a source offers for one topic, in registry order.
