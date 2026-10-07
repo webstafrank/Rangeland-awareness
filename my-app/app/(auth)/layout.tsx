@@ -33,6 +33,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <span className="grid h-12 w-14 place-items-center rounded-fluent-large bg-surface shadow-8">
             <Image src="/ksa-logo.png" alt="Kenya Space Agency" width={45} height={36} />
           </span>
+          <span className="grid h-12 w-12 place-items-center rounded-fluent-large bg-surface shadow-8">
+            <Image src="/wfp-logo.png" alt="World Food Programme" width={37} height={36} />
+          </span>
           <span className="type-subtitle2">Disaster Monitor</span>
         </div>
 
