@@ -57,3 +57,12 @@ export default function TopicIcon({
     </span>
   );
 }
+
+/**
+ * The topic's bare 20px glyph, no tile: for places that draw their own
+ * ground, like a sidebar row on navy.
+ */
+export function TopicGlyph({ slug, className }: { slug: TopicSlug; className?: string }) {
+  const Icon = ICONS[slug].sm;
+  return <Icon aria-hidden="true" className={className} />;
+}

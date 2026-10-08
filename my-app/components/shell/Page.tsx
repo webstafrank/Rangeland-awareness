@@ -2,47 +2,59 @@ import type { ReactNode } from "react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 
 /**
- * The furniture of a content page (about, help, contact, account).
+ * The furniture of a page: its header, its sections and a card grid.
  *
- * Four pages each carried their own copy of the same hero band, section
- * wrapper and card grid, with the class strings drifting slightly between
- * them. They are one shape, so they are one component each, on the Fluent
- * type ramp: title1 page title, subtitle1 lead, title3 section heading.
+ * Every page in the app opens the same way (eyebrow, title, lead, optional
+ * actions) so a reader learns where the page's name and purpose live once and
+ * finds them in the same place everywhere. They were four drifting copies of
+ * one shape; now they are one component each.
  */
 
-const FRAME = "mx-auto w-full max-w-band px-gutter lg:px-gutter-lg";
+export const FRAME = "mx-auto w-full max-w-band px-gutter lg:px-gutter-lg";
 
 /**
- * The page title block, on the panel tier with a colorNeutralStroke2 rule
- * beneath it, so the canvas-grey sections below read as the page's body.
- * Fluent has no dark hero band; this replaces the navy one.
+ * The page header: a white band under the top bar, closed by a hairline, so
+ * the canvas-grey sections below read as the page's body. The title is
+ * title2, not a marketing-sized display: this is an application, and the
+ * page's content is what should be large.
+ *
+ * `actions` sit to the right of the title on a wide screen and below the lead
+ * on a narrow one. `children` is anything else the header needs to hold.
  */
 export function PageHero({
   eyebrow,
   title,
   lead,
+  actions,
   children,
 }: {
   eyebrow: string;
   title: string;
   lead: string;
+  actions?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <section className="border-b border-edge bg-surface">
-      <div className={`${FRAME} py-8 lg:py-12`}>
-        <div className="max-w-3xl">
-          <Eyebrow marked>{eyebrow}</Eyebrow>
-          <h1 className="type-title1 mt-3 text-ink lg:type-large-title">{title}</h1>
-          <p className="type-subtitle1 mt-3 font-normal text-ink-muted">{lead}</p>
-          {children ? <div className="mt-6">{children}</div> : null}
+      <div className={`${FRAME} py-6 lg:py-8`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+          <div className="max-w-3xl">
+            <Eyebrow marked>{eyebrow}</Eyebrow>
+            <h1 className="type-title2 mt-2 text-ink">{title}</h1>
+            <p className="type-body2 mt-2 text-ink-muted">{lead}</p>
+          </div>
+          {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
         </div>
+        {children ? <div className="mt-5">{children}</div> : null}
       </div>
     </section>
   );
 }
 
-/** One section of a content page: a label, a heading, an intro, then its body. */
+/**
+ * A section of a page's body. `canvas` sits on the page grey; `panel` is a
+ * white band, for alternating two sections that would otherwise run together.
+ */
 export function PageSection({
   eyebrow,
   title,
@@ -54,31 +66,23 @@ export function PageSection({
   title: string;
   intro?: ReactNode;
   children?: ReactNode;
-  /** `panel` puts the section on white between two strokes, for rhythm. */
   tier?: "canvas" | "panel";
 }) {
   const ground = tier === "panel" ? "border-y border-edge bg-surface" : "";
   return (
     <section className={ground}>
-      <div className={`${FRAME} py-8 lg:py-12`}>
+      <div className={`${FRAME} py-8 lg:py-10`}>
         <div className="max-w-3xl">
           {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-          <h2 className={`type-title3 text-ink ${eyebrow ? "mt-2" : ""}`}>{title}</h2>
-          {intro ? <div className="type-body2 mt-2 text-ink-muted">{intro}</div> : null}
+          <h2 className={`type-subtitle1 text-ink ${eyebrow ? "mt-1.5" : ""}`}>{title}</h2>
+          {intro ? <div className="type-body1 mt-1.5 text-ink-muted">{intro}</div> : null}
         </div>
-        {children ? <div className="mt-6">{children}</div> : null}
+        {children ? <div className="mt-5">{children}</div> : null}
       </div>
     </section>
   );
 }
 
-/**
- * A grid of term-and-description cards, as one `<dl>`.
- *
- * `description` is text, rendered as text. The about page used to pass HTML
- * entities through `dangerouslySetInnerHTML` to get an apostrophe; a string
- * holds a real one.
- */
 export function InfoGrid({
   items,
   columns = 3,
@@ -87,9 +91,7 @@ export function InfoGrid({
   columns?: 2 | 3;
 }) {
   return (
-    <dl
-      className={`grid gap-4 sm:grid-cols-2 ${columns === 3 ? "lg:grid-cols-3" : ""}`}
-    >
+    <dl className={`grid gap-4 sm:grid-cols-2 ${columns === 3 ? "lg:grid-cols-3" : ""}`}>
       {items.map((item) => (
         <div key={item.label} className="card p-4 lg:p-5">
           <dt className="type-subtitle2 text-ink">{item.label}</dt>

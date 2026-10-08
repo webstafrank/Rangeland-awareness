@@ -9,79 +9,85 @@
  * at the bottom of this file and `bg-surface` / `text-surface` /
  * `border-surface` in markup. One declaration, two uses.
  *
- * This is the Fluent 2 "Spatial Analytics Dashboard" design system's chrome
- * palette, replacing the four-colour navy/white/red/dark-blue system that
- * shipped here before. One brand hue this time, not four colours with a rule
- * about which does what:
+ * The enterprise palette: navy, white and a cool neutral, with one restrained
+ * blue accent.
  *
- *   Fluent brand blue (--color-accent)   structure AND the primary action.
- *                                        Links, selection, the focus ring,
- *                                        the active map tool, AND the
- *                                        control that advances the flow
- *                                        (Continue, Run). There is no second
- *                                        interactive colour to keep separate
- *                                        from it, because Fluent's status
- *                                        colours (danger, warning, success)
- *                                        are never a CTA fill.
- *   white       (--color-surface)       the panel tier.
- *   light grey  (--color-sunken)        the app canvas AND the header/nav
- *                                       rail — Fluent's own header token is
- *                                       a light neutral, not a dark band, so
- *                                       the header and footer carry dark ink
- *                                       text now, not white.
+ *   navy        (--color-nav-*)          the application frame: the sidebar
+ *                                        that holds navigation, topics and
+ *                                        the account. The one dark surface,
+ *                                        so the eye reads it as "the app"
+ *                                        and everything to its right as
+ *                                        "the work".
+ *   white       (--color-surface)        panels, the top bar, cards, tables.
+ *   cool grey   (--color-page)           the canvas the panels sit on.
+ *   blue        (--color-accent)         structure AND the primary action:
+ *                                        links, selection, the focus ring,
+ *                                        the active map tool, and the control
+ *                                        that advances the flow (Continue,
+ *                                        Run). Status colours (danger, warn,
+ *                                        success) are never a CTA fill.
+ *
+ * The accent is step 80 of the brand ramp in lib/theme/fluent-theme.ts, which
+ * is the ramp Fluent's own components are themed with, so a Fluent Button and
+ * a Tailwind ButtonLink paint the same blue.
  *
  * lib/theme/palette.ts declares the same tokens with their measured contrast
  * notes, and lib/theme/__tests__/palette.test.ts fails if this file and that
  * one ever disagree.
  */
 @theme {
-  /* Neutrals. Fluent's own webLightTheme values, unmodified. */
-  --color-page: #f5f5f5;
+  /* Neutrals. Cool, faintly navy-tinted, so the grey belongs to the frame. */
+  --color-page: #f4f6fa;
   --color-surface: #ffffff;
-  --color-surface-subtle: #fafafa;
-  --color-sunken: #f0f0f0;
-  --color-edge: #e0e0e0;
-  --color-edge-strong: #d1d1d1;
-  --color-edge-input: #616161;
+  --color-surface-subtle: #f8fafc;
+  --color-sunken: #eceff5;
+  --color-edge: #e1e6ee;
+  --color-edge-strong: #cbd3df;
+  --color-edge-input: #6b778b;
 
-  --color-ink: #242424;
-  --color-ink-muted: #424242;
-  --color-ink-faint: #616161;
+  --color-ink: #0e1a2e;
+  --color-ink-muted: #3b4960;
+  --color-ink-faint: #566378;
 
   /* The one brand hue. Structure AND the primary action; see the header
      comment above for why there is no second interactive colour. */
-  --color-accent: #0f6cbd;
-  --color-accent-hover: #115ea3;
-  --color-accent-pressed: #0c3b5e;
-  --color-accent-soft: #ebf3fc;
-  --color-accent-link: #115ea3;
+  --color-accent: #1d5bc6;
+  --color-accent-hover: #184fae;
+  --color-accent-pressed: #0d2a5e;
+  --color-accent-soft: #ebf2fd;
+  --color-accent-link: #184fae;
 
-  /* Status. Read as a Fluent Badge in the tint appearance (text on a light
-     fill), never as a solid fill a CTA label sits on. */
+  /* Status. Read as a tint (text on a light fill), never as a solid fill a
+     CTA label sits on. */
   --color-danger: #b10e1c;
   --color-danger-soft: #fdf3f4;
-  --color-warn: #bc4b09;
+  --color-warn: #b34708;
   --color-warn-soft: #fff9f5;
   --color-success: #0e700e;
   --color-success-soft: #f1faf1;
 
-  /* Fluent elevation. Four steps; shadow4 for resting cards, shadow8 for
-     floating map controls and the legend, shadow16 for popovers and map
-     feature popups, shadow28 for dialogs only. Neutral, not tinted: Fluent's
-     own recipe, used as given rather than re-derived from the app's ink. */
-  --shadow-4: 0 0 2px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.14);
-  --shadow-8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
-  --shadow-16: 0 0 2px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.14);
-  --shadow-28: 0 0 8px rgba(0, 0, 0, 0.12), 0 14px 28px rgba(0, 0, 0, 0.14);
-  /* Deprecated: the tinted-navy shadows the Fluent steps above replace.
-     Kept until every component that reads them has migrated. */
-  --shadow-card: 0 1px 2px 0 rgb(7 22 47 / 0.05);
-  --shadow-raised:
-    0 4px 10px -3px rgb(7 22 47 / 0.1), 0 2px 4px -2px rgb(7 22 47 / 0.06);
-  --shadow-lifted: 0 -2px 10px -4px rgb(7 22 47 / 0.1);
+  /* The application frame: the navy sidebar and the mobile drawer. Its own
+     ink ramp, graded against these grounds in lib/theme/palette.ts. */
+  --color-nav: #0b1f3f;
+  --color-nav-raised: #132a50;
+  --color-nav-active: #1c3866;
+  --color-nav-edge: #1f3559;
+  --color-nav-ink: #ffffff;
+  --color-nav-ink-muted: #a9b8d0;
+  --color-nav-ink-faint: #8396b4;
+  --color-nav-accent: #7fb0ff;
 
-  /* Fluent spacing scale (4px-based). Inside components use s to m; between
-     cards, l; between sections in a panel, xxl. */
+  /* Elevation. Four steps, tinted with the ink so a shadow reads as depth on
+     a cool canvas rather than as dirt: shadow-4 for resting cards, shadow-8
+     for floating map controls and the legend, shadow-16 for popovers and map
+     feature popups, shadow-28 for dialogs and the drawer. */
+  --shadow-4: 0 1px 2px rgb(14 26 46 / 0.06), 0 1px 3px rgb(14 26 46 / 0.06);
+  --shadow-8: 0 1px 2px rgb(14 26 46 / 0.06), 0 4px 10px rgb(14 26 46 / 0.08);
+  --shadow-16: 0 2px 4px rgb(14 26 46 / 0.06), 0 10px 24px rgb(14 26 46 / 0.12);
+  --shadow-28: 0 4px 8px rgb(14 26 46 / 0.08), 0 18px 40px rgb(14 26 46 / 0.18);
+
+  /* Spacing scale (4px-based). Inside components use s to m; between cards,
+     l; between sections in a panel, xxl. */
   --spacing-fluent-xxs: 2px;
   --spacing-fluent-xs: 4px;
   --spacing-fluent-s-nudge: 6px;
@@ -93,23 +99,25 @@
   --spacing-fluent-xxl: 24px;
   --spacing-fluent-xxxl: 32px;
 
-  /* Fluent radius scale. */
+  /* Radius scale. Controls are 6px, cards 10px, so a button inside a card
+     sits one step tighter than the card around it. Mirrored into the Fluent
+     theme (lib/theme/fluent-theme.ts) so Fluent controls agree. */
   --radius-fluent-none: 0;
-  --radius-fluent-small: 2px;
-  --radius-fluent-medium: 4px;
-  --radius-fluent-large: 6px;
-  --radius-fluent-xlarge: 8px;
+  --radius-fluent-small: 4px;
+  --radius-fluent-medium: 6px;
+  --radius-fluent-large: 8px;
+  --radius-fluent-xlarge: 10px;
   --radius-fluent-circular: 10000px;
 
-  /* Fluent app-shell layout constants. */
-  --layout-header-height: 48px;
+  /* App-shell layout constants. */
+  --layout-header-height: 56px;
   --layout-panel-min: 320px;
   --layout-panel-max: 400px;
   --layout-target-min: 32px;
 
   /* The page gutter and the content ceiling, so every band agrees. */
-  --spacing-gutter: 1.5rem;
-  --spacing-gutter-lg: 2.5rem;
+  --spacing-gutter: 1rem;
+  --spacing-gutter-lg: 2rem;
   --container-band: 1440px;
   /*
    * One step's reading width. The wizard is a sequence of decisions, not a
@@ -118,13 +126,13 @@
    */
   --container-step: 980px;
 
-  /* Fluent 2 web type ramp: Segoe UI, installed on Windows, falling back to
-     the system sans elsewhere. Data (coordinates, IDs, CRS codes) keeps the
-     existing mono stack. */
+  /* Geist everywhere, so the product reads the same on every OS rather than
+     Segoe on Windows and something else on the rest. Data (coordinates, IDs,
+     CRS codes) uses Geist Mono. */
   --font-sans:
-    "Segoe UI", "Segoe UI Web (West European)", var(--font-geist-sans),
-    -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
-  --font-mono: Consolas, "Cascadia Mono", var(--font-geist-mono), "Courier New", monospace;
+    var(--font-geist-sans), "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto,
+    "Helvetica Neue", sans-serif;
+  --font-mono: var(--font-geist-mono), Consolas, "Cascadia Mono", "Courier New", monospace;
 
   /*
    * ------------------------------------------------------------- data-viz
@@ -318,25 +326,25 @@
 }
 
 /*
- * A Fluent card: the panel tier on the canvas. borderRadiusXLarge and
- * shadow4, no border, which is the design system's own card recipe. Named
- * once because a card is the most repeated shape in the app.
+ * A card: the panel tier on the canvas. A white panel, a hairline edge and
+ * shadow-4, so it holds its edge on the cool canvas without a heavy shadow.
+ * Named once because a card is the most repeated shape in the app.
  */
 @utility card {
   background: var(--color-surface);
+  border: 1px solid var(--color-edge);
   border-radius: var(--radius-fluent-xlarge);
   box-shadow: var(--shadow-4);
 }
 
 /*
- * shadow4, cast upward, for the sticky action bar on the bottom edge of the
- * viewport. The same neutral recipe as the four Fluent steps with the offset
- * inverted; the navy-tinted --shadow-lifted it replaces is deprecated.
+ * shadow-4, cast upward, for the sticky action bar on the bottom edge of the
+ * viewport. The same ink-tinted recipe as the elevation steps, offset inverted.
  */
 @utility shadow-up {
   box-shadow:
-    0 0 2px rgba(0, 0, 0, 0.12),
-    0 -2px 4px rgba(0, 0, 0, 0.08);
+    0 -1px 2px rgb(14 26 46 / 0.05),
+    0 -4px 12px rgb(14 26 46 / 0.06);
 }
 
 /*
@@ -408,14 +416,23 @@
  *
  * `band-navy` above belongs to design/tokens.ts and is asserted against it.
  * The header, the footer and the homepage hero are app chrome, so they have
- * to move when the chrome accent moves. Fluent's header/nav token is a light
- * neutral, not a dark band, so this is dark ink on --color-sunken now, not
- * white on navy — the flip is deliberate, not a regression: see the header
- * comment on the @theme block above.
+ * to move when the chrome accent moves. The top bar and the topic band are
+ * white panels separated from the canvas by a hairline; the one dark surface
+ * is the navy sidebar (`band-nav`), see the header comment on the @theme block.
  */
 @utility band-chrome {
-  background: var(--color-sunken);
+  background: var(--color-surface);
   color: var(--color-ink);
+}
+
+/*
+ * The application frame: the navy sidebar and the mobile drawer. Sets its
+ * ground and its ink together, like every band, so a link inside it never has
+ * to know it is standing on navy.
+ */
+@utility band-nav {
+  background: var(--color-nav);
+  color: var(--color-nav-ink);
 }
 
 /*
@@ -482,6 +499,12 @@ body {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 3px;
+}
+
+/* On the navy frame the light-ground accent sits under 3:1, so the ring takes
+   the frame's own accent there (graded in lib/theme/palette.ts). */
+.band-nav :focus-visible {
+  outline-color: var(--color-nav-accent);
 }
 
 /* ------------------------------------------------------------------ Motion */
@@ -692,7 +715,7 @@ body {
   background: var(--color-surface);
   color: var(--color-ink);
   border-color: var(--color-edge-strong);
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--shadow-8);
 }
 
 .leaflet-bar a,
