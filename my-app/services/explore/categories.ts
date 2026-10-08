@@ -68,6 +68,21 @@ export const LAYER_CATEGORIES: Readonly<Record<string, LayerCategoryEntry>> = {
     title: "Tana River sub-counties",
   },
   wards: { category: "administrative_boundaries", title: "Wards" },
+  places: { category: "administrative_boundaries", title: "Places" },
+
+  // -------------------------------------------------- agriculture_livestock
+  agroecological_zones: { category: "agriculture_livestock", title: "Agro-ecological zones" },
+  // Published as "irrigarion" in GeoServer. Both spellings are listed so the
+  // layer keeps its place if it is renamed there.
+  irrigarion_schemes: { category: "agriculture_livestock", title: "Irrigation schemes" },
+  irrigation_schemes: { category: "agriculture_livestock", title: "Irrigation schemes" },
+  livestock_routes: { category: "agriculture_livestock", title: "Livestock routes" },
+
+  // ------------------------------------------------ institutions_facilities
+  agriculture_training_center: {
+    category: "institutions_facilities",
+    title: "Agriculture training centres",
+  },
 
   // -------------------------------------------------------- naturalfeatures
   rivers: { category: "naturalfeatures", title: "Rivers" },
@@ -76,6 +91,7 @@ export const LAYER_CATEGORIES: Readonly<Record<string, LayerCategoryEntry>> = {
     category: "naturalfeatures",
     title: "Tana River riparian extent",
   },
+  soils: { category: "naturalfeatures", title: "Soils" },
 };
 
 /** A category id's label, e.g. `infastructure` -> "Infrastructure". */
