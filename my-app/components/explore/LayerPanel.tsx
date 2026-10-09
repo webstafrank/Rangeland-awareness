@@ -4,21 +4,26 @@
  * The data explorer's layer panel: what is on the map, in stack order, and
  * every layer that could be, by category.
  *
- * Two lists because they answer two questions. "On the map" is the stack, top
- * first, with the controls that only make sense for a drawn layer: move up,
- * move down, hide, opacity, zoom to it, legend, remove. "Layers" is the
+ * Two sections because they answer two questions. "On the map" is the stack,
+ * top first, with the controls that only make sense for a drawn layer: move
+ * up, move down, hide, opacity, zoom to it, remove. "Layers" is the
  * catalogue, under its category headings, filterable, where a checkbox adds a
- * layer to the top of the stack or takes it off.
+ * layer to the top of the stack or takes it off. Legends are on the map
+ * itself (MapOverlays.tsx), beside what they explain.
  *
  * Moving is buttons, not drag. A drag handle is unusable from a keyboard and
  * fiddly on a trackpad, and two buttons per row make the order change an
  * announced, undoable step rather than a gesture.
+ *
+ * On a wide screen the panel is a docked column that scrolls inside itself,
+ * with the catalogue's filter pinned to the top of that scroll once the stack
+ * has gone by. On a phone it is part of the page and scrolls with it.
  */
 
 import { useMemo, useState } from "react";
 import { Input } from "@fluentui/react-components";
 
-import { Panel } from "@/components/ui/Panel";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { Notice } from "@/components/ui/Notice";
 import {
   ArrowDown16Regular,
@@ -30,6 +35,7 @@ import {
   ErrorCircle16Regular,
   Eye16Regular,
   EyeOff16Regular,
+  LayerDiagonal20Regular,
   Search16Regular,
   ZoomFit16Regular,
 } from "@/components/ui/icons";
@@ -37,13 +43,11 @@ import {
   filterExploreLayers,
   groupByCategory,
   type ExploreLayer,
-  type ExploreLegend,
   type LayerStack,
   type StackAction,
   type StackEntry,
 } from "@/services/explore";
 import type { CatalogStatus } from "@/components/explore/useExploreCatalog";
-import type { Basemap } from "@/components/explore/ExploreMapLibre";
 
 export interface LayerPanelProps {
   layers: readonly ExploreLayer[];
@@ -51,18 +55,28 @@ export interface LayerPanelProps {
   ksaStatus: CatalogStatus;
   stack: LayerStack;
   dispatch: (action: StackAction) => void;
-  basemap: Basemap;
-  onBasemap: (basemap: Basemap) => void;
   onFocus: (layer: ExploreLayer) => void;
+  /** Scrolls back up to the map, for the phone layout where it is above. */
+  onShowMap: () => void;
 }
 
+/** 32px square: the shell's --layout-target-min, the smallest hit target. */
 const iconButton =
-  "inline-flex size-7 shrink-0 items-center justify-center rounded-fluent-medium text-ink-muted " +
-  "hover:bg-page hover:text-ink active:bg-edge disabled:pointer-events-none disabled:opacity-35";
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-fluent-medium text-ink-muted " +
+  "transition-colors duration-150 hover:bg-surface-subtle hover:text-ink active:bg-sunken " +
+  "disabled:pointer-events-none disabled:opacity-35";
+
+const textButton =
+  "type-caption1 inline-flex items-center gap-1 rounded-fluent-small font-semibold text-accent-link hover:underline";
 
 function StatusBadge({ entry }: { entry: StackEntry }) {
   if (!entry.visible) {
-    return <span className="type-caption1 text-ink-faint">Hidden</span>;
+    return (
+      <span className="type-caption1 inline-flex items-center gap-1 text-ink-faint">
+        <EyeOff16Regular aria-hidden="true" />
+        Hidden
+      </span>
+    );
   }
   if (entry.status === "loading") {
     return (
@@ -88,31 +102,6 @@ function StatusBadge({ entry }: { entry: StackEntry }) {
   );
 }
 
-/** The legend image, or the reason there is none. Never a broken-image glyph. */
-function Legend({ legend, title }: { legend: ExploreLegend; title: string }) {
-  const [failed, setFailed] = useState(false);
-  if (legend.kind === "none" || failed) {
-    return (
-      <p className="type-caption1 text-ink-faint">
-        {legend.kind === "none" ? legend.reason : "No legend is published for this layer."}
-      </p>
-    );
-  }
-  return (
-    // A plain <img>: the host is the backend or GIBS, chosen by configuration.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={legend.url}
-      alt={`Legend for ${title}`}
-      width={legend.width}
-      height={legend.height}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className="max-w-full rounded-fluent-medium border border-edge bg-surface"
-    />
-  );
-}
-
 function StackRow({
   layer,
   entry,
@@ -128,7 +117,6 @@ function StackRow({
   dispatch: (action: StackAction) => void;
   onFocus: (layer: ExploreLayer) => void;
 }) {
-  const [showLegend, setShowLegend] = useState(false);
   const percent = Math.round(entry.opacity * 100);
   const opacityId = `stack-opacity-${layer.id}`;
 
@@ -136,16 +124,77 @@ function StackRow({
     <li
       data-testid="stack-row"
       data-layer-id={layer.id}
-      className="rounded-fluent-medium border border-edge bg-surface p-2"
+      className={`rounded-fluent-large border bg-surface p-2.5 ${
+        entry.status === "error" && entry.visible ? "border-danger" : "border-edge"
+      }`}
     >
-      <div className="flex items-start gap-1">
-        <div className="min-w-0 flex-1 pl-1">
-          <p className="type-body1 font-semibold break-words text-ink">{layer.title}</p>
-          <div className="flex flex-wrap items-center gap-x-2">
+      <div className="flex items-start gap-2">
+        {/* Its place in the stack, 1 on top, so the order reads at a glance. */}
+        <span
+          aria-hidden="true"
+          className="type-caption1 mt-0.5 grid size-5 shrink-0 place-items-center rounded-fluent-small bg-sunken font-semibold text-ink-muted tabular-nums"
+        >
+          {index + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`type-body1 font-semibold break-words ${entry.visible ? "text-ink" : "text-ink-muted"}`}
+          >
+            {layer.title}
+          </p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
             <StatusBadge entry={entry} />
             <span className="type-caption1 text-ink-faint">{layer.category}</span>
           </div>
         </div>
+      </div>
+
+      {entry.errorMessage !== null ? (
+        <p role="alert" className="type-caption1 mt-1.5 text-danger">
+          {entry.errorMessage}
+        </p>
+      ) : null}
+      {layer.timeNote !== null ? (
+        <p className="type-caption1 mt-1.5 text-ink-faint">{layer.timeNote}</p>
+      ) : null}
+
+      <div className="mt-2 flex items-center gap-2">
+        <label htmlFor={opacityId} className="type-caption1 text-ink-muted">
+          Opacity
+        </label>
+        <input
+          id={opacityId}
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={percent}
+          onChange={(event) =>
+            dispatch({ type: "set-opacity", id: layer.id, opacity: Number(event.target.value) / 100 })
+          }
+          aria-describedby={`${opacityId}-value`}
+          className="h-1 min-w-0 flex-1 accent-accent"
+        />
+        <output
+          id={`${opacityId}-value`}
+          htmlFor={opacityId}
+          className="type-caption1 w-9 text-right text-ink-muted tabular-nums"
+        >
+          {percent}%
+        </output>
+      </div>
+
+      {/* The row's toolbar: zoom on the left, order / visibility / remove on
+          the right, so the destructive one sits at the end. */}
+      <div className="mt-1.5 flex items-center gap-0.5 border-t border-edge pt-1.5">
+        {layer.bounds !== null ? (
+          <button type="button" onClick={() => onFocus(layer)} className={`${textButton} mr-auto`}>
+            <ZoomFit16Regular aria-hidden="true" />
+            Zoom to layer
+          </button>
+        ) : (
+          <span className="mr-auto" />
+        )}
         <button
           type="button"
           className={iconButton}
@@ -186,71 +235,6 @@ function StackRow({
           <Dismiss16Regular aria-hidden="true" />
         </button>
       </div>
-
-      {entry.errorMessage !== null ? (
-        <p role="alert" className="type-caption1 mt-1 pl-1 text-danger">
-          {entry.errorMessage}
-        </p>
-      ) : null}
-      {layer.timeNote !== null ? (
-        <p className="type-caption1 mt-1 pl-1 text-ink-faint">{layer.timeNote}</p>
-      ) : null}
-
-      <div className="mt-1.5 flex items-center gap-2 pl-1">
-        <label htmlFor={opacityId} className="type-caption1 text-ink-muted">
-          Opacity
-        </label>
-        <input
-          id={opacityId}
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={percent}
-          onChange={(event) =>
-            dispatch({ type: "set-opacity", id: layer.id, opacity: Number(event.target.value) / 100 })
-          }
-          aria-describedby={`${opacityId}-value`}
-          className="h-1 min-w-0 flex-1 accent-accent"
-        />
-        <output
-          id={`${opacityId}-value`}
-          htmlFor={opacityId}
-          className="type-caption1 w-9 text-right text-ink-muted tabular-nums"
-        >
-          {percent}%
-        </output>
-      </div>
-
-      <div className="mt-1 flex flex-wrap gap-x-3 pl-1">
-        {layer.bounds !== null ? (
-          <button
-            type="button"
-            onClick={() => onFocus(layer)}
-            className="type-caption1 inline-flex items-center gap-1 text-accent hover:underline"
-          >
-            <ZoomFit16Regular aria-hidden="true" />
-            Zoom to layer
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setShowLegend((v) => !v)}
-          aria-expanded={showLegend}
-          className="type-caption1 inline-flex items-center gap-1 text-accent hover:underline"
-        >
-          <ChevronDown16Regular
-            aria-hidden="true"
-            className={showLegend ? "rotate-180 transition-transform" : "transition-transform"}
-          />
-          Legend
-        </button>
-      </div>
-      {showLegend ? (
-        <div className="mt-1.5 pl-1">
-          <Legend legend={layer.legend} title={layer.title} />
-        </div>
-      ) : null}
     </li>
   );
 }
@@ -268,7 +252,7 @@ function CatalogRow({
   const aboutId = `catalog-about-${layer.id}`;
   const unavailable = layer.unavailable !== null;
   return (
-    <li className="flex items-start gap-2 py-1.5">
+    <li className="flex items-start gap-2.5 py-2">
       <input
         id={toggleId}
         type="checkbox"
@@ -276,13 +260,16 @@ function CatalogRow({
         disabled={unavailable && !on}
         onChange={() => dispatch({ type: on ? "remove" : "add", id: layer.id })}
         aria-describedby={aboutId}
-        className="mt-0.5 size-4 shrink-0 accent-accent"
+        className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent disabled:cursor-not-allowed"
       />
       <div className="min-w-0 flex-1">
-        <label htmlFor={toggleId} className="type-body1 text-ink">
+        <label
+          htmlFor={toggleId}
+          className={`type-body1 cursor-pointer ${unavailable && !on ? "text-ink-muted" : "text-ink"}`}
+        >
           {layer.title}
         </label>
-        <p id={aboutId} className="type-caption1 text-ink-faint">
+        <p id={aboutId} className="type-caption1 mt-0.5 text-ink-faint">
           {unavailable ? layer.unavailable : layer.description}
           <span className="block">From {layer.sourceLabel}</span>
         </p>
@@ -291,15 +278,42 @@ function CatalogRow({
   );
 }
 
+/** The KSA catalogue's state, said once, in words, above the list it affects. */
+function CatalogStatusNote({ status }: { status: CatalogStatus }) {
+  if (status.kind === "loading") {
+    return (
+      <p role="status" className="type-caption1 flex items-center gap-1.5 text-ink-faint">
+        <ArrowSync16Regular aria-hidden="true" />
+        Loading the KSA GeoServer layers&hellip;
+      </p>
+    );
+  }
+  if (status.kind === "error") {
+    return (
+      <Notice intent="warning" title="KSA layers unavailable.">
+        {status.message} NASA layers are still available.
+      </Notice>
+    );
+  }
+  if (status.stale) {
+    return (
+      <Notice intent="warning" title="Catalogue may be out of date.">
+        GeoServer did not answer, so this is the last list the backend saw. New layers may be
+        missing.
+      </Notice>
+    );
+  }
+  return null;
+}
+
 export function LayerPanel({
   layers,
   layersById,
   ksaStatus,
   stack,
   dispatch,
-  basemap,
-  onBasemap,
   onFocus,
+  onShowMap,
 }: LayerPanelProps) {
   const [query, setQuery] = useState("");
   const shown = useMemo(() => filterExploreLayers(layers, query), [layers, query]);
@@ -312,58 +326,43 @@ export function LayerPanel({
   );
 
   return (
-    <Panel as="section" title="Map layers" pad="tight" className="h-full overflow-y-auto">
-      <div className="space-y-4">
-        {/* -------------------------------------------------- basemap */}
-        <fieldset className="flex items-center gap-2">
-          <legend className="type-caption1 float-left mr-1 text-ink-muted">Basemap</legend>
-          {(["street", "satellite"] as const).map((option) => (
-            <label
-              key={option}
-              className={`type-caption1 cursor-pointer rounded-fluent-medium border px-2 py-1 ${
-                basemap === option
-                  ? "border-accent bg-accent-soft text-accent"
-                  : "border-edge text-ink-muted hover:bg-page"
-              }`}
-            >
-              <input
-                type="radio"
-                name="explore-basemap"
-                value={option}
-                checked={basemap === option}
-                onChange={() => onBasemap(option)}
-                className="sr-only"
-              />
-              {option === "street" ? "Street" : "Satellite"}
-            </label>
-          ))}
-        </fieldset>
-
-        {/* ---------------------------------------------- on the map */}
-        <section aria-labelledby="stack-heading">
-          <div className="flex items-baseline justify-between gap-2">
-            <h3 id="stack-heading" className="type-body1 font-semibold text-ink">
-              On the map
-              <span className="type-caption1 ml-1.5 font-normal text-ink-faint">
-                {stack.order.length === 0 ? "" : `${stack.order.length}, top first`}
-              </span>
-            </h3>
+    <section aria-label="Map layers" className="text-ink lg:h-full lg:overflow-y-auto">
+      {/* ---------------------------------------------------- on the map */}
+      <section aria-labelledby="stack-heading" className="px-gutter py-4 lg:px-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="stack-heading" className="type-subtitle2 flex items-center gap-2 text-ink">
+            On the map
+            <CountBadge count={stack.order.length} />
+          </h2>
+          <div className="flex items-center gap-3">
             {stack.order.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => dispatch({ type: "clear" })}
-                className="type-caption1 text-accent hover:underline"
-              >
+              <button type="button" onClick={() => dispatch({ type: "clear" })} className={textButton}>
                 Clear all
               </button>
             ) : null}
+            {/* Phone only: the map is above this panel, out of view. */}
+            <button type="button" onClick={onShowMap} className={`${textButton} lg:hidden`}>
+              <ArrowUp16Regular aria-hidden="true" />
+              Back to map
+            </button>
           </div>
-          {stack.order.length === 0 ? (
-            <p className="type-caption1 mt-1 text-ink-faint">
-              Nothing yet. Tick a layer below to put it on the map; the newest goes on top.
+        </div>
+        {stack.order.length === 0 ? (
+          <div className="mt-2.5 flex items-start gap-3 rounded-fluent-large border border-dashed border-edge-strong px-3 py-3">
+            <span
+              aria-hidden="true"
+              className="grid size-8 shrink-0 place-items-center rounded-fluent-medium bg-sunken text-ink-faint"
+            >
+              <LayerDiagonal20Regular />
+            </span>
+            <p className="type-caption1 text-ink-muted">
+              Nothing on the map yet. Tick a layer below to add it; the newest goes on top.
             </p>
-          ) : (
-            <ol className="mt-2 space-y-2" aria-label="Layers on the map, top first">
+          </div>
+        ) : (
+          <>
+            <p className="type-caption1 mt-0.5 text-ink-faint">Top of the list is drawn on top.</p>
+            <ol className="mt-2.5 space-y-2" aria-label="Layers on the map, top first">
               {stack.order.map((id, index) => {
                 const layer = layersById.get(id);
                 const entry = stack.entries[id];
@@ -381,34 +380,21 @@ export function LayerPanel({
                 );
               })}
             </ol>
-          )}
-        </section>
+          </>
+        )}
+      </section>
 
-        {/* ------------------------------------------------ catalogue */}
-        <section aria-labelledby="catalog-heading">
-          <h3 id="catalog-heading" className="type-body1 font-semibold text-ink">
+      {/* ----------------------------------------------------- catalogue */}
+      <section aria-labelledby="catalog-heading" className="border-t border-edge">
+        {/* Pinned to the top of the panel's own scroll on a wide screen, so
+            the filter is in reach however far down the list has gone. It
+            needs a z-index because the rotated chevrons and the Notice below
+            it paint on the positioned layer too; z-map-overlay is the app's
+            named "over content, under the chrome" step. */}
+        <div className="bg-surface px-gutter pt-4 pb-2 lg:sticky lg:top-0 lg:z-map-overlay lg:px-4">
+          <h2 id="catalog-heading" className="type-subtitle2 text-ink">
             Layers
-          </h3>
-
-          {ksaStatus.kind === "loading" ? (
-            <p role="status" className="type-caption1 mt-1 text-ink-faint">
-              Loading the KSA GeoServer layers&hellip;
-            </p>
-          ) : null}
-          {ksaStatus.kind === "error" ? (
-            <div className="mt-1.5">
-              <Notice intent="warning">{ksaStatus.message} NASA layers are still available.</Notice>
-            </div>
-          ) : null}
-          {ksaStatus.kind === "ready" && ksaStatus.stale ? (
-            <div className="mt-1.5">
-              <Notice intent="warning">
-                GeoServer did not answer, so this is the last list the backend saw. New layers
-                may be missing.
-              </Notice>
-            </div>
-          ) : null}
-
+          </h2>
           <div className="mt-2">
             <label htmlFor="explore-layer-filter" className="sr-only">
               Filter layers
@@ -434,53 +420,70 @@ export function LayerPanel({
                 : `${layers.length} layers`}
             </p>
           </div>
+        </div>
+
+        <div className="space-y-2.5 px-gutter pb-5 lg:px-4">
+          <CatalogStatusNote status={ksaStatus} />
 
           {searching && shown.length === 0 ? (
-            <p className="type-body1 mt-2 text-ink-muted">
+            <p className="type-body1 rounded-fluent-large bg-surface-subtle px-3 py-3 text-ink-muted">
               No layers match &ldquo;{query.trim()}&rdquo;.
             </p>
           ) : null}
 
-          <div className="mt-1 space-y-1">
-            {groups.map((group) => (
-              <details
-                key={group.category}
-                // Searching opens every group, so a match is never hidden in
-                // a collapsed heading.
-                open={searching ? true : undefined}
-                className="group rounded-fluent-medium border border-edge"
-                data-testid="category"
-              >
-                <summary className="type-body1 flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 font-semibold text-ink hover:bg-page">
-                  <ChevronDown16Regular
-                    aria-hidden="true"
-                    className="-rotate-90 transition-transform group-open:rotate-0"
-                  />
-                  {group.category}
-                  <span className="type-caption1 ml-auto font-normal text-ink-faint">
-                    {group.layers.length}
-                  </span>
-                </summary>
-                {group.layers.length === 0 ? (
-                  <p className="type-caption1 border-t border-edge px-2 py-2 text-ink-faint">
-                    No layers published in this category yet.
-                  </p>
-                ) : null}
-                <ul className="border-t border-edge px-2 empty:hidden" data-testid="catalog-list">
-                  {group.layers.map((layer) => (
-                    <CatalogRow
-                      key={layer.id}
-                      layer={layer}
-                      on={stack.entries[layer.id] !== undefined}
-                      dispatch={dispatch}
+          {groups.length > 0 ? (
+            <div className="divide-y divide-edge overflow-hidden rounded-fluent-large border border-edge">
+              {groups.map((group) => (
+                <details
+                  key={group.category}
+                  // Searching opens every group, so a match is never hidden in
+                  // a collapsed heading.
+                  open={searching ? true : undefined}
+                  className="group"
+                  data-testid="category"
+                >
+                  {/* An empty category is drawn quieter (lighter label, a
+                      zero badge) so the ones with layers stand out, but it
+                      keeps its place in the configured order: the order is
+                      the catalogue's, and E1 pins it. */}
+                  <summary
+                    className={`type-body1 flex cursor-pointer list-none items-center gap-2 px-3 transition-colors duration-150 hover:bg-surface-subtle [&::-webkit-details-marker]:hidden ${
+                      group.layers.length === 0
+                        ? "py-1.5 text-ink-faint"
+                        : "py-2 font-semibold text-ink"
+                    }`}
+                  >
+                    <ChevronDown16Regular
+                      aria-hidden="true"
+                      className="shrink-0 -rotate-90 text-ink-faint transition-transform duration-150 group-open:rotate-0"
                     />
-                  ))}
-                </ul>
-              </details>
-            ))}
-          </div>
-        </section>
-      </div>
-    </Panel>
+                    {group.category}
+                    <CountBadge count={group.layers.length} className="ml-auto" />
+                  </summary>
+                  {group.layers.length === 0 ? (
+                    <p className="type-caption1 border-t border-edge bg-surface-subtle px-3 py-2.5 text-ink-faint">
+                      No layers published in this category yet.
+                    </p>
+                  ) : null}
+                  <ul
+                    className="divide-y divide-edge border-t border-edge px-3 empty:hidden"
+                    data-testid="catalog-list"
+                  >
+                    {group.layers.map((layer) => (
+                      <CatalogRow
+                        key={layer.id}
+                        layer={layer}
+                        on={stack.entries[layer.id] !== undefined}
+                        dispatch={dispatch}
+                      />
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </section>
   );
 }

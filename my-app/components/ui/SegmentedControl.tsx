@@ -50,7 +50,7 @@ export function SegmentedControl<T extends string>({
         {legend}
       </legend>
 
-      <div className="grid gap-1 rounded-fluent-large bg-page p-1 sm:grid-cols-2">
+      <div className="grid gap-1 rounded-fluent-large border border-edge bg-page p-1 sm:grid-cols-2">
         {segments.map((segment) => {
           const selected = segment.value === value;
           const id = `${name}-${segment.value}`;
@@ -68,7 +68,7 @@ export function SegmentedControl<T extends string>({
               />
               <label
                 htmlFor={id}
-                className={`flex cursor-pointer flex-col gap-0.5 rounded-fluent-medium px-3 py-2 transition-colors duration-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${
+                className={`flex cursor-pointer flex-col gap-0.5 rounded-fluent-medium px-3 py-2 transition-[background-color,color,box-shadow] duration-150 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${
                   selected ? "bg-surface text-accent shadow-4" : "text-ink-muted hover:bg-sunken hover:text-ink"
                 }`}
               >

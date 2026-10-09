@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Tab, TabList } from "@fluentui/react-components";
+import { FRAME } from "@/components/shell/Page";
 import type { TopicSlug } from "@/services/analysis/topics";
 import { ReportSkeleton } from "./ReportSkeleton";
 
@@ -46,6 +54,29 @@ const tabId = (slug: TopicSlug) => `report-tab-${slug}`;
 const PANEL_ID = "report-panel";
 
 /**
+ * The white band the tab row sits in: the page header's ground carried down
+ * (ReportsFrame leaves its own bottom open) and closed with the hairline, so
+ * the selected tab's bar lands on the line between header and canvas.
+ * Shared with ReportTabsPlaceholder so the two are the same height and in the
+ * same place (evals/reports.spec.ts R11).
+ */
+function TabBand({ children }: { children: ReactNode }) {
+  return (
+    <div className="border-b border-edge bg-surface">
+      <div className={FRAME}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * The canvas band under the tabs, where the panel (or, in loading.tsx, the
+ * skeleton) sits. One definition for both, so the card lands where it loaded.
+ */
+export function ReportPanelBand({ children }: { children: ReactNode }) {
+  return <div className={`${FRAME} py-6 lg:py-8`}>{children}</div>;
+}
+
+/**
  * The tab row's frame, shared with ReportTabsPlaceholder so the two are the
  * same height and in the same place.
  *
@@ -58,10 +89,48 @@ const PANEL_ID = "report-panel";
  * the invisible edge of its hover background. On a phone the shift sits
  * inside the scroller's padding; from lg the scroller itself moves, so
  * neither clips the tab's hover or focus fill.
+ *
+ * When the row is wider than the screen, the edge it continues past fades
+ * out (a mask, so nothing is laid over the tabs), which is the cue that it
+ * scrolls. Each fade is on only while there is more on that side.
  */
 function TabRow({ children }: { children: ReactNode }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState({ start: false, end: false });
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (el === null) return;
+    const measure = () => {
+      const start = el.scrollLeft > 1;
+      const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+      setMore((previous) =>
+        previous.start === start && previous.end === end ? previous : { start, end },
+      );
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    // Absent in jsdom; every browser this app supports has it.
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      observer?.disconnect();
+    };
+  }, []);
+
+  const FADE = "2rem";
+  const mask =
+    more.start || more.end
+      ? `linear-gradient(to right, ${more.start ? "transparent" : "black"}, black ${FADE}, black calc(100% - ${FADE}), ${more.end ? "transparent" : "black"})`
+      : undefined;
+
   return (
-    <div className="-mx-gutter overflow-x-auto px-gutter lg:-mx-3 lg:px-0">
+    <div
+      ref={scroller}
+      className="-mx-gutter overflow-x-auto px-gutter lg:-mx-3 lg:px-0"
+      style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+    >
       <div className="-ml-3 lg:ml-0">{children}</div>
     </div>
   );
@@ -76,17 +145,19 @@ function TabRow({ children }: { children: ReactNode }) {
  */
 export function ReportTabsPlaceholder({ names }: { names: readonly string[] }) {
   return (
-    <div aria-hidden="true">
-      <TabRow>
-        <TabList size="large" disabled selectedValue={null}>
-          {names.map((name) => (
-            <Tab key={name} value={name} tabIndex={-1}>
-              {name}
-            </Tab>
-          ))}
-        </TabList>
-      </TabRow>
-    </div>
+    <TabBand>
+      <div aria-hidden="true">
+        <TabRow>
+          <TabList size="large" disabled selectedValue={null}>
+            {names.map((name) => (
+              <Tab key={name} value={name} tabIndex={-1}>
+                {name}
+              </Tab>
+            ))}
+          </TabList>
+        </TabRow>
+      </div>
+    </TabBand>
   );
 }
 
@@ -155,45 +226,49 @@ export function ReportTabs({
   };
 
   return (
-    <div>
-      <TabRow>
-        <TabList
-          aria-label="Report topics"
-          selectedValue={selected}
-          onTabSelect={(_, data) => select(data.value as TopicSlug)}
-          size="large"
+    <>
+      <TabBand>
+        <TabRow>
+          <TabList
+            aria-label="Report topics"
+            selectedValue={selected}
+            onTabSelect={(_, data) => select(data.value as TopicSlug)}
+            size="large"
+          >
+            {tabs.map((tab) => (
+              <Tab key={tab.slug} id={tabId(tab.slug)} value={tab.slug} aria-controls={PANEL_ID}>
+                {tab.name}
+              </Tab>
+            ))}
+          </TabList>
+        </TabRow>
+      </TabBand>
+
+      <ReportPanelBand>
+        <p role="status" className="sr-only">
+          {status}
+        </p>
+
+        <div
+          id={PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={tabId(selected)}
+          aria-busy={loading}
+          // Focusable so Tab from the tab list reaches the panel even when the
+          // report holds no control of its own (the WAI-ARIA tabs pattern).
+          tabIndex={0}
+          className="rounded-fluent-xlarge focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
         >
-          {tabs.map((tab) => (
-            <Tab key={tab.slug} id={tabId(tab.slug)} value={tab.slug} aria-controls={PANEL_ID}>
-              {tab.name}
-            </Tab>
-          ))}
-        </TabList>
-      </TabRow>
-
-      <p role="status" className="sr-only">
-        {status}
-      </p>
-
-      <div
-        id={PANEL_ID}
-        role="tabpanel"
-        aria-labelledby={tabId(selected)}
-        aria-busy={loading}
-        // Focusable so Tab from the tab list reaches the panel even when the
-        // report holds no control of its own (the WAI-ARIA tabs pattern).
-        tabIndex={0}
-        className="mt-6 rounded-fluent-large focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-      >
-        {loading ? (
-          <ReportSkeleton topic={selectedTab} />
-        ) : (
-          // Keyed by topic so each arrival replays the fade-in.
-          <div key={active} className="report-enter">
-            {children}
-          </div>
-        )}
-      </div>
-    </div>
+          {loading ? (
+            <ReportSkeleton topic={selectedTab} />
+          ) : (
+            // Keyed by topic so each arrival replays the fade-in.
+            <div key={active} className="report-enter">
+              {children}
+            </div>
+          )}
+        </div>
+      </ReportPanelBand>
+    </>
   );
 }

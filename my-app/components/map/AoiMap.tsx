@@ -34,7 +34,7 @@ import {
   type FocusRequest,
   draftAreaFromGeometry,
 } from "@/services/analysis/selection";
-import { KENYA_BOUNDS, type MapTool } from "@/components/map/tools";
+import { KENYA_BOUNDS, TILE_LOADING, type MapTool } from "@/components/map/tools";
 import { token } from "@/lib/theme/palette";
 
 export interface AoiMapProps {
@@ -100,11 +100,37 @@ function areaStyle(): L.PathOptions {
 function FocusController({ focus }: { focus: FocusRequest | null }) {
   const map = useMap();
   const lastToken = useRef<number | null>(null);
+  const [arrived, setArrived] = useState("");
+  const pending = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (focus === null) return;
     if (lastToken.current === focus.token) return;
     lastToken.current = focus.token;
+
+    /*
+     * Say where the map landed, once, when a flight to a selection ends.
+     *
+     * This is the feedback a screen reader user needs ("the map zoomed to
+     * your selection"), and it is the ONLY map movement announced. The view
+     * readout used to be a live region, which spoke on every pan and zoom the
+     * user made themselves: noise that buried the one move worth hearing.
+     * The text changes each time (the centre and zoom are in it), so a second
+     * flight to the same place is still announced.
+     */
+    const announce = () => {
+      const c = map.getCenter();
+      setArrived(
+        `Map moved to the selection: centre ${c.lat.toFixed(2)}, ` +
+          `${c.lng.toFixed(2)}, zoom ${map.getZoom()}.`,
+      );
+    };
+    // A newer flight replaces an unfinished one, and its announcement too.
+    // Not an effect cleanup: the effect also re-runs when `focus` is a new
+    // object with the same token, and that must not cancel a flight in the air.
+    if (pending.current) map.off("moveend", pending.current);
+    pending.current = announce;
+    map.once("moveend", announce);
 
     map.flyToBounds(focus.bounds, {
       // Keep the fitted area clear of the floating controls.
@@ -117,16 +143,21 @@ function FocusController({ focus }: { focus: FocusRequest | null }) {
     });
   }, [focus, map]);
 
-  return null;
+  return (
+    <p role="status" aria-live="polite" className="sr-only">
+      {arrived}
+    </p>
+  );
 }
 
 /**
- * Announce where the map currently is.
+ * Show where the map currently is.
  *
- * A sighted user reads the viewport; a screen reader user has no way to know
- * the map moved, and "the map zoomed to your selection" is the single most
- * important feedback this page gives. So the centre and zoom are published as
- * polite live text.
+ * Plain text, not a live region. It used to be role="status" aria-live, which
+ * made a screen reader speak on every pan and zoom the user made themselves.
+ * The move worth hearing, "the map zoomed to your selection", is announced
+ * once per flight by FocusController instead. This stays readable at any time
+ * in the reading order.
  *
  * It is also the only honest way to assert the zoom behaviour from a browser
  * test: Leaflet exposes its view on the map instance, not on the DOM, and
@@ -159,9 +190,7 @@ function ViewReadout() {
       data-lat={center.lat.toFixed(5)}
       data-lng={center.lng.toFixed(5)}
       data-zoom={zoom}
-      role="status"
-      aria-live="polite"
-      className="pointer-events-none absolute bottom-2 left-2 z-map-overlay rounded bg-surface/90 px-2 py-1 font-mono text-[11px] text-ink-muted shadow-sm"
+      className="type-caption1 pointer-events-none absolute bottom-2 left-2 z-map-overlay rounded-fluent-medium bg-surface/95 px-2 py-1 font-mono tabular-nums text-ink-muted shadow-8"
     >
       Centre {lat}, {lng} at zoom {zoom}
     </p>
@@ -341,7 +370,12 @@ export default function AoiMap({
   return (
     <MapContainer
       bounds={KENYA_BOUNDS}
-      className="relative h-full w-full"
+      // The layer switcher at the zoom buttons' size. Leaflet draws the toggle
+      // at 44px on a touch-capable browser (most desktops count), beside 30px
+      // zoom buttons, so the two controls looked like two different kits.
+      // Important, because leaflet.css is unlayered and outranks every
+      // Tailwind layer whatever the specificity.
+      className="relative h-full w-full [&_.leaflet-control-layers-toggle]:h-[30px]! [&_.leaflet-control-layers-toggle]:w-[30px]! [&_.leaflet-control-layers-toggle]:bg-size-[18px_18px]! [&_.leaflet-control-layers-toggle]:rounded-fluent-medium!"
       // Scroll-wheel zoom is off by default: on a page that scrolls, a wheel
       // over the map would otherwise hijack the page scroll. Ctrl+wheel and the
       // zoom buttons still work, which is the convention analysts expect.
@@ -358,6 +392,7 @@ export default function AoiMap({
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             maxZoom={19}
+            {...TILE_LOADING}
           />
         </LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Satellite">
@@ -365,6 +400,7 @@ export default function AoiMap({
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             attribution="Imagery &copy; Esri, Maxar, Earthstar Geographics"
             maxZoom={19}
+            {...TILE_LOADING}
           />
         </LayersControl.BaseLayer>
       </LayersControl>

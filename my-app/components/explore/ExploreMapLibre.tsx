@@ -34,6 +34,9 @@ import maplibregl, {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import { BasemapSwitch, MapLegend } from "@/components/explore/MapOverlays";
+import { CountBadge } from "@/components/ui/CountBadge";
+import { LayerDiagonal16Regular } from "@/components/ui/icons";
 import { KENYA_BOUNDS } from "@/components/map/tools";
 import {
   featureName,
@@ -56,7 +59,10 @@ export interface ExploreMapLibreProps {
   stack: LayerStack;
   dispatch: (action: StackAction) => void;
   basemap: Basemap;
+  onBasemap: (basemap: Basemap) => void;
   focus: FocusRequest | null;
+  /** Scrolls to the layer panel, for the phone layout where it is below. */
+  onShowLayers: () => void;
 }
 
 /** KENYA_BOUNDS is Leaflet's [lat, lng] pairs; MapLibre wants [lng, lat]. */
@@ -102,6 +108,43 @@ const SELECTED: ExpressionSpecification = ["boolean", ["feature-state", "selecte
  * whatever it sits on.
  */
 const HIGHLIGHT = "#e3008c";
+
+/*
+ * MapLibre's own controls and popups, put on the app's tokens.
+ *
+ * maplibre-gl.css is unlayered and Tailwind's utilities live in a cascade
+ * layer, and an unlayered rule beats a layered one whatever its specificity.
+ * So every rule here that overrides a MapLibre declaration carries `!`
+ * (an important layered declaration does win). Utility classes rather than
+ * globals.css, which this unit does not own.
+ */
+const CONTROL_SKIN = [
+  "font-sans!",
+  "[&_.maplibregl-ctrl-group]:rounded-fluent-large!",
+  "[&_.maplibregl-ctrl-group]:shadow-8!",
+  "[&_.maplibregl-ctrl-group]:border",
+  "[&_.maplibregl-ctrl-group]:border-edge",
+  "[&_.maplibregl-ctrl-group]:overflow-hidden",
+  "[&_.maplibregl-ctrl-group_button]:size-8!",
+  "[&_.maplibregl-ctrl-scale]:type-caption1!",
+  "[&_.maplibregl-ctrl-scale]:text-ink-muted!",
+  "[&_.maplibregl-ctrl-scale]:border-ink-faint!",
+  "[&_.maplibregl-ctrl-attrib]:type-caption1!",
+].join(" ");
+
+const POPUP_SKIN = [
+  "[&_.maplibregl-popup-content]:rounded-fluent-large!",
+  "[&_.maplibregl-popup-content]:shadow-16!",
+  "[&_.maplibregl-popup-content]:px-3!",
+  "[&_.maplibregl-popup-content]:py-2.5!",
+  "[&_.maplibregl-popup-close-button]:top-1.5!",
+  "[&_.maplibregl-popup-close-button]:right-1.5!",
+  "[&_.maplibregl-popup-close-button]:size-7",
+  "[&_.maplibregl-popup-close-button]:rounded-fluent-medium!",
+  "[&_.maplibregl-popup-close-button]:type-body1!",
+  "[&_.maplibregl-popup-close-button]:text-ink-muted",
+  "[&_.maplibregl-popup-close-button:hover]:bg-surface-subtle!",
+].join(" ");
 
 const BASE_STYLE: StyleSpecification = {
   version: 8,
@@ -199,10 +242,10 @@ function popupContent(layer: ExploreLayer | undefined, feature: MapGeoJSONFeatur
   const properties = (feature.properties ?? {}) as Record<string, unknown>;
   const root = document.createElement("div");
   root.dataset.testid = "feature-popup";
-  root.className = "max-h-72 overflow-y-auto pr-1";
+  root.className = "max-h-72 overflow-y-auto pr-5";
 
   const eyebrow = document.createElement("p");
-  eyebrow.className = "type-caption1 text-ink-faint";
+  eyebrow.className = "eyebrow text-ink-faint";
   eyebrow.textContent = layer?.title ?? "Feature";
   root.append(eyebrow);
 
@@ -252,7 +295,9 @@ export default function ExploreMapLibre({
   stack,
   dispatch,
   basemap,
+  onBasemap,
   focus,
+  onShowLayers,
 }: ExploreMapLibreProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -363,7 +408,11 @@ export default function ExploreMapLibre({
       const selected = { source: hit.source, id: hit.id };
       selectedRef.current = selected;
       map.setFeatureState(selected, { selected: true });
-      const popup = new maplibregl.Popup({ maxWidth: "320px", focusAfterOpen: false })
+      const popup = new maplibregl.Popup({
+        maxWidth: "min(320px, 80vw)",
+        focusAfterOpen: false,
+        className: POPUP_SKIN,
+      })
         .setLngLat(event.lngLat)
         .setDOMContent(popupContent(layersRef.current.get(stackId), hit))
         .addTo(map);
@@ -508,19 +557,47 @@ export default function ExploreMapLibre({
 
   return (
     <div className="relative h-full w-full">
-      <div ref={container} className="h-full w-full" data-testid="explore-maplibre" />
-      {shownErrors.length > 0 ? (
-        <div role="status" className="pointer-events-none absolute inset-x-2 top-2 z-10 ml-10 space-y-1">
-          {shownErrors.map(([id, message]) => (
-            <p
-              key={id}
-              className="type-caption1 rounded-fluent-medium border border-warn bg-warn-soft px-2 py-1.5 text-warn shadow-4"
-            >
-              {message}
-            </p>
-          ))}
+      <div
+        ref={container}
+        className={`h-full w-full ${CONTROL_SKIN}`}
+        data-testid="explore-maplibre"
+      />
+      {/*
+        The top-right column: basemap, feature-load problems, legend. Clear of
+        MapLibre's zoom buttons on the left (left-14) and of the scale and
+        attribution along the bottom (bottom-12; bottom-16 on a phone, where
+        the view readout sits a row higher). Pointer events only on the cards
+        themselves, so the gaps between them still pan the map. On a phone
+        the panel is below the map, so the column leads with a button that
+        jumps to it.
+      */}
+      <div className="pointer-events-none absolute top-3 right-3 bottom-16 left-14 z-map-overlay flex flex-col items-end gap-2 sm:bottom-12">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onShowLayers}
+            className="type-caption1 pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-fluent-large border border-edge bg-surface px-2.5 font-semibold text-ink shadow-8 transition-colors duration-150 hover:bg-surface-subtle lg:hidden"
+          >
+            <LayerDiagonal16Regular aria-hidden="true" className="text-ink-muted" />
+            Layers
+            <CountBadge count={stack.order.length} />
+          </button>
+          <BasemapSwitch basemap={basemap} onBasemap={onBasemap} />
         </div>
-      ) : null}
+        {shownErrors.length > 0 ? (
+          <div role="status" className="w-64 max-w-full shrink-0 space-y-1">
+            {shownErrors.map(([id, message]) => (
+              <p
+                key={id}
+                className="type-caption1 rounded-fluent-large border border-warn bg-warn-soft px-2.5 py-1.5 text-warn shadow-8"
+              >
+                {message}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        <MapLegend layers={layers} stack={stack} />
+      </div>
       <p
         data-testid="explore-map-view"
         data-lat={view.lat.toFixed(5)}
@@ -528,9 +605,17 @@ export default function ExploreMapLibre({
         data-zoom={view.zoom.toFixed(2)}
         role="status"
         aria-live="polite"
-        className="type-caption1 pointer-events-none absolute bottom-2 left-2 z-10 rounded-fluent-medium bg-surface/90 px-2 py-1 font-mono text-ink-muted shadow-8"
+        // On a phone: the short form, one row above the bottom edge, so it
+        // clears MapLibre's attribution (which runs along the bottom) and the
+        // scale bar (bottom right, above the attribution).
+        className="type-caption1 pointer-events-none absolute bottom-9 left-2 z-map-overlay rounded-fluent-large border border-edge bg-surface/90 px-2 py-1 font-mono text-ink-muted shadow-8 sm:bottom-2"
       >
-        Centre {lat}, {lng} at zoom {view.zoom.toFixed(1)}
+        <span className="sm:hidden">
+          {lat} {lng} z{view.zoom.toFixed(1)}
+        </span>
+        <span className="hidden sm:inline">
+          Centre {lat}, {lng} at zoom {view.zoom.toFixed(1)}
+        </span>
       </p>
     </div>
   );

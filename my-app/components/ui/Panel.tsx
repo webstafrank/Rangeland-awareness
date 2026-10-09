@@ -22,11 +22,11 @@ const pads = { none: "", tight: "p-3", normal: "p-4 lg:p-5" } as const;
 /**
  * A card: one chart, one table, one summary.
  *
- * The design system's card recipe: colorNeutralBackground1, borderRadiusXLarge
- * and shadow4, with no border. The shadow is what separates it from the
- * canvas, so the hairline the old kit drew around every panel is gone; the
- * only rule left is the one under the title row, which is structure rather
- * than decoration.
+ * The `card` utility: colorNeutralBackground1, a hairline edge, shadow-4 and
+ * borderRadiusXLarge (10px), the same card every page uses. The title row is
+ * a 44px Fluent card header in subtitle2 with its action opposite, closed by
+ * a hairline, which is structure rather than decoration. Not interactive, so
+ * there is no hover lift.
  */
 export function Panel({
   children,

@@ -4,6 +4,7 @@ import { ArrowRight20Regular } from "@/components/ui/icons";
 import { TOPICS } from "@/services/analysis/topics";
 import { InfoGrid, PageHero, PageSection } from "@/components/shell/Page";
 import { buttonClasses } from "@/components/ui/button-classes";
+import { StatTile } from "@/components/ui/StatTile";
 
 export const metadata: Metadata = {
   title: "About",
@@ -59,11 +60,18 @@ const SOURCES = [
   },
 ] as const;
 
+/**
+ * About: what the platform is for, who it serves, what feeds it, and the way
+ * into an analysis. The three figures under the mission are counted from the
+ * topic registry and the source list on this page, so they cannot drift from
+ * what the page itself names. The eyebrow names the section, not the page:
+ * the top bar already says "About".
+ */
 export default function AboutPage() {
   return (
     <>
       <PageHero
-        eyebrow="About the platform"
+        eyebrow="Programme"
         title="Disaster Monitor"
         lead="Earth observation decision support for Kenya's rangelands."
       />
@@ -86,7 +94,13 @@ export default function AboutPage() {
             </p>
           </>
         }
-      />
+      >
+        <dl className="grid grid-cols-3 gap-2 sm:gap-4">
+          <StatTile compact label="Analysis topics" value={String(TOPICS.length)} />
+          <StatTile compact label="Counties covered" value="47" />
+          <StatTile compact label="Open data sources" value={String(SOURCES.length)} />
+        </dl>
+      </PageSection>
 
       <PageSection
         tier="panel"
@@ -115,13 +129,13 @@ export default function AboutPage() {
             <Link
               key={topic.slug}
               href={`/topics/${topic.slug}`}
-              className={buttonClasses({ appearance: index === 0 ? "primary" : "secondary", size: "lg" })}
+              className={buttonClasses({ appearance: index === 0 ? "primary" : "secondary" })}
             >
               Start with {topic.name.toLowerCase()}
               <ArrowRight20Regular aria-hidden="true" />
             </Link>
           ))}
-          <Link href="/" className={buttonClasses({ appearance: "subtle", size: "lg" })}>
+          <Link href="/" className={buttonClasses({ appearance: "subtle" })}>
             See all topics
           </Link>
         </div>

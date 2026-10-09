@@ -46,7 +46,7 @@ export function LoginForm() {
         reviewed end to end.
       </Notice>
 
-      <Button type="submit" variant="primary" size="lg" block disabled={pending}>
+      <Button type="submit" variant="primary" block disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>

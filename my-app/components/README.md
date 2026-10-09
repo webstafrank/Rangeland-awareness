@@ -169,10 +169,10 @@ one height for the session.
 Four routes, one decision each, all framed identically by `StepShell`:
 
 ```
-band-chrome     the topic: breadcrumb, glyph, name, question   (the layout)
-white strip     the rail: four steps, current in red           (StepShell)
+band-chrome     the topic: glyph, name, question               (the layout)
+white strip     the rail: four steps, current marked           (StepShell)
 page ground     the step's own question and its controls       (the step)
-sticky footer   the receipt, Back, and the one red control     (StepShell)
+sticky footer   the receipt, Back, and the one primary control (StepShell)
 ```
 
 Three things about that frame are decisions rather than defaults.
@@ -286,8 +286,12 @@ rather than quietly shipping:
 - The analysis-type radios are wired to `aria-describedby` carrying the
   consequence warning, so the loss is heard before the click, not only seen.
 - The upload input has a real `<label>`, so it is reachable and nameable.
-- The map publishes its centre and zoom as polite live text, because a screen
-  reader user otherwise has no way to know the viewport moved.
+- The map announces once, through a status message, when a flight to a
+  selection ends, because a screen reader user otherwise has no way to know
+  the viewport moved. The centre-and-zoom readout itself is plain text, not a
+  live region: announcing every pan interrupted whatever the reader was doing.
+- The topic band carries no breadcrumb of its own: the app shell's top bar
+  shows Analysis, topic and step on every page.
 - The whole flow completes without touching the map, via coordinate entry or a
   shapefile.
 - Errors are `role="alert"`, selection changes are `role="status"`.

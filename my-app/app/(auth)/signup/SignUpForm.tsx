@@ -85,7 +85,7 @@ export function SignUpForm() {
         />
       </Field>
 
-      <Button type="submit" variant="primary" size="lg" block disabled={pending}>
+      <Button type="submit" variant="primary" block disabled={pending}>
         {pending ? "Creating account…" : "Create account"}
       </Button>
     </form>

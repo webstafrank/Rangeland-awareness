@@ -32,7 +32,7 @@ export default function SignUpPage() {
           In a hurry? Skip the account and go straight to the topics.
         </p>
         <form action={continueAsGuestAction}>
-          <Button type="submit" variant="secondary" size="lg" block>
+          <Button type="submit" variant="secondary" block>
             Continue as guest
           </Button>
         </form>

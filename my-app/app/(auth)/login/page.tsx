@@ -32,7 +32,7 @@ export default function LoginPage() {
           You do not need an account to run an analysis.
         </p>
         <form action={continueAsGuestAction}>
-          <Button type="submit" variant="secondary" size="lg" block>
+          <Button type="submit" variant="secondary" block>
             Continue as guest
           </Button>
         </form>

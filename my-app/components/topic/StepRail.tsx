@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The four steps, as a rail across the top of every step page.
+ * The four steps, as a stepper across the top of every step page.
  *
  * A wizard that hides its shape feels longer than it is: the analyst cannot
  * tell whether Continue leads to two more screens or ten, so every step is a
@@ -10,21 +10,29 @@
  *
  * An ordered list of links, not a row of divs. The steps ARE a sequence and
  * they ARE navigation, so `<nav><ol>` is what a screen reader should hear, and
- * the current one carries aria-current="step".
+ * the current one carries aria-current="step". It is not a TabList and must
+ * not claim to be one: these are links between routes.
  *
- * Drawn as a Fluent TabList: flush items on the panel tier, the current one
- * carrying the 3px brand indicator along its bottom edge. It is NOT a real
- * TabList, and should not be: these are links between routes, so `<nav><ol>`
- * with aria-current is the correct semantics and `role="tab"` would be a lie.
+ * The marker is the shared StepMarker (components/ui), so a step looks the
+ * same here as on the Overview and in Help. Four states, and none of them
+ * rests on colour alone:
  *
- * Colour does three jobs here and none of them alone: the current step is
- * brand AND underlined AND filled AND marked aria-current; a completed step
- * carries a checkmark icon AND is a link; an unreachable one is faint AND
- * plain text with the reason spoken. Nothing is carried by colour by itself.
+ *   current    filled marker with its number and a soft ring, the label in
+ *              strong ink, aria-current, and ", current step" spoken
+ *   complete   filled marker with a check, a link, and ", done" spoken.
+ *              Only when the step's requirement is met: see isComplete
+ *   upcoming   outlined number, and a link
+ *   locked     dashed outline with its number, plain text, and ", not yet
+ *              available" spoken
+ *
+ * From `sm` up a hairline joins each step to the next, turning accent once
+ * the step before it is done, so progress reads left to right at a glance.
+ * On a phone the connectors go and the four steps share the row evenly:
+ * evals/journey.spec.ts holds the rail to one row at 360px.
  */
 
 import Link from "next/link";
-import { CheckmarkCircle16Filled } from "@/components/ui/icons";
+import { StepMarker, type StepMarkerState } from "@/components/ui/StepMarker";
 import { STEPS, isStepReachable, stepHref, stepIndex, type StepId } from "@/services/analysis/steps";
 import type { TopicSlug } from "@/services/analysis/topics";
 
@@ -37,6 +45,32 @@ export interface StepRailProps {
   canReview: boolean;
 }
 
+/**
+ * Whether a step is done, which is a claim about the request, not about
+ * position. Scope and model always hold a valid value, so passing them is
+ * enough. Areas is done only when its requirement is met: walking past it
+ * with nothing selected (the rail links ahead, and review is reachable by
+ * URL) must not paint a check beside "0 areas". Review is never done; Run
+ * leaves the flow.
+ */
+function isComplete(
+  step: StepId,
+  index: number,
+  currentIndex: number,
+  canReview: boolean,
+): boolean {
+  if (step === "areas") return canReview;
+  if (step === "review") return false;
+  return index < currentIndex;
+}
+
+const LABEL: Record<StepMarkerState, string> = {
+  current: "font-semibold text-ink",
+  complete: "text-ink-muted group-hover:text-ink",
+  upcoming: "text-ink-muted group-hover:text-ink",
+  locked: "text-ink-faint",
+};
+
 export default function StepRail({
   topic,
   current,
@@ -44,72 +78,57 @@ export default function StepRail({
   canReview,
 }: StepRailProps) {
   const currentIndex = stepIndex(current);
+  const last = STEPS.length - 1;
 
   return (
     <nav aria-label="Analysis steps" data-testid="step-rail">
-      <ol className="flex items-stretch gap-0.5 sm:gap-1">
+      <ol className="flex items-center">
         {STEPS.map((step, index) => {
-          const isCurrent = step.id === current;
-          const isDone = index < currentIndex;
           const reachable = isStepReachable(step.id, canReview);
-
-          const marker = [
-            "grid h-5 w-5 shrink-0 place-items-center rounded-full font-mono text-[10px] font-semibold tabular-nums sm:text-[11px]",
-            isCurrent
-              ? "bg-accent text-white"
-              : isDone
-                ? "text-accent"
+          const state: StepMarkerState =
+            step.id === current
+              ? "current"
+              : isComplete(step.id, index, currentIndex, canReview)
+                ? "complete"
                 : reachable
-                  ? "border border-ink-faint text-ink-muted"
-                  : "border border-edge-strong text-ink-faint",
-          ].join(" ");
+                  ? "upcoming"
+                  : "locked";
 
           const body = (
             <>
-              <span aria-hidden="true" className={marker}>
-                {/* A completed step shows a checkmark, not its number: the
-                    number is what is still ahead of you, the check is what
-                    is behind. Fluent's CheckmarkCircle, the design system's
-                    "succeeded" icon. */}
-                {isDone ? <CheckmarkCircle16Filled className="h-5 w-5" /> : index + 1}
+              <StepMarker number={index + 1} state={state} />
+              <span
+                className={`type-caption1 whitespace-nowrap transition-colors duration-150 sm:type-body1 ${LABEL[state]}`}
+              >
+                {step.label}
               </span>
-              <span className="type-caption1 whitespace-nowrap sm:type-body1">{step.label}</span>
             </>
           );
 
-          // Sized so four of these fit one row at 360px. At a larger size the
-          // rail wrapped to two rows on a phone and cost 125px of a 640px
-          // viewport; all four labels still ship, because a numbered marker
-          // with no word next to it tells you where you are and not what it is.
-          //
-          // The indicator is an inset box-shadow rather than a border so the
-          // three states share one box and the label never shifts by 3px.
+          // 44px tall for a thumb, and narrow enough that four fit one row at
+          // 360px: the marker and the word, with 6px between, and no more.
           const shell =
-            "flex min-h-10 items-center justify-center gap-1.5 rounded-t-fluent-medium px-1.5 transition-colors sm:min-h-11 sm:gap-2 sm:px-3";
+            "group flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-fluent-medium px-1 sm:shrink-0 sm:justify-start sm:gap-2 sm:px-2";
 
           return (
-            <li key={step.id} className="min-w-0 flex-1 sm:flex-none">
-              {isCurrent ? (
-                <span
-                  aria-current="step"
-                  className={`${shell} font-semibold text-ink shadow-[inset_0_-3px_0_var(--color-accent)]`}
-                >
+            <li
+              key={step.id}
+              // Each step takes an equal share of the row on a phone. From sm
+              // up the step hugs its content and the connector after it takes
+              // the slack, so the four sit evenly across the band.
+              className={`flex min-w-0 flex-1 items-center ${index < last ? "sm:flex-1" : "sm:flex-none"}`}
+            >
+              {state === "current" ? (
+                <span aria-current="step" className={shell}>
                   {body}
                   <span className="sr-only">, current step</span>
                 </span>
-              ) : reachable ? (
-                <Link
-                  href={stepHref(topic, step, query)}
-                  className={`${shell} text-ink-muted hover:bg-page hover:text-ink hover:shadow-[inset_0_-3px_0_var(--color-edge-strong)]`}
-                >
-                  {body}
-                </Link>
-              ) : (
-                <span className={`${shell} text-ink-faint`}>
+              ) : state === "locked" ? (
+                <span className={shell}>
                   {body}
                   {/*
-                    Said out loud rather than implied by the grey, because the
-                    grey is invisible to the people most likely to be stuck.
+                    Said out loud rather than implied by the dashed marker, because
+                    the dash is invisible to the people most likely to be stuck.
 
                     Deliberately NOT aria-disabled: on a bare span with no
                     role, that attribute is inert to every assistive
@@ -118,6 +137,23 @@ export default function StepRail({
                   */}
                   <span className="sr-only">, not yet available</span>
                 </span>
+              ) : (
+                <Link
+                  href={stepHref(topic, step, query)}
+                  className={`${shell} hover:bg-page`}
+                >
+                  {body}
+                  {state === "complete" && <span className="sr-only">, done</span>}
+                </Link>
+              )}
+
+              {index < last && (
+                <span
+                  aria-hidden="true"
+                  className={`mx-2 hidden h-px min-w-6 flex-1 sm:block ${
+                    state === "complete" ? "bg-accent" : "bg-edge-strong"
+                  }`}
+                />
               )}
             </li>
           );

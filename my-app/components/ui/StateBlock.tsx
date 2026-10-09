@@ -26,6 +26,7 @@ export function StateBlock({
   actions,
   tone = "neutral",
   headingLevel = 2,
+  inset = false,
   className = "",
   ...rest
 }: {
@@ -35,13 +36,19 @@ export function StateBlock({
   actions?: ReactNode;
   tone?: keyof typeof TILE;
   headingLevel?: 2 | 3;
+  /** Inside a card that already has an edge: no dashed box of its own. */
+  inset?: boolean;
   className?: string;
   "data-testid"?: string;
 }) {
   const Heading = headingLevel === 2 ? "h2" : "h3";
   return (
     <div
-      className={`flex flex-col items-center rounded-fluent-xlarge border border-dashed border-edge-strong bg-surface px-6 py-10 text-center ${className}`}
+      className={`flex flex-col items-center text-center ${
+        inset
+          ? "px-4 py-8"
+          : "rounded-fluent-xlarge border border-dashed border-edge-strong bg-surface px-6 py-10"
+      } ${className}`}
       {...rest}
     >
       {icon ? (

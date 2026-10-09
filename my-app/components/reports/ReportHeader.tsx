@@ -1,42 +1,31 @@
-import TopicIcon from "@/components/topic/TopicIcon";
-import type { TopicSlug } from "@/services/analysis/topics";
-
 /**
- * A report's header: the topic's tile, name and question.
+ * A report's header row: the topic's name as a quiet label, and the question
+ * the report answers.
+ *
+ * The selected tab already says which topic this is in large type, so the
+ * name here is an eyebrow-sized h2 (the panel's one h2, which also labels
+ * the article) and the question carries the row.
  *
  * Its own component because two things render it: ReportPanel, and the
- * skeleton while that panel loads. The skeleton knows which topic is coming,
- * so it shows the real header rather than grey bars guessing its size, which
- * is what keeps the swap from moving the page (a name that wraps to two
- * lines on a phone wraps in both).
+ * skeleton while that panel loads, which shows the real header when it knows
+ * the topic and sizes its grey bars on an invisible copy when it does not.
  */
 export function ReportHeader({
-  slug,
   name,
   question,
   titleId,
 }: {
-  slug: TopicSlug;
   name: string;
   question: string;
   /** Set on the panel's heading, which labels the article. */
   titleId?: string;
 }) {
   return (
-    <header className="flex items-center gap-4">
-      <TopicIcon slug={slug} size="lg" />
-      <div className="min-w-0">
-        <h2 id={titleId} className="type-title3 text-ink">
-          {name}
-        </h2>
-        <p className="type-body1 mt-1 text-ink-muted">{question}</p>
-      </div>
+    <header className="border-b border-edge px-4 py-3 lg:px-5">
+      <h2 id={titleId} className="eyebrow">
+        {name}
+      </h2>
+      <p className="type-body1 mt-0.5 text-ink">{question}</p>
     </header>
   );
 }
-
-/**
- * The report body's height while its contents are being specified, shared by
- * the placeholder body and the skeleton's body block so the two match.
- */
-export const REPORT_BODY_HEIGHT = "min-h-56";

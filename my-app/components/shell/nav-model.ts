@@ -31,7 +31,8 @@ export const PRIMARY_ITEMS: readonly PrimaryItem[] = [
     label: "Analysis",
     href: "/#topics" as Route,
     icon: "analysis",
-    current: (p) => p.startsWith("/topics/"),
+    // A real topic only: a 404 under /topics/ is not "in" Analysis.
+    current: (p) => currentTopic(p) !== null,
   },
   { label: "Reports", href: "/reports", icon: "reports", current: (p) => p === "/reports" },
 ];
@@ -111,5 +112,6 @@ export function crumbsFor(pathname: string): Crumb[] {
     return [...trail, { label: topic.name, href: `/topics/${slug}` as Route }, { label: leaf }];
   }
 
-  return [{ label: "Disaster Monitor" }];
+  // Every real route is named above, so anything else is the not-found page.
+  return [{ label: "Page not found" }];
 }

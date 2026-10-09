@@ -15,9 +15,10 @@
  */
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { OverlayDrawer } from "@fluentui/react-components";
 import type { Session } from "@/contracts/auth";
+import { MobileDrawer } from "./MobileDrawer";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import {
@@ -34,22 +35,25 @@ const FOOTER_LINKS = [
   ["Account", "/account"],
 ] as const;
 
+/**
+ * Full-height map workspaces. They fill the viewport under the top bar, so
+ * the site footer would sit under the map and push it off the fold, the way
+ * no map workspace (EO Browser, ArcGIS) does. The map credits its own data in
+ * its attribution control.
+ */
+const WORKSPACE_ROUTES = new Set(["/data"]);
+
 /** The breakpoint the sidebar docks at; below it the drawer takes over. */
 const DOCKED = "(min-width: 64rem)";
 
-export function AppShell({
-  session,
-  children,
-}: {
-  session: Session | null;
-  children: ReactNode;
-}) {
+export function AppShell({ session, children }: { session: Session | null; children: ReactNode }) {
   const collapsed = useSyncExternalStore(
     subscribeSidebar,
     getSidebarSnapshot,
     getSidebarServerSnapshot,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const workspace = WORKSPACE_ROUTES.has(usePathname());
 
   // A drawer left open while the window widens past the breakpoint would sit
   // over a docked sidebar showing the same links. Close it when that happens.
@@ -85,47 +89,45 @@ export function AppShell({
           {children}
         </main>
 
-        <footer className="mt-auto border-t border-edge bg-surface">
-          <div className="mx-auto flex w-full max-w-band flex-col gap-3 px-gutter py-5 sm:flex-row sm:items-center sm:justify-between lg:px-gutter-lg">
-            <div className="type-caption1 flex max-w-2xl flex-col gap-0.5 text-ink-faint">
-              <p>
-                Earth observation analysis for Kenya&apos;s rangelands. Model outputs are
-                decision support, not a forecast of record.
-              </p>
-              <p>
-                Basemaps &copy; OpenStreetMap contributors. Imagery &copy; Esri, Maxar,
-                Earthstar Geographics.
-              </p>
+        {workspace ? null : (
+          <footer className="mt-auto border-t border-edge bg-surface">
+            <div className="mx-auto flex w-full max-w-band flex-col gap-3 px-gutter py-5 sm:flex-row sm:items-center sm:justify-between lg:px-gutter-lg">
+              <div className="type-caption1 flex max-w-2xl flex-col gap-0.5 text-ink-faint">
+                <p>
+                  Earth observation analysis for Kenya&apos;s rangelands. Model outputs are decision
+                  support, not a forecast of record.
+                </p>
+                <p>
+                  Basemaps &copy; OpenStreetMap contributors. Imagery &copy; Esri, Maxar, Earthstar
+                  Geographics.
+                </p>
+              </div>
+              <nav
+                aria-label="Footer navigation"
+                className="type-caption1 flex flex-wrap gap-x-5 gap-y-2"
+              >
+                {FOOTER_LINKS.map(([label, href]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="rounded-fluent-small font-semibold text-ink-muted hover:text-accent-link hover:underline"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
             </div>
-            <nav aria-label="Footer navigation" className="type-caption1 flex flex-wrap gap-x-5 gap-y-2">
-              {FOOTER_LINKS.map(([label, href]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="rounded-fluent-small font-semibold text-ink-muted hover:text-accent-link hover:underline"
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </footer>
+          </footer>
+        )}
       </div>
 
-      <OverlayDrawer
-        id="app-drawer"
-        aria-label="Navigation"
-        position="start"
-        open={drawerOpen}
-        onOpenChange={(_, data) => setDrawerOpen(data.open)}
-        style={{ width: "min(300px, 86vw)", padding: 0, background: "var(--color-nav)" }}
-      >
+      <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Sidebar
           session={session}
           onNavigate={() => setDrawerOpen(false)}
           onClose={() => setDrawerOpen(false)}
         />
-      </OverlayDrawer>
+      </MobileDrawer>
     </div>
   );
 }

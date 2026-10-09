@@ -123,7 +123,7 @@ export default function ShapefileUpload({
           onChange={(event) => void ingest(event.target.files?.[0])}
           // The native file control, dressed as a Fluent secondary button:
           // colorNeutralStroke1 border, borderRadiusMedium, 32px tall.
-          className="type-caption1 mt-2 block w-full text-ink-faint file:mr-3 file:min-h-8 file:cursor-pointer file:rounded-fluent-medium file:border file:border-solid file:border-edge-strong file:bg-surface file:px-3 file:py-1 file:text-sm file:font-semibold file:text-ink hover:file:bg-page disabled:cursor-not-allowed"
+          className="type-caption1 mt-2 block w-full text-ink-faint file:mr-3 file:min-h-8 file:cursor-pointer file:rounded-fluent-medium file:border file:border-solid file:border-edge-strong file:bg-surface file:px-3 file:py-1 file:type-body1 file:font-semibold file:text-ink hover:file:bg-page disabled:cursor-not-allowed"
         />
         <p className="type-caption1 mt-2 text-ink-faint">
           {disabled && disabledReason

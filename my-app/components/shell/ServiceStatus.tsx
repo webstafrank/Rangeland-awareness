@@ -3,14 +3,17 @@
 /**
  * The live service indicator in the top bar.
  *
- * Polls the app's own `/api/health` (which probes the Django service and,
- * through it, GeoServer) on mount, every minute while the tab is visible, and
- * again the moment a hidden tab comes back. A run cannot start while the
- * service is down, so saying so before someone builds a request is the point.
+ * `useServiceReading` polls the app's own `/api/health` (which probes the
+ * Django service and, through it, GeoServer) on mount, every minute while the
+ * tab is visible, and again the moment a hidden tab comes back. A run cannot
+ * start while the service is down, so saying so before someone builds a
+ * request is the point. The top bar calls the hook once and hands the reading
+ * to whichever view its breakpoint shows: the labelled pill on a desktop, the
+ * bare dot on a phone.
  *
  * Deliberately not a live region: the state changes rarely and on its own
  * clock, and announcing it mid-task would interrupt whatever the reader is
- * doing. The label is plain text, and the detail is the tooltip.
+ * doing. The label is text, and the detail is the tooltip.
  */
 
 import { useEffect, useState } from "react";
@@ -32,7 +35,7 @@ const INK: Record<ServiceReading["state"], string> = {
   offline: "text-danger",
 };
 
-export function ServiceStatus({ className = "" }: { className?: string }) {
+export function useServiceReading(): ServiceReading {
   const [reading, setReading] = useState<ServiceReading>(CHECKING);
 
   useEffect(() => {
@@ -72,16 +75,42 @@ export function ServiceStatus({ className = "" }: { className?: string }) {
     };
   }, []);
 
+  return reading;
+}
+
+/** The labelled pill, for the desktop top bar. */
+export function ServiceStatus({ reading }: { reading: ServiceReading }) {
   return (
     <span
       data-testid="service-status"
       data-state={reading.state}
       title={reading.detail}
-      className={`type-caption1 inline-flex h-7 items-center gap-2 rounded-full border border-edge bg-surface px-2.5 font-semibold ${INK[reading.state]} ${className}`}
+      className={`type-caption1 inline-flex h-7 items-center gap-2 rounded-full border border-edge bg-surface px-2.5 font-semibold ${INK[reading.state]}`}
     >
       <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${DOT[reading.state]}`} />
       {reading.label}
       <span className="sr-only">. {reading.detail}</span>
+    </span>
+  );
+}
+
+/** The bare dot, for the phone top bar, where the three links take the width. */
+export function ServiceDot({
+  reading,
+  className = "",
+}: {
+  reading: ServiceReading;
+  className?: string;
+}) {
+  return (
+    <span
+      data-testid="service-dot"
+      data-state={reading.state}
+      title={`${reading.label}. ${reading.detail}`}
+      className={`grid h-9 w-6 shrink-0 place-items-center ${className}`}
+    >
+      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${DOT[reading.state]}`} />
+      <span className="sr-only">{reading.label}</span>
     </span>
   );
 }

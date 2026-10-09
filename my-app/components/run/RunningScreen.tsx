@@ -59,10 +59,14 @@ import { ProgressBar } from "@fluentui/react-components";
 import {
   ArrowClockwise20Regular,
   ArrowLeft20Regular,
+  ArrowSync16Regular,
+  Checkmark16Regular,
+  Dismiss16Regular,
   ErrorCircle20Filled,
   PlugDisconnected20Regular,
 } from "@/components/ui/icons";
-import { JobBadge } from "@/components/run/JobBadge";
+import { FRAME } from "@/components/shell/Page";
+import { JobBadge, stageWord } from "@/components/run/JobBadge";
 import { Button } from "@/components/ui/Button";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { Panel } from "@/components/ui/Panel";
@@ -134,6 +138,15 @@ const STAGE_LABEL_INK: Record<StageState, string> = {
   done: "text-ink",
   skipped: "text-ink-faint",
   failed: "text-ink font-semibold",
+};
+
+/** The state word's ink: the node's hue, darkened to text contrast. */
+const STAGE_WORD_INK: Record<StageState, string> = {
+  pending: "text-ink-faint",
+  running: "text-accent",
+  done: "text-success",
+  skipped: "text-ink-faint",
+  failed: "text-danger",
 };
 
 /* ------------------------------------------------------------- pure bits */
@@ -429,49 +442,51 @@ export default function RunningScreen({
   const failingLabel = state.error ? labelFor(rows, state.error.stage) : null;
 
   return (
-    // max-w-band / px-gutter are the same frame StepShell uses, so arriving
-    // here from review does not shift the page sideways. R10: everything below
-    // is a single column with min-w-0 children, so 360px needs no scrollbar.
-    <div className="mx-auto w-full max-w-band px-gutter pt-5 pb-12 lg:px-gutter-lg lg:pt-7">
+    // FRAME and the section rhythm every page uses. R10: every grid track is
+    // minmax(0, ...) and every child min-w-0, so 360px needs no scrollbar.
+    <div className={`${FRAME} py-8 lg:py-10`}>
       <div
-        className="w-full max-w-step"
+        className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
         aria-busy={!state.settled}
         data-run-status={state.status}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <JobBadge kind="run" state={state.status} />
-          <span className="type-caption1 text-ink-faint">Analysis run</span>
-        </div>
-        <h1 className="type-subtitle1 mt-2 text-ink lg:type-title3">{topic.name}</h1>
-        <p className="type-body1 mt-1 text-ink-muted">
-          The service is computing the weighted overlay. Nothing is calculated in
-          this browser; the list below is what the service reports it has done.
-        </p>
+        {/* ---------------------------------------------- status column */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <section aria-labelledby="run-heading" className="card p-4 lg:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <JobBadge kind="run" state={state.status} />
+              <code className="type-caption1 font-mono break-all text-ink-faint">{runId}</code>
+            </div>
+            <h2 id="run-heading" className="type-title3 mt-3 text-ink">
+              Analysis run
+            </h2>
 
-        {/*
-          The one polite live region. Visible rather than sr-only, because the
-          sentence a screen reader needs and the sentence a sighted analyst
-          needs are the same sentence, and two copies of it drift.
-        */}
-        <p
-          aria-live="polite"
-          aria-atomic="true"
-          data-testid="run-announcement"
-          className="type-body1 mt-3 min-h-5 font-semibold text-ink"
-        >
-          {announcement}
-        </p>
+            {/*
+              The one polite live region, and the first on the page (R9).
+              Visible rather than sr-only, because the sentence a screen reader
+              needs and the sentence a sighted analyst needs are the same
+              sentence, and two copies of it drift.
+            */}
+            <p
+              aria-live="polite"
+              aria-atomic="true"
+              data-testid="run-announcement"
+              className="type-body2 mt-1 min-h-6 font-semibold text-ink"
+            >
+              {announcement}
+            </p>
 
-        <div className="mt-4 flex flex-col gap-4">
-          <Panel title="Progress">
-            <div className="flex items-center gap-4">
+            <div className="mt-5 rounded-fluent-large bg-surface-subtle p-3 ring-1 ring-edge">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="eyebrow">Progress</span>
+                <span className="type-title3 text-ink tabular-nums">{percent}%</span>
+              </div>
               {/*
                 R2. The number is `state.progress`, which `advance` has already
-                made monotonic; this element only renders it. A Fluent
-                ProgressBar in brand, determinate because the step count is
-                known. aria-valuetext is the percentage and nothing else: the
-                stage belongs to the live region, and duplicating it here would
-                have a screen reader read the stage twice.
+                made monotonic; this element only renders it. Determinate,
+                because the step count is known. aria-valuetext is the
+                percentage and nothing else: the stage belongs to the live
+                region, and duplicating it here would read it twice.
               */}
               <ProgressBar
                 value={percent}
@@ -479,81 +494,19 @@ export default function RunningScreen({
                 thickness="large"
                 aria-label="Analysis progress"
                 aria-valuetext={`${percent}%`}
-                className="min-w-0 flex-1"
+                className="mt-2 min-w-0"
               />
-              <span className="type-subtitle2 w-12 shrink-0 text-right text-ink tabular-nums">
-                {percent}%
-              </span>
-            </div>
-            <p className="type-caption1 mt-2 text-ink-faint">
-              {finished} of {rows.length} stages finished. Run{" "}
-              <code className="font-mono break-all text-ink-muted">{runId}</code>.
-            </p>
-          </Panel>
-
-          <Panel title="Stages" pad="none">
-            {rows.length === 0 ? (
-              <p className="type-body1 p-4 text-ink-muted">
-                The service accepted the run but named no stages for it.
+              <p className="type-caption1 mt-2 text-ink-faint tabular-nums">
+                {finished} of {rows.length} stages finished
               </p>
-            ) : (
-              <ol className="divide-y divide-edge">
-                {rows.map((stage, index) => {
-                  const duration = durationLabel(stage);
-                  return (
-                    <li
-                      key={stage.id}
-                      data-stage={stage.id}
-                      data-state={stage.state}
-                      // A JobStatus row. Three fixed tracks: the step number,
-                      // the label (minmax(0,1fr), so a long one wraps rather
-                      // than widening the row past 360px), and the state with
-                      // its time. The outer two never change width, so the
-                      // columns stay aligned as states change.
-                      className={`grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-x-3 px-4 py-2.5 ${
-                        stage.state === "running" ? "bg-accent-soft" : ""
-                      }`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="type-caption1 pt-0.5 text-center font-mono text-ink-faint tabular-nums"
-                      >
-                        {index + 1}
-                      </span>
+            </div>
 
-                      <span className="min-w-0">
-                        <span className={`type-body1 block ${STAGE_LABEL_INK[stage.state]}`}>
-                          {stage.label}
-                        </span>
-                        {/*
-                          Reserved, always present, always exactly one line.
-                          `detail` is free text that appears part way through a
-                          stage ("928x922 at 30m"); rendered conditionally it
-                          would grow the row mid-run and push every row below it
-                          down, which is the reflow R3 forbids. `truncate` holds
-                          it to one line however long the service makes it.
-                        */}
-                        <span
-                          className="type-caption1 block h-4 truncate text-ink-faint"
-                          title={stage.detail ?? undefined}
-                        >
-                          {stage.detail ?? ""}
-                        </span>
-                      </span>
-
-                      <span className="flex flex-col items-end gap-0.5">
-                        <JobBadge kind="stage" state={stage.state} />
-                        {/* Reserved for the same reason as the detail line. */}
-                        <span className="type-caption1 block h-4 text-ink-faint tabular-nums">
-                          {duration}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </Panel>
+            <p className="type-caption1 mt-4 text-ink-faint">
+              The service is computing the weighted overlay for {topic.name}. Nothing
+              is calculated in this browser; the stages are what the service reports
+              it has done.
+            </p>
+          </section>
 
           {/*
             R4: the failing stage and its message, in place, with the way out.
@@ -565,15 +518,13 @@ export default function RunningScreen({
             <section
               aria-labelledby="run-failed-heading"
               data-testid="run-failed"
-              className="flex gap-3 rounded-fluent-large border border-danger/30 bg-danger-soft p-4"
+              className="flex gap-3 rounded-fluent-xlarge border border-danger/30 bg-danger-soft p-4"
             >
               <ErrorCircle20Filled aria-hidden="true" className="mt-0.5 shrink-0 text-danger" />
               <div className="min-w-0">
-                <h2 id="run-failed-heading" className="type-body1 font-semibold text-ink">
-                  {failingLabel
-                    ? `The run failed at "${failingLabel}"`
-                    : "The run failed"}
-                </h2>
+                <h3 id="run-failed-heading" className="type-subtitle2 text-ink">
+                  {failingLabel ? `The run failed at "${failingLabel}"` : "The run failed"}
+                </h3>
                 {/* Never truncated: the design system's JobStatus rule. */}
                 <p className="type-body1 mt-1 break-words text-ink">
                   {state.error?.message ??
@@ -601,15 +552,15 @@ export default function RunningScreen({
             <section
               aria-labelledby="transport-heading"
               data-testid="transport-failure"
-              className="flex gap-3 rounded-fluent-large border border-warn/30 bg-warn-soft p-4"
+              className="flex gap-3 rounded-fluent-xlarge border border-warn/30 bg-warn-soft p-4"
             >
               <PlugDisconnected20Regular aria-hidden="true" className="mt-0.5 shrink-0 text-warn" />
               <div className="min-w-0">
-                <h2 id="transport-heading" className="type-body1 font-semibold text-ink">
+                <h3 id="transport-heading" className="type-subtitle2 text-ink">
                   {stopped
                     ? "Lost contact with the analysis service"
                     : "Waiting for the analysis service"}
-                </h2>
+                </h3>
                 <p className="type-body1 mt-1 break-words text-ink">
                   {failureMessage(state.transportFailure)}
                 </p>
@@ -634,14 +585,96 @@ export default function RunningScreen({
               </div>
             </section>
           )}
+
+          {/*
+            Rendered whether or not the run is going. Leaving mid-run is a
+            normal thing to want, and a screen whose only exit appears on
+            failure traps anyone who simply changed their mind.
+          */}
         </div>
 
-        <footer className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          {/*
-            Rendered whether or not the run failed. Leaving mid-run is a normal
-            thing to want, and a screen whose only exit appears on failure
-            traps anyone who simply changed their mind.
-          */}
+        {/* ----------------------------------------------- the timeline */}
+        <Panel title="Stages" pad="none" action={<StageCount finished={finished} total={rows.length} />}>
+          {rows.length === 0 ? (
+            <p className="type-body1 p-4 text-ink-muted">
+              The service accepted the run but named no stages for it.
+            </p>
+          ) : (
+            // A vertical timeline. These <li>s are the only list items this
+            // screen renders: the stage list's tests count every listitem.
+            <ol className="px-4 py-3 lg:px-5">
+              {rows.map((stage, index) => {
+                const duration = durationLabel(stage);
+                const last = index === rows.length - 1;
+                return (
+                  <li
+                    key={stage.id}
+                    data-stage={stage.id}
+                    data-state={stage.state}
+                    // Three tracks: the node with its connector, the label
+                    // (minmax(0,1fr), so a long one wraps rather than widening
+                    // the row past 360px), and the state with its time. The
+                    // outer two never change width, so the columns stay put as
+                    // states change.
+                    className="relative grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-x-3"
+                  >
+                    {last ? null : (
+                      <span
+                        aria-hidden="true"
+                        className={`absolute top-8 bottom-1 left-[calc(0.875rem-1px)] w-0.5 rounded-full ${
+                          stage.state === "done" ? "bg-success/40" : "bg-edge"
+                        }`}
+                      />
+                    )}
+                    <StageNode state={stage.state} number={index + 1} />
+
+                    <span className={`min-w-0 pt-1 ${last ? "" : "pb-5"}`}>
+                      <span className={`type-body1 block ${STAGE_LABEL_INK[stage.state]}`}>
+                        {stage.label}
+                      </span>
+                      {/*
+                        Reserved, always present, always exactly one line.
+                        `detail` is free text that appears part way through a
+                        stage ("928x922 at 30m"); rendered conditionally it
+                        would grow the row mid-run and push every row below it
+                        down, which is the reflow R3 forbids. `truncate` holds
+                        it to one line however long the service makes it.
+                      */}
+                      <span
+                        className="type-caption1 block h-4 truncate text-ink-faint"
+                        title={stage.detail ?? undefined}
+                      >
+                        {stage.detail ?? ""}
+                      </span>
+                    </span>
+
+                    {/*
+                      The state's word, beside the node's icon: icon plus word,
+                      once per row, so state is never colour alone.
+                    */}
+                    <span className="flex flex-col items-end gap-0.5 pt-1">
+                      <span className={`type-caption1 font-semibold ${STAGE_WORD_INK[stage.state]}`}>
+                        {stageWord(stage.state)}
+                      </span>
+                      {/* Reserved for the same reason as the detail line. */}
+                      <span className="type-caption1 block h-4 text-ink-faint tabular-nums">
+                        {duration}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Panel>
+
+        {/*
+          Rendered whether or not the run is going, after the stage list on
+          every width. Leaving mid-run is a normal thing to want, and a screen
+          whose only exit appears on failure traps anyone who changed their
+          mind. Hidden on failure only because the failure block carries it.
+        */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:col-span-2">
           {!runFailed && (
             <Link href={reviewHref} className={buttonClasses({ appearance: "subtle" })}>
               <ArrowLeft20Regular aria-hidden="true" />
@@ -653,13 +686,58 @@ export default function RunningScreen({
               Paused while this tab is in the background.
             </p>
           )}
-        </footer>
+        </div>
       </div>
 
       {state.status === "succeeded" && !onSucceeded && (
         <RouterReplace href={resultHref} />
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------ small parts */
+
+/** "3 / 5" in the timeline's header, so the count sits where the list is. */
+function StageCount({ finished, total }: { finished: number; total: number }) {
+  return (
+    <span className="type-caption1 text-ink-faint tabular-nums" aria-hidden="true">
+      {finished} / {total}
+    </span>
+  );
+}
+
+/**
+ * The timeline node: the row's icon. aria-hidden, because the state's word is
+ * printed beside it (and read), so neither the node's colour nor its glyph is
+ * the only channel. Done shows a tick, failed a cross, running the turning
+ * sync arrows (still under reduced motion), pending and skipped their step
+ * number, skipped in a dashed ring.
+ */
+const NODE: Record<StageState, string> = {
+  pending: "border border-edge-strong bg-surface text-ink-faint",
+  running: "bg-accent text-white",
+  done: "bg-success-soft text-success ring-1 ring-success/30",
+  skipped: "border border-dashed border-edge-strong bg-surface text-ink-faint",
+  failed: "bg-danger-soft text-danger ring-1 ring-danger/30",
+};
+
+function StageNode({ state, number }: { state: StageState; number: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`type-caption1 relative grid h-7 w-7 place-items-center rounded-full font-mono font-semibold tabular-nums ${NODE[state]}`}
+    >
+      {state === "done" ? (
+        <Checkmark16Regular />
+      ) : state === "failed" ? (
+        <Dismiss16Regular />
+      ) : state === "running" ? (
+        <ArrowSync16Regular className="animate-spin [animation-duration:2s]" />
+      ) : (
+        number
+      )}
+    </span>
   );
 }
 

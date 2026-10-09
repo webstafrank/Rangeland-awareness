@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { STUB_RESULT, STUB_RUN_ID, startStubBackend, type StubBackend } from "./stub-backend";
 
 /**
@@ -43,6 +43,21 @@ test.beforeEach(() => {
 const RUNNING_URL = `/topics/flood-risk/running?run=${STUB_RUN_ID}`;
 const RESULT_URL = `/topics/flood-risk/results?run=${STUB_RUN_ID}`;
 
+// Both routes stream a loading skeleton first, so anything that reads `main`
+// or measures the page right after goto waits for the settled screen.
+async function gotoRunning(page: Page) {
+  await page.goto(RUNNING_URL);
+  await page
+    .locator("[data-run-status], [data-testid='run-problem']")
+    .first()
+    .waitFor();
+}
+
+async function gotoResult(page: Page) {
+  await page.goto(RESULT_URL);
+  await page.getByTestId("result-view").waitFor();
+}
+
 /* ------------------------------------------------------------ the running screen */
 
 test.describe("running screen", () => {
@@ -72,7 +87,7 @@ test.describe("running screen", () => {
     // straight to its result (R8), so asserting on its stage list is a race the
     // mobile project lost and the desktop one won.
     backend.advanceTo(3);
-    await page.goto(RUNNING_URL);
+    await gotoRunning(page);
 
     // The real service skips publish: no write credentials on this deployment.
     // Dropping it would make the list reflow mid-run.
@@ -85,7 +100,7 @@ test.describe("running screen", () => {
     page,
   }) => {
     backend.advanceTo(4);
-    await page.goto(RUNNING_URL);
+    await gotoRunning(page);
 
     const bar = page.getByRole("progressbar");
     await expect(bar).toBeVisible();
@@ -105,7 +120,7 @@ test.describe("running screen", () => {
     page,
   }) => {
     backend.fail("fetch", 'GeoServer returned no features for "TR_Rivers".');
-    await page.goto(RUNNING_URL);
+    await gotoRunning(page);
 
     await expect(page.getByText("Fetching criterion layers")).toBeVisible();
     await expect(page.getByText(/TR_Rivers/)).toBeVisible();
@@ -114,12 +129,12 @@ test.describe("running screen", () => {
 
   test("R6: a silent service reads differently from a failed run", async ({ page }) => {
     backend.fail("fetch", "the run itself broke");
-    await page.goto(RUNNING_URL);
+    await gotoRunning(page);
     const failedCopy = await page.locator("main").innerText();
 
     backend.advanceTo(2);
     backend.setOffline(true);
-    await page.goto(RUNNING_URL);
+    await gotoRunning(page);
     const offlineCopy = await page.locator("main").innerText();
 
     expect(offlineCopy).not.toEqual(failedCopy);
@@ -134,7 +149,7 @@ test.describe("running screen", () => {
 
   test("R9: one polite live region, naming the stage", async ({ page }) => {
     backend.advanceTo(2);
-    await page.goto(RUNNING_URL);
+    await gotoRunning(page);
 
     const live = page.locator('[aria-live="polite"]');
     await expect(live.first()).toBeAttached();
@@ -144,7 +159,7 @@ test.describe("running screen", () => {
   test("R10: no horizontal scroll at 360px", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "the narrow target is the mobile project");
     backend.advanceTo(3);
-    await page.goto(RUNNING_URL);
+    await gotoRunning(page);
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -173,7 +188,7 @@ test.describe("results screen", () => {
   });
 
   test("S2: every class is listed, and the shares sum to 100%", async ({ page }) => {
-    await page.goto(RESULT_URL);
+    await gotoResult(page);
 
     for (const row of STUB_RESULT.classes) {
       await expect(page.getByText(row.label, { exact: false }).first()).toBeVisible();
@@ -190,7 +205,7 @@ test.describe("results screen", () => {
   test("S3: the Jenks breaks are printed as numbers, with where they came from", async ({
     page,
   }) => {
-    await page.goto(RESULT_URL);
+    await gotoResult(page);
     const text = await page.locator("main").innerText();
 
     for (const value of STUB_RESULT.breaks) {
@@ -200,7 +215,7 @@ test.describe("results screen", () => {
   });
 
   test("S4: contribution is labelled, and disclaimed", async ({ page }) => {
-    await page.goto(RESULT_URL);
+    await gotoResult(page);
     const text = await page.locator("main").innerText();
 
     expect(text).toMatch(/not feature importance/i);
@@ -208,7 +223,7 @@ test.describe("results screen", () => {
   });
 
   test("S5: the method is named, and no model statistic appears", async ({ page }) => {
-    await page.goto(RESULT_URL);
+    await gotoResult(page);
     const text = await page.locator("main").innerText();
 
     expect(text).toMatch(/weighted overlay/i);
@@ -230,7 +245,7 @@ test.describe("results screen", () => {
 
   test("S10: no horizontal scroll at 360px", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "the narrow target is the mobile project");
-    await page.goto(RESULT_URL);
+    await gotoResult(page);
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

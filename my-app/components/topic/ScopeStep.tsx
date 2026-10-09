@@ -12,6 +12,7 @@
  */
 
 import RadioCards from "@/components/topic/RadioCards";
+import RequestSoFar from "@/components/topic/RequestSoFar";
 import SelectionNotice from "@/components/topic/SelectionNotice";
 import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
@@ -35,6 +36,12 @@ export default function ScopeStep({ topic, initial }: ScopeStepProps) {
       id: type.id,
       label: type.label,
       description: type.description,
+      // The cap is the consequence of this choice, so it is on the card, read
+      // from the same spec the reducer enforces.
+      badge:
+        type.maxAreas === 1
+          ? "1 area"
+          : `${type.minAreas} to ${type.maxAreas} areas`,
       // Warn before the click, not only after. RadioCards wires this to
       // aria-describedby too, so it is heard as well as seen.
       note:
@@ -46,7 +53,14 @@ export default function ScopeStep({ topic, initial }: ScopeStepProps) {
   });
 
   return (
-    <StepShell topic={topic} step="scope" wizard={wizard}>
+    <StepShell
+      topic={topic}
+      step="scope"
+      wizard={wizard}
+      // The request so far, plus what this topic returns: the last chance to
+      // notice the wrong topic before spending four screens on it.
+      aside={<RequestSoFar topic={topic} wizard={wizard} showTopicFacts />}
+    >
       <RadioCards
         legend="Analysis type"
         hideLegend
@@ -62,7 +76,7 @@ export default function ScopeStep({ topic, initial }: ScopeStepProps) {
       />
 
       {state.notice !== null && (
-        <div className="mt-5 max-w-2xl">
+        <div className="mt-5">
           <SelectionNotice
             message={state.notice}
             restoreCount={undoRestoreCount(state)}
@@ -71,31 +85,6 @@ export default function ScopeStep({ topic, initial }: ScopeStepProps) {
           />
         </div>
       )}
-
-      {/* What this topic actually returns. It belongs on the first step: it is
-          the last chance to notice you opened the wrong topic before spending
-          four screens on it. */}
-      <dl className="mt-8 grid gap-5 border-t border-edge pt-6 sm:grid-cols-2">
-        <div>
-          <dt className="eyebrow">What comes back</dt>
-          <dd className="type-body1 mt-1 text-ink-muted">
-            {topic.output}
-          </dd>
-        </div>
-        <div>
-          <dt className="eyebrow">Model inputs</dt>
-          <dd className="mt-1.5 flex flex-wrap gap-1.5">
-            {topic.inputs.map((input) => (
-              <span
-                key={input}
-                className="type-caption1 rounded-fluent-medium bg-surface px-2 py-0.5 text-ink-muted shadow-4"
-              >
-                {input}
-              </span>
-            ))}
-          </dd>
-        </div>
-      </dl>
     </StepShell>
   );
 }

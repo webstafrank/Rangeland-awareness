@@ -1,28 +1,29 @@
 import type { ReactNode } from "react";
-
-const FRAME = "mx-auto w-full max-w-band px-gutter lg:px-gutter-lg";
+import { FRAME } from "@/components/shell/Page";
 
 /**
  * The Reports page's shape, shared by the page and its loading.tsx so the
  * heading never moves between the two.
  *
- * The heading on the panel tier with a stroke under it, like every content
- * page's hero but compact: this page is a tool, and its tabs belong near the
- * top. Below it, on the canvas, whatever the caller passes: the tabs and their
- * panel, or the loading placeholder for them.
+ * The content pages' header (title2, body2 lead on the white panel tier)
+ * with no eyebrow, since the top bar already names the section, and no
+ * hairline or bottom padding of its own: the tab band that follows (TabBand
+ * in ReportTabs.tsx) continues the same white ground and closes it with the
+ * hairline, so the tabs read as the header's last row. Below that, on the
+ * canvas, the selected report.
  */
 export function ReportsFrame({ children }: { children: ReactNode }) {
   return (
     <>
-      <section className="border-b border-edge bg-surface">
-        <div className={`${FRAME} py-8 lg:py-10`}>
-          <h1 className="type-title1 text-ink lg:type-large-title">Reports</h1>
-          <p className="type-subtitle1 mt-2 max-w-3xl font-normal text-ink-muted">
+      <section className="bg-surface">
+        <div className={`${FRAME} pt-6 pb-2 lg:pt-8`}>
+          <h1 className="type-title2 text-ink">Reports</h1>
+          <p className="type-body2 mt-1 max-w-3xl text-ink-muted">
             One report per topic. Choose a topic to see its report.
           </p>
         </div>
       </section>
-      <div className={`${FRAME} py-6 lg:py-8`}>{children}</div>
+      {children}
     </>
   );
 }

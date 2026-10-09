@@ -19,7 +19,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight12Regular, Navigation20Regular } from "@/components/ui/icons";
 import { PRIMARY_ITEMS, crumbsFor } from "./nav-model";
-import { ServiceStatus } from "./ServiceStatus";
+import { ServiceDot, ServiceStatus, useServiceReading } from "./ServiceStatus";
 
 export function TopBar({
   onOpenMenu,
@@ -30,6 +30,7 @@ export function TopBar({
 }) {
   const pathname = usePathname();
   const crumbs = crumbsFor(pathname);
+  const reading = useServiceReading();
 
   return (
     <header className="band-chrome sticky top-0 z-header border-b border-edge">
@@ -104,8 +105,9 @@ export function TopBar({
         </nav>
 
         <div className="hidden shrink-0 lg:block">
-          <ServiceStatus />
+          <ServiceStatus reading={reading} />
         </div>
+        <ServiceDot reading={reading} className="-mr-1.5 lg:hidden" />
       </div>
     </header>
   );

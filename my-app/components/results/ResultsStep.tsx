@@ -36,13 +36,16 @@ import dynamic from "next/dynamic";
 import RequestResult from "@/components/topic/RequestResult";
 import {
   ArrowCounterclockwise20Regular,
-  ArrowDownload20Regular,
   ArrowLeft20Regular,
+  Location20Regular,
 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
-import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Notice } from "@/components/ui/Notice";
+import { StatTile } from "@/components/ui/StatTile";
+import { StateBlock } from "@/components/ui/StateBlock";
 import { buttonClasses } from "@/components/ui/button-classes";
+import { FRAME } from "@/components/shell/Page";
+import Downloads, { type DownloadFile } from "@/components/results/Downloads";
 import { buildRequest } from "@/services/analysis/request";
 import { REQUEST_PARAM, requestId } from "@/services/analysis/request-id";
 import { resetSelection } from "@/services/analysis/selection-store";
@@ -73,7 +76,7 @@ const AoiMap = dynamic(() => import("@/components/map/AoiMap"), {
       role="status"
       aria-live="polite"
     >
-      <span className="text-sm text-ink-faint">Loading map...</span>
+      <span className="type-caption1 text-ink-faint">Loading map...</span>
     </div>
   ),
 });
@@ -107,31 +110,32 @@ function HandoffProblem({
   query: string;
 }) {
   return (
-    <div className="mx-auto w-full max-w-band px-gutter py-10 lg:px-gutter-lg lg:py-16">
-      <div className="card mx-auto max-w-xl p-6 lg:p-8">
-        <Eyebrow>No result to show</Eyebrow>
-        <h1 className="type-title3 mt-2 text-ink">
-          The areas for this run are not available
-        </h1>
-        <p
-          className="type-body1 mt-2 text-ink-muted"
-          data-testid="handoff-problem"
-          data-reason={reason}
-        >
+    <div className={`${FRAME} py-8 lg:py-10`}>
+      <StateBlock
+        tone="warn"
+        icon={<Location20Regular />}
+        title="The areas for this request are not available"
+        className="mx-auto max-w-2xl"
+        actions={
+          <>
+            <Link
+              href={stepHref(topic.slug, "areas", query)}
+              className={buttonClasses({ appearance: "primary" })}
+            >
+              Select areas
+            </Link>
+            <Link href={stepHref(topic.slug, "review", query)} className={buttonClasses()}>
+              <ArrowLeft20Regular aria-hidden="true" />
+              Back to review
+            </Link>
+          </>
+        }
+      >
+        <p className="type-caption1 font-semibold text-ink-faint">No request to show</p>
+        <p className="mt-1" data-testid="handoff-problem" data-reason={reason}>
           {HANDOFF_MESSAGE[reason]} {RECOVERY[reason]}
         </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Link
-            href={stepHref(topic.slug, "areas", query)}
-            className={buttonClasses({ appearance: "primary" })}
-          >
-            Select areas
-          </Link>
-          <Link href={stepHref(topic.slug, "review", query)} className={buttonClasses()}>
-            Back to review
-          </Link>
-        </div>
-      </div>
+      </StateBlock>
     </div>
   );
 }
@@ -149,15 +153,6 @@ function HandoffProblem({
 const NOT_A_RESULT =
   "This file is a validated analysis request. No model has been run and no " +
   "value here is a prediction.";
-
-function download(filename: string, body: string, type: string) {
-  const url = URL.createObjectURL(new Blob([body], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 function csvField(value: string): string {
   // Kenyan county names include an apostrophe (Murang'a) and analyst labels can
@@ -193,6 +188,58 @@ function toCsv(request: AnalysisRequest, notes: string): string {
   ].join("\n");
 
   return `${header}\n\n${meta}\n\n${areas}\n`;
+}
+
+/**
+ * The three files, as finished strings for the shared download list. Same
+ * filenames, bodies and types the receipt has always saved; the save itself is
+ * Downloads' one path, shared with the computed result.
+ */
+function requestFiles(
+  request: AnalysisRequest,
+  notes: string,
+  id: string | null,
+): DownloadFile[] {
+  return [
+    {
+      label: "Full request (JSON)",
+      detail: "The validated payload with areas, configuration and your notes.",
+      filename: `rangeland-request-${request.topic}-${id}.json`,
+      mimeType: "application/json",
+      body: JSON.stringify({ notice: NOT_A_RESULT, request, analystNotes: notes }, null, 2),
+    },
+    {
+      label: "Areas table (CSV)",
+      detail: "One row per area with its source, size and bounding box.",
+      filename: `rangeland-areas-${request.topic}-${id}.csv`,
+      mimeType: "text/csv",
+      body: toCsv(request, notes),
+    },
+    {
+      label: "Areas (GeoJSON)",
+      detail: "The real selected geometry, for GIS software.",
+      filename: `rangeland-areas-${request.topic}-${id}.geojson`,
+      mimeType: "application/geo+json",
+      body: JSON.stringify(
+        {
+          type: "FeatureCollection",
+          notice: NOT_A_RESULT,
+          features: request.areas.map((a) => ({
+            ...a.feature,
+            properties: {
+              ...(a.feature.properties ?? {}),
+              area_id: a.id,
+              label: a.label,
+              source: a.source,
+              area_km2: a.areaKm2,
+            },
+          })),
+        },
+        null,
+        2,
+      ),
+    },
+  ];
 }
 
 /* --------------------------------------------------------------- props ---- */
@@ -302,18 +349,39 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
   const spec = getAnalysisType(request.analysisType);
   const model = getModel(request.model);
 
+  const files = requestFiles(request, notes, runId);
+  const totalKm2 = request.areas.reduce((sum, area) => sum + (area.areaKm2 ?? 0), 0);
+
   return (
     <div className="flex flex-1 flex-col">
-      <section className="border-b border-edge bg-surface">
-        <div className="mx-auto w-full max-w-band px-gutter py-5 lg:px-gutter-lg lg:py-7">
-          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-            <div>
-              <Eyebrow>Request submitted</Eyebrow>
-              <h1 className="type-title3 mt-1 text-ink lg:type-title2">{topic.name}</h1>
+      {/*
+        The same header shape as a computed result, labelled for what this
+        is: a validated request, with nothing computed behind it.
+      */}
+      <section aria-labelledby="receipt-heading" className="border-b border-edge bg-surface">
+        <div className={`${FRAME} py-6 lg:py-8`}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="type-caption1 inline-flex items-center rounded-fluent-medium bg-warn-soft px-2 py-0.5 font-semibold text-warn ring-1 ring-warn/30">
+                  Not a result
+                </span>
+                <span className="eyebrow">Validated request</span>
+              </div>
+              <h2 id="receipt-heading" className="type-title2 mt-2 text-ink">
+                Request receipt
+              </h2>
+              <p className="type-caption1 mt-1 text-ink-faint">
+                {topic.name}. Request{" "}
+                <span className="font-mono break-all text-ink-muted">{runId}</span>
+              </p>
             </div>
-            <p className="type-caption1 text-ink-faint">
-              Request <span className="font-mono text-ink-muted">{runId}</span>
-            </p>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Link href={stepHref(topic.slug, "review", query)} className={buttonClasses()}>
+                <ArrowLeft20Regular aria-hidden="true" />
+                Back to review
+              </Link>
+            </div>
           </div>
 
           {/*
@@ -323,172 +391,113 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
             A Fluent MessageBar in the warning intent, so it carries the
             warning icon as well as the words.
           */}
-          <Notice intent="warning" title="No model has run." className="mt-4">
+          <Notice intent="warning" title="No model has run." className="mt-5">
             No model backend is connected for this request, so this page shows the validated
-            request that the analysis service will receive. Nothing below is a
-            prediction.
+            request that the analysis service will receive. Nothing below is a prediction.
           </Notice>
         </div>
       </section>
 
-      <div className="mx-auto flex w-full max-w-band flex-col gap-8 px-gutter py-6 lg:px-gutter-lg lg:py-8">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="card h-[400px] overflow-hidden lg:h-[clamp(400px,calc(100svh-320px),620px)]">
-            <AoiMap
-              areas={handoff.areas}
-              focus={focus}
-              tool="point"
-              onAddAreas={() => {}}
-              onFocusArea={() => {}}
-              onDrawFinished={() => {}}
-            />
-          </div>
-
-          <div className="card flex flex-col">
-            <header className="flex min-h-11 items-center justify-between border-b border-edge px-4 py-2.5">
-              <h2 className="type-subtitle2 text-ink">Analyst notes</h2>
-              <span className="type-caption1 text-ink-faint tabular-nums">
-                {notes.length > 0 ? `${notes.length} chars` : "Empty"}
-              </span>
-            </header>
-
-            {/*
-              Native, so the notes stay a plain controlled string. Fluent's
-              field focus affordance is drawn as a brand edge along the bottom
-              of the box while it has focus, and the app-wide ring still shows
-              on keyboard focus.
-            */}
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add observations, context, or flags for this request..."
-              className="type-body1 min-h-[200px] flex-1 resize-none border-b-2 border-transparent bg-transparent px-4 py-3 text-ink placeholder:text-ink-faint focus:border-b-accent lg:min-h-0"
-              aria-label="Analyst notes for this request"
-            />
-
-            <div className="border-t border-edge px-4 py-2.5">
-              <p className="type-caption1 text-ink-faint">
-                Notes are saved with the JSON and CSV exports.
-              </p>
-            </div>
-          </div>
-        </div>
-
+      <div className={`${FRAME} flex flex-col gap-8 py-8 lg:gap-10 lg:py-10`}>
         <section aria-labelledby="request-summary-heading">
-          <h2 id="request-summary-heading" className="sr-only">
+          <h3 id="request-summary-heading" className="sr-only">
             Request summary
-          </h2>
+          </h3>
           <dl data-testid="results-summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {(
-              [
-                ["Topic", topic.name],
-                ["Analysis type", spec.label],
-                ["Model", model?.label ?? request.model],
-                [
-                  "Areas",
-                  `${request.areas.length} ${request.areas.length === 1 ? "area" : "areas"}`,
-                ],
-              ] as const
-            ).map(([term, value]) => (
-              <div key={term} className="card p-4">
-                <dt className="type-caption1 text-ink-faint">{term}</dt>
-                <dd className="type-subtitle2 mt-0.5 text-ink">{value}</dd>
-              </div>
-            ))}
+            <StatTile label="Topic" value={topic.name} />
+            <StatTile label="Analysis type" value={spec.label} />
+            <StatTile label="Model" value={model?.label ?? request.model} detail="Not run" />
+            <StatTile
+              label="Areas"
+              value={String(request.areas.length)}
+              unit={request.areas.length === 1 ? "area" : "areas"}
+              detail={totalKm2 > 0 ? `${formatArea(totalKm2)} in total` : undefined}
+            />
           </dl>
         </section>
 
-        <section aria-labelledby="export-heading">
-          <h2 id="export-heading" className="type-subtitle1 text-ink">
-            Export this request
-          </h2>
-          <p className="type-body1 mt-0.5 max-w-3xl text-ink-muted">
-            Every file carries the notice above, so one detached from this page
-            cannot be mistaken for model output.
-          </p>
+        <section aria-labelledby="area-details-heading">
+          <h3 id="area-details-heading" className="type-subtitle1 mb-4 text-ink">
+            Areas in this request
+          </h3>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="card h-[360px] overflow-hidden lg:h-[clamp(400px,calc(100svh-320px),560px)]">
+              <AoiMap
+                areas={handoff.areas}
+                focus={focus}
+                tool="point"
+                onAddAreas={() => {}}
+                onFocusArea={() => {}}
+                onDrawFinished={() => {}}
+              />
+            </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <DownloadCard
-              badge="JSON"
-              title="Full request"
-              body="The validated payload with areas, configuration and your notes."
-              onClick={() =>
-                download(
-                  `rangeland-request-${request.topic}-${runId}.json`,
-                  JSON.stringify(
-                    { notice: NOT_A_RESULT, request, analystNotes: notes },
-                    null,
-                    2,
-                  ),
-                  "application/json",
-                )
-              }
-            />
-            <DownloadCard
-              badge="CSV"
-              title="Areas table"
-              body="One row per area with its source, size and bounding box."
-              onClick={() =>
-                download(
-                  `rangeland-areas-${request.topic}-${runId}.csv`,
-                  toCsv(request, notes),
-                  "text/csv",
-                )
-              }
-            />
-            <DownloadCard
-              badge="Geo"
-              title="GeoJSON"
-              body="The real selected geometry, for GIS software."
-              onClick={() =>
-                download(
-                  `rangeland-areas-${request.topic}-${runId}.geojson`,
-                  JSON.stringify(
-                    {
-                      type: "FeatureCollection",
-                      notice: NOT_A_RESULT,
-                      features: request.areas.map((a) => ({
-                        ...a.feature,
-                        properties: {
-                          ...(a.feature.properties ?? {}),
-                          area_id: a.id,
-                          label: a.label,
-                          source: a.source,
-                          area_km2: a.areaKm2,
-                        },
-                      })),
-                    },
-                    null,
-                    2,
-                  ),
-                  "application/geo+json",
-                )
-              }
-            />
+            <div className="flex min-w-0 flex-col gap-4">
+              <ol
+                data-testid="results-areas"
+                className="card divide-y divide-edge overflow-hidden"
+              >
+                {request.areas.map((area, index) => (
+                  <li
+                    key={area.id}
+                    className="grid min-h-10 grid-cols-[1.75rem_minmax(0,1fr)_auto] items-baseline gap-x-2 px-4 py-2.5"
+                  >
+                    <span className="type-caption1 font-mono text-ink-faint">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="type-body1 block font-semibold break-words text-ink">
+                        {area.label}
+                      </span>
+                      <span className="type-caption1 block text-ink-faint">{area.source}</span>
+                    </span>
+                    <span className="type-body1 text-right text-ink tabular-nums">
+                      {formatArea(area.areaKm2)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="card flex min-h-[200px] flex-1 flex-col overflow-hidden">
+                <header className="flex min-h-11 items-center justify-between border-b border-edge px-4 py-2.5">
+                  <h4 className="type-subtitle2 text-ink">Analyst notes</h4>
+                  <span className="type-caption1 text-ink-faint tabular-nums">
+                    {notes.length > 0 ? `${notes.length} chars` : "Empty"}
+                  </span>
+                </header>
+
+                {/*
+                  Native, so the notes stay a plain controlled string. A brand
+                  edge along the bottom of the box while it has focus, and the
+                  app-wide ring still shows on keyboard focus.
+                */}
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add observations, context, or flags for this request..."
+                  className="type-body1 min-h-[140px] flex-1 resize-none border-b-2 border-transparent bg-transparent px-4 py-3 text-ink placeholder:text-ink-faint focus:border-b-accent"
+                  aria-label="Analyst notes for this request"
+                />
+
+                <p className="type-caption1 border-t border-edge px-4 py-2.5 text-ink-faint">
+                  Notes are saved with the JSON and CSV exports.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section aria-labelledby="area-details-heading">
-          <h2 id="area-details-heading" className="type-subtitle1 text-ink">
-            Area details
-          </h2>
-
-          <ol data-testid="results-areas" className="card mt-4 divide-y divide-edge overflow-hidden">
-            {request.areas.map((area, index) => (
-              <li
-                key={area.id}
-                className="type-body1 flex min-h-10 flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5 lg:px-5"
-              >
-                <span className="type-caption1 font-mono text-ink-faint">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="font-semibold text-ink">{area.label}</span>
-                <span className="type-caption1 text-ink-faint">
-                  {area.source} &middot; {formatArea(area.areaKm2)}
-                </span>
-              </li>
-            ))}
-          </ol>
+        <section aria-labelledby="export-heading">
+          <h3 id="export-heading" className="type-subtitle1 text-ink">
+            Export this request
+          </h3>
+          <p className="type-caption1 mt-0.5 mb-4 text-ink-faint">
+            Every file carries the notice above, so one detached from this page cannot be
+            mistaken for model output.
+          </p>
+          <div className="card max-w-3xl overflow-hidden">
+            <Downloads files={files} />
+          </div>
         </section>
 
         {/* The payload itself. Reused rather than re-rendered here so there is
@@ -497,11 +506,7 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
           <RequestResult request={request} />
         </section>
 
-        <div className="flex flex-wrap gap-2 pb-4">
-          <Link href={stepHref(topic.slug, "review", query)} className={buttonClasses()}>
-            <ArrowLeft20Regular aria-hidden="true" />
-            Back to review
-          </Link>
+        <div className="flex flex-wrap gap-2 border-t border-edge pt-6">
           <Button
             type="button"
             data-testid="start-over"
@@ -523,43 +528,5 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
         </div>
       </div>
     </div>
-  );
-}
-
-/* ------------------------------------------------------------ download ---- */
-
-/**
- * One export as a Fluent card that is itself the button: the whole surface is
- * the target, which the design system's 32px minimum clears many times over.
- * The format badge is a Fluent tint badge in brand, and the file type is in
- * dataMono like every other identifier.
- */
-function DownloadCard({
-  badge,
-  title,
-  body,
-  onClick,
-}: {
-  badge: string;
-  title: string;
-  body: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="card group flex flex-col p-4 text-left transition-shadow duration-150 hover:shadow-8"
-    >
-      <span className="type-caption1 self-start rounded-fluent-medium bg-accent-soft px-2 py-0.5 font-mono font-semibold text-accent">
-        {badge}
-      </span>
-      <span className="type-subtitle2 mt-3 text-ink">{title}</span>
-      <span className="type-caption1 mt-1 text-ink-muted">{body}</span>
-      <span className="type-body1 mt-3 flex items-center gap-1.5 font-semibold text-accent-link group-hover:underline">
-        <ArrowDownload20Regular aria-hidden="true" />
-        Download
-      </span>
-    </button>
   );
 }

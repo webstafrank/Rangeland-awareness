@@ -29,7 +29,7 @@ describe("primary items", () => {
     expect(current).toEqual([label]);
   });
 
-  it.each(["/", "/help", "/account", "/login"])("marks nothing current on %s", (path) => {
+  it.each(["/", "/help", "/account", "/login", "/topics/not-a-topic"])("marks nothing current on %s", (path) => {
     expect(PRIMARY_ITEMS.filter((i) => i.current(path))).toEqual([]);
   });
 });
@@ -76,8 +76,8 @@ describe("crumbsFor", () => {
     expect(crumbsFor("/topics/flood-risk/results").at(-1)).toEqual({ label: "Results" });
   });
 
-  it("falls back to the topic for an unknown segment, and the app for an unknown path", () => {
+  it("falls back to the topic for an unknown segment, and to not-found for an unknown path", () => {
     expect(crumbsFor("/topics/flood-risk/nope").at(-1)).toEqual({ label: "Flood risk" });
-    expect(crumbsFor("/somewhere")).toEqual([{ label: "Disaster Monitor" }]);
+    expect(crumbsFor("/somewhere")).toEqual([{ label: "Page not found" }]);
   });
 });
