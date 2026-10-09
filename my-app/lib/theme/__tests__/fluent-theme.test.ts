@@ -28,6 +28,12 @@ describe("the Fluent theme is the app palette", () => {
     expect(appTheme.colorNeutralStrokeAccessible).toBe(token("--color-edge-input"));
   });
 
+  it("draws disabled controls with the same tokens as the Tailwind recipes", () => {
+    expect(appTheme.colorNeutralBackgroundDisabled).toBe(token("--color-sunken"));
+    expect(appTheme.colorNeutralForegroundDisabled).toBe(token("--color-ink-faint"));
+    expect(appTheme.colorNeutralStrokeDisabled).toBe(token("--color-edge"));
+  });
+
   it("keeps the brand ramp ordered dark to light", () => {
     const steps = Object.entries(BRAND_RAMP)
       .sort(([a], [b]) => Number(a) - Number(b))

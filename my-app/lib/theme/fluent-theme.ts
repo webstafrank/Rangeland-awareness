@@ -76,4 +76,12 @@ export const appTheme: Theme = {
 
   // The focus ring, the same accent the Tailwind :focus-visible rule draws.
   colorStrokeFocus2: token("--color-accent"),
+
+  // Disabled, the same recipe as the Tailwind controls' disabled state
+  // (button-classes.ts, footer-controls.ts): sunken ground, hairline edge,
+  // faint ink. Fluent's own greys made a disabled "Add area" a different grey
+  // from the disabled "Continue" beside it.
+  colorNeutralBackgroundDisabled: token("--color-sunken"),
+  colorNeutralForegroundDisabled: token("--color-ink-faint"),
+  colorNeutralStrokeDisabled: token("--color-edge"),
 };

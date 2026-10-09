@@ -80,7 +80,7 @@ export interface Crumb {
  * sidebar, so the top bar adds context instead of repeating the page title.
  */
 const PAGE_TRAILS: Readonly<Record<string, readonly [string | null, string]>> = {
-  "/": [null, "Overview"],
+  "/": ["Workspace", "Overview"],
   "/data": ["Workspace", "Explore data"],
   "/reports": ["Workspace", "Reports"],
   "/about": ["Support", "About"],

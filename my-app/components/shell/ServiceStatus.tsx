@@ -14,7 +14,8 @@
  *
  * Deliberately not a live region: the state changes rarely and on its own
  * clock, and announcing it mid-task would interrupt whatever the reader is
- * doing. The label is text, and the detail is the tooltip.
+ * doing. The label is text, and the detail, with how fast the service
+ * answered and when it was last checked, is the tooltip.
  */
 
 import { useSyncExternalStore } from "react";
@@ -24,7 +25,13 @@ import {
   DismissCircle16Regular,
   Warning16Regular,
 } from "@/components/ui/icons";
-import { CHECKING, UNREACHABLE, readHealth, type ServiceReading } from "./service-status";
+import {
+  CHECKING,
+  UNREACHABLE,
+  readHealth,
+  tooltipFor,
+  type ServiceReading,
+} from "./service-status";
 
 /** The phone indicator's glyph: its shape changes with the state, so colour never carries it alone. */
 const GLYPH: Record<ServiceReading["state"], typeof Circle16Regular> = {
@@ -68,7 +75,7 @@ const listeners = new Set<() => void>();
 let stopPolling: (() => void) | null = null;
 
 function publish(next: ServiceReading) {
-  current = next;
+  current = { ...next, checkedAt: Date.now() };
   for (const listener of listeners) listener();
 }
 
@@ -132,7 +139,7 @@ export function ServiceStatus({ reading }: { reading: ServiceReading }) {
     <span
       data-testid="service-status"
       data-state={reading.state}
-      title={reading.detail}
+      title={tooltipFor(reading)}
       className={`type-caption1 inline-flex h-7 items-center gap-2 rounded-full border border-edge bg-surface px-2.5 font-semibold ${INK[reading.state]}`}
     >
       <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${DOT[reading.state]}`} />
@@ -159,7 +166,7 @@ export function ServiceDot({
     <span
       data-testid="service-dot"
       data-state={reading.state}
-      title={`${reading.label}. ${reading.detail}`}
+      title={`${reading.label}. ${tooltipFor(reading)}`}
       className={`grid h-9 w-6 shrink-0 place-items-center ${className}`}
     >
       <Glyph aria-hidden="true" className={GLYPH_INK[reading.state]} />
