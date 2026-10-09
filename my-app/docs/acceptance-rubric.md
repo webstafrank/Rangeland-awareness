@@ -161,3 +161,70 @@ the rendered table.
 | D6 | Production defaults are safe: `DJANGO_DEBUG=0`, a real `DJANGO_SECRET_KEY` required, `ALLOWED_HOSTS` and `CORS_ALLOWED_ORIGINS` set explicitly rather than `*`. |
 | D7 | CI runs the gate lane and the Django suite on every push, and fails the build on either. |
 | D8 | The deployment is documented start to finish, and a reader who has never seen the repo can follow it without asking a question. |
+
+## Added for the enterprise redesign
+
+Written on 2026-10-08, **before** any of the redesign was built, and frozen at
+that point. The task: turn the app into a premium enterprise SaaS for
+geospatial disaster intelligence, with a sidebar shell, a navy, white and
+neutral palette, and one design system applied to every existing page,
+without changing a route, an API call, a data flow, authentication or a
+permission. U1 stands: one light theme, no `prefers-color-scheme`.
+
+### Reference points for this round
+
+Judged side by side, not copied:
+
+7. **Esri ArcGIS Dashboards and Experience Builder** for the operational
+   overview: a KPI row with one headline figure, status by colour AND label,
+   the map as the centre of gravity.
+8. **Planet Insights Platform and Copernicus EMS / GloFAS** for the map
+   workspace: a full-height map, a docked layer panel, legends beside the
+   layers they explain, coordinates and scale on the map.
+9. **Linear and Vercel's dashboard shells** for the frame: a calm sidebar,
+   a thin top bar, one accent, dense but legible tables, nothing decorative.
+
+### Measurable outcome for this round
+
+Every existing route is reachable in one click from persistent navigation at
+1440px and in two taps (menu, item) at 360px, and the journey budget above
+(cold homepage to a validated request in under 60 seconds and under 6 clicks)
+still holds. Traced by: the journey eval's `JOURNEY BUDGET` line and a nav
+eval that visits every sidebar item.
+
+### Shell
+
+| ID | Criterion |
+| --- | --- |
+| E1 | A persistent left sidebar at `lg` and up: the KSA and WFP marks, the primary sections (Overview, Explore, Analysis, Reports), the secondary pages (Help, About, Contact), and the account at the foot showing who is signed in or a Sign in link. The current item is marked with `aria-current="page"` and visibly. |
+| E2 | Below `lg` the sidebar is a drawer behind a menu button in the top bar: Escape closes it, focus moves into it and returns to the button, the page behind does not scroll. On desktop it collapses to an icon rail, remembered per viewer, with no flash of the wrong width on load. |
+| E3 | A top bar no taller than 56px carrying the page's place (breadcrumb or title) and the account state. |
+| E4 | No route is an orphan: every page in `app/` is reachable from the navigation. |
+
+### Design system
+
+| ID | Criterion |
+| --- | --- |
+| E5 | The palette is navy-led on white and cool neutrals, with one accent for the primary action. Status colours mean status only; data colours mean data only; brand colour is never a data series. `lib/theme/palette.ts` and `app/globals.css` agree and every contrast pair passes. |
+| E6 | One typeface, loaded the same way on every operating system, so measured layouts measure what users see. The `type-*` ramp is the only source of font sizes in touched files. |
+| E7 | One button implementation for `<button>` and `<Link>`. A control does not change implementation or shape between its enabled and disabled states. One focus ring everywhere. |
+| E8 | Every page opens with the shared page header and has exactly one `h1`; no heading is visually larger than the heading above it in the outline. |
+| E9 | Every route segment that waits on the server has a loading state, and the app has an error boundary that offers a way out rather than a blank screen. |
+
+### Pages
+
+| ID | Criterion |
+| --- | --- |
+| E10 | The Overview at `/` is an operational dashboard built from real state only: the topics and their entry points, what the data catalogue and the analysis service actually report, and what can be run today. No figure on it is invented, and it degrades to a stated "unavailable" when the backend is down. |
+| E11 | The Explore workspace gives the map the full height under the top bar on desktop, the layer panel docked beside it, and consistent map furniture (legend, readout, controls) across every map in the app. |
+| E12 | The analysis flow keeps its progress context through running and results, and its furniture does not move between steps. |
+| E13 | Results lead with one headline figure, then supporting metrics, then tables styled as data tables. Data colours come from the data namespace. |
+| E14 | Reports, Help, About, Contact, Account, sign in, sign up and the 404 are in the same system. A section with nothing behind it yet says so plainly, in an empty state designed as one. |
+
+### Motion and quality
+
+| ID | Criterion |
+| --- | --- |
+| E15 | Transitions are 200ms or less and stop under `prefers-reduced-motion`. Every interactive card, row and nav item has a hover state and a visible focus state. |
+| E16 | No horizontal scroll at 360px on any route. Every existing eval passes, or was changed in the same commit with the reason written beside it. The gate is green. No console error on any route. |
+| E17 | No new runtime dependency. |
