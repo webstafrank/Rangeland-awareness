@@ -11,13 +11,19 @@
  * Rubric T8: the reason is printed on the page, not hidden in a tooltip, so it
  * is available to a screen reader and to anyone who never hovers.
  *
- * It renders in the review step's footer, in the slot the other three steps
- * give to Continue, which is why it is the same Fluent primary button: one
- * brand-blue control for "forward", all the way through the flow.
+ * Two exports because StepShell places them in two slots: the button where the
+ * other three steps put Continue, the reason where a refusing Continue prints
+ * its own. Same skin as Continue (footer-controls.ts), so forward is one
+ * control all the way through the flow, enabled or not.
  */
 
 import { Play20Filled } from "@/components/ui/icons";
-import { Button } from "@/components/ui/Button";
+import {
+  footerNoteClass,
+  forwardClasses,
+  shortAreaReason,
+} from "@/components/topic/footer-controls";
+import type { AnalysisType } from "@/services/analysis/models";
 import { blockingReason, type ValidationResult } from "@/services/analysis/request";
 
 export interface RunActionProps {
@@ -25,36 +31,47 @@ export interface RunActionProps {
   onRun: () => void;
 }
 
-export default function RunAction({ validation, onRun }: RunActionProps) {
-  const reason = blockingReason(validation);
-
+/**
+ * Why Run is disabled, or nothing when it is not. The area rule is the only
+ * one a user can fail, and it gets the same short line Continue uses; any
+ * other problem falls back to services' own sentence.
+ */
+export function RunBlockedReason({
+  validation,
+  areaCount,
+  spec,
+}: {
+  validation: ValidationResult;
+  areaCount: number;
+  spec: AnalysisType;
+}) {
+  if (validation.ok) return null;
+  const reason =
+    validation.problems.every((problem) => problem.field === "areas")
+      ? (shortAreaReason(areaCount, spec) ?? blockingReason(validation))
+      : blockingReason(validation);
+  if (reason === null) return null;
   return (
-    <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:gap-4">
-      {reason !== null && (
-        <p
-          data-testid="run-blocked-reason"
-          className="type-caption1 order-2 max-w-md text-ink-muted lg:order-1 lg:text-right"
-        >
-          {reason}
-        </p>
-      )}
+    <p data-testid="run-blocked-reason" className={footerNoteClass}>
+      {reason}
+    </p>
+  );
+}
 
-      {/*
-        Primary, like Continue: Run is the last step of the same forward
-        movement, and a secondary skin would make the only irreversible
-        control on the site look optional. The Play icon is Fluent's own
-        glyph for starting a job.
-      */}
-      <Button
-        type="button"
-        variant="primary"
-        disabled={!validation.ok}
-        onClick={onRun}
-        icon={<Play20Filled />}
-        className="order-1 lg:order-2"
-      >
-        Run analysis
-      </Button>
-    </div>
+export default function RunAction({ validation, onRun }: RunActionProps) {
+  return (
+    // Primary, like Continue: Run is the last step of the same forward
+    // movement, and a secondary skin would make the only irreversible control
+    // on the site look optional. Same size as Continue: one button scale.
+    // Play is Fluent's own icon for starting a job.
+    <button
+      type="button"
+      disabled={!validation.ok}
+      onClick={onRun}
+      className={forwardClasses}
+    >
+      <Play20Filled aria-hidden="true" />
+      Run analysis
+    </button>
   );
 }

@@ -1,20 +1,32 @@
 "use client";
 
 /**
- * Step 3: where.
+ * Step 3: where. The map workspace.
  *
  * The only step that gets the full band width, because it is the only one with
- * a map. The three input methods sit in a row above it, the map and the
- * running list below, which is the layout the single page used for this
- * section and the one part of it that was working.
+ * a map. The map takes the room; the three ways in (the map tools, a typed
+ * coordinate, a shapefile) are one docked tool panel beside it, and the
+ * running list sits under that panel.
  *
- * The map tool radio lives here rather than on the map because it is a mode
- * switch, and a mode switch hidden inside the thing it modifies is how an
- * analyst ends up drawing a box when they meant to drop a point.
+ * The map tool radio lives in the panel rather than on the map because it is a
+ * mode switch, and a mode switch hidden inside the thing it modifies is how an
+ * analyst ends up drawing a box when they meant to drop a point. The map does
+ * carry a quiet chip naming the armed tool, so the mode is visible where the
+ * pointer is.
  */
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Location16Regular } from "@/components/ui/icons";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+} from "react";
+import {
+  ArrowUpload20Regular,
+  Location20Regular,
+  Map20Regular,
+} from "@/components/ui/icons";
 import CoordinateEntry from "@/components/topic/CoordinateEntry";
 import MapSizeStepper from "@/components/topic/MapSizeStepper";
 import RadioCards from "@/components/topic/RadioCards";
@@ -33,39 +45,61 @@ import {
 import { MAP_TOOL_SPECS, type MapTool } from "@/components/map/tools";
 import { useWizard } from "@/components/topic/useWizard";
 import { undoRestoreCount } from "@/services/analysis/selection";
-import { blockingReason } from "@/services/analysis/request";
+import { shortAreaReason } from "@/components/topic/footer-controls";
 import type { Topic } from "@/services/analysis/topics";
 import type { UrlSelection } from "@/services/analysis/url-state";
+
+/**
+ * The map's height on lg: the viewport under the 56px top bar and above the
+ * sticky action bar (about 57px), less a 16px gap at each end, so once the
+ * page scrolls the stuck map fills the screen between the two bars. Never
+ * under 360px however short the window, and never over 620px:
+ * evals/journey.spec.ts "the map fits the viewport" holds it between the two.
+ */
+const MAP_HEIGHT = "lg:h-[clamp(360px,calc(100svh-145px),620px)]";
 
 export interface AreasStepProps {
   topic: Topic;
   initial: UrlSelection;
 }
 
-/** A titled panel. The one card shape used for the three input methods. */
-function Panel({
+/**
+ * One input method inside the docked tool panel: an icon, an h3 (the step
+ * heading above is the h2), a one-line hint, then the control. Sections are
+ * divided by hairlines inside one card rather than being three cards, so the
+ * panel reads as one tool rather than a stack of unrelated boxes.
+ */
+function ToolSection({
   title,
+  icon,
   hint,
   children,
 }: {
   title: string;
+  icon: ReactElement;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="card flex flex-col p-4">
-      <h3 className="type-subtitle2 text-ink">{title}</h3>
-      {hint && (
-        <p className="type-caption1 mt-0.5 text-ink-faint">{hint}</p>
-      )}
-      <div className="mt-3 flex flex-1 flex-col">{children}</div>
+    <section className="border-t border-edge p-4 first:border-t-0">
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="grid h-6 w-6 shrink-0 place-items-center text-ink-faint"
+        >
+          {icon}
+        </span>
+        <h3 className="type-subtitle2 text-ink">{title}</h3>
+      </div>
+      {hint && <p className="type-caption1 mt-1 pl-8 text-ink-muted">{hint}</p>}
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
 
 export default function AreasStep({ topic, initial }: AreasStepProps) {
   const wizard = useWizard(topic.slug, initial);
-  const { state, dispatch, spec, validation, canReview } = wizard;
+  const { state, dispatch, spec, canReview } = wizard;
   const [tool, setTool] = useState<MapTool>("point");
 
   // Read through an external store rather than state plus an effect, so the
@@ -100,16 +134,11 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
   }, []);
 
   const atCapacity = state.areas.length >= spec.maxAreas && spec.maxAreas > 1;
-  const activeToolHint = MAP_TOOL_SPECS.find((t) => t.id === tool)?.hint ?? "";
+  const activeTool = MAP_TOOL_SPECS.find((t) => t.id === tool);
 
-  const countHint =
-    state.areas.length === 0
-      ? spec.minAreas === 1
-        ? "One area needed."
-        : `At least ${spec.minAreas} areas needed.`
-      : state.areas.length < spec.minAreas
-        ? `${state.areas.length} of ${spec.minAreas} minimum.`
-        : `${state.areas.length} selected, up to ${spec.maxAreas}.`;
+  // The cap only, beside the count badge. What is still missing is said once,
+  // in the footer beside Continue, not here as well.
+  const capHint = spec.maxAreas > 1 ? `up to ${spec.maxAreas}` : "1 allowed";
 
   return (
     <StepShell
@@ -117,19 +146,14 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
       step="areas"
       wizard={wizard}
       width="band"
-      // Only the area rule can block here, and blockingReason already phrases
-      // it for a person rather than for a log.
-      blockedReason={canReview ? null : blockingReason(validation)}
+      // Only the area rule can block here, said as one short line for the
+      // footer (footer-controls.ts); the tool panel says how.
+      blockedReason={
+        canReview ? null : shortAreaReason(state.areas.length, spec)
+      }
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="type-caption1 inline-flex min-h-6 items-center gap-1.5 rounded-fluent-circular bg-accent-soft px-2.5 font-semibold text-accent">
-          <Location16Regular aria-hidden="true" />
-          {countHint}
-        </p>
-      </div>
-
       {state.notice !== null && (
-        <div className="mt-4 max-w-2xl">
+        <div className="mb-4 max-w-2xl">
           <SelectionNotice
             message={state.notice}
             restoreCount={undoRestoreCount(state)}
@@ -143,79 +167,83 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
         The tools beside the map, not above it.
 
         Measured: methods in a row across the top, then the map below, made
-        this step 1737px tall — 969px of scrolling on a 1366x768 laptop, and
+        this step 1737px tall (969px of scrolling on a 1366x768 laptop), and
         the map and the controls that drive it were never on screen together.
-        Every selection then moved a viewport the analyst could not see.
 
-        So on lg and up the three input methods and the running list stack in
-        one 340px column and the map takes the rest, which is the layout a map
-        tool has for the reason this one now has it. Below lg they stay
-        stacked: a 360px phone has no second column to give.
+        So on lg and up the tool panel and the running list share a 360px
+        column on the left at their natural height, and every tool is reached
+        by scrolling the page. (A fixed-height column that scrolled inside
+        itself hid the shapefile upload below "Add area" with no cue.) The map
+        takes the rest and is sticky under the top bar, so it stays in view
+        while the tools scroll past it.
 
-        This is not the arrangement the old single page rejected. That one put
-        EIGHT controls in a narrow rail, including the scope and the model.
-        Those live on their own screens now, so this column holds three panels
-        and a list.
+        No `items-start` on this grid, deliberately: it would size the map
+        column to the map, leaving the sticky map nothing to travel inside.
+        Stretching the column to the row's height is what gives `sticky` its
+        range.
+
+        Below lg everything stacks, with the map FIRST: on a phone the map is
+        what the step is for, and the panel follows it.
       */}
-      {/*
-        No `items-start` on this grid, deliberately. It would size each column
-        to its own content, and the map column would then be exactly as tall as
-        the map — leaving the sticky map nothing to travel inside, so it would
-        scroll away like any other element. Stretching the column to the row's
-        height is what gives `sticky` its range.
-      */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="flex flex-col gap-4">
-          <Panel
-            title="On the map"
-            hint={
-              atCapacity
-                ? `Holding ${spec.maxAreas} areas, the maximum. Adding another will ask you to remove one.`
-                : activeToolHint
-            }
-          >
-            <RadioCards
-              legend="Map tool"
-              hideLegend
-              name="selection-tool"
-              value={tool}
-              options={MAP_TOOL_SPECS.map((t) => ({ id: t.id, label: t.label }))}
-              onChange={setTool}
-              compact
-              layout="stack"
-            />
-          </Panel>
+      <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="card overflow-hidden">
+            <ToolSection
+              title="On the map"
+              icon={<Map20Regular />}
+              hint={
+                atCapacity
+                  ? `Holding ${spec.maxAreas} areas, the maximum. Adding another will ask you to remove one.`
+                  : activeTool?.hint
+              }
+            >
+              <RadioCards
+                legend="Map tool"
+                hideLegend
+                name="selection-tool"
+                value={tool}
+                options={MAP_TOOL_SPECS.map((t) => ({
+                  id: t.id,
+                  label: t.label,
+                }))}
+                onChange={setTool}
+                compact
+                layout="stack"
+              />
+            </ToolSection>
 
-          <Panel
-            title="By coordinate"
-            hint="Paste a latitude and longitude. Radius 0 is the exact point."
-          >
-            <CoordinateEntry
-              onAreas={(areas) => dispatch({ type: "addAreas", areas })}
-            />
-          </Panel>
+            <ToolSection
+              title="By coordinate"
+              icon={<Location20Regular />}
+              hint="Paste a latitude and longitude. Radius 0 is the exact point."
+            >
+              <CoordinateEntry
+                onAreas={(areas) => dispatch({ type: "addAreas", areas })}
+              />
+            </ToolSection>
 
-          <Panel
-            title="From a shapefile"
-            hint="A .zip holding .shp, .shx, .dbf and .prj. Polygons only."
-          >
-            <ShapefileUpload
-              onAreas={(areas) => dispatch({ type: "addAreas", areas })}
-            />
-          </Panel>
+            <ToolSection
+              title="From a shapefile"
+              icon={<ArrowUpload20Regular />}
+              hint="A .zip holding .shp, .shx, .dbf and .prj. Polygons only."
+            >
+              <ShapefileUpload
+                onAreas={(areas) => dispatch({ type: "addAreas", areas })}
+              />
+            </ToolSection>
+          </div>
 
           {/*
-            The running list, under the tools that fill it. It is as tall as
-            its contents and no taller: as a stretched grid item it filled the
-            map's height, which made the largest thing on the page an empty
-            white box in the state every session starts in.
+            The running list, under the tools that fill it. As tall as its
+            contents; past about six rows they scroll (SelectedAreas).
           */}
           <div className="card flex flex-col p-4">
             <SelectedAreas
               areas={state.areas}
+              cap={capHint}
               emptyHint={
-                "Nothing selected yet. Use a panel above: click or draw on the " +
-                "map, paste a coordinate, or upload a shapefile."
+                "Nothing selected yet. Click or draw on the map, paste a " +
+                "coordinate, or upload a shapefile."
               }
               onFocus={(id) => dispatch({ type: "focusArea", id })}
               onFitAll={() => dispatch({ type: "focusAll" })}
@@ -226,31 +254,49 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
         </div>
 
         {/*
-          The map sticks while the tool column scrolls past it, so a long
-          selection list never takes the map off screen.
+          The map column stretches to the row; the card inside it is sticky
+          16px under the 56px top bar. Below lg it moves to the top of the
+          stack and does not stick.
         */}
-        <div className="card h-fit overflow-hidden lg:sticky lg:top-16">
-          <MapSizeStepper size={mapSize} onChange={setStoredMapSize} />
-          <div
-            /*
-             * Below lg the remembered stop from MapSizeStepper decides. At lg
-             * and up the height comes from the viewport instead of a fixed
-             * 620px, so the map fits the screen it is on: 448px on a 768px
-             * laptop, 620px on a 1080px monitor, never under 360px however
-             * short the window. Tailwind emits variant utilities after
-             * unprefixed ones, so the lg class wins on a specificity tie
-             * without !important.
-             */
-            className={`relative w-full ${MAP_SIZES[mapSize].className} lg:h-[clamp(360px,calc(100svh-320px),620px)] lg:min-h-0`}
-          >
-            <MapPanel
-              areas={state.areas}
-              focus={state.focus}
-              tool={tool}
-              onAddAreas={(areas) => dispatch({ type: "addAreas", areas })}
-              onFocusArea={(id) => dispatch({ type: "focusArea", id })}
-              onDrawFinished={() => setTool("point")}
-            />
+        <div className="min-w-0 max-lg:order-first">
+          <div className="card overflow-hidden lg:sticky lg:top-[72px]">
+            <MapSizeStepper size={mapSize} onChange={setStoredMapSize} />
+            <div
+              /*
+               * Below lg the remembered stop from MapSizeStepper decides. At lg
+               * and up the height comes from the viewport (MAP_HEIGHT). Tailwind
+               * emits variant utilities after unprefixed ones, so the lg class
+               * wins on a specificity tie without !important.
+               */
+              className={`relative w-full ${MAP_SIZES[mapSize].className} ${MAP_HEIGHT} lg:min-h-0`}
+            >
+              <MapPanel
+                areas={state.areas}
+                focus={state.focus}
+                tool={tool}
+                onAddAreas={(areas) => dispatch({ type: "addAreas", areas })}
+                onFocusArea={(id) => dispatch({ type: "focusArea", id })}
+                onDrawFinished={() => setTool("point")}
+              />
+
+              {/*
+              The armed tool, named on the map itself, where the pointer is.
+              Docked under the zoom buttons, so it reads as part of the map's
+              own controls and never sits over the basemap's place names.
+              pointer-events-none so it can never swallow a click meant for
+              the map. Decorative for assistive technology: the radio group
+              already says which tool is checked.
+            */}
+              {activeTool && (
+                <p
+                  aria-hidden="true"
+                  className="type-caption1 pointer-events-none absolute left-2.5 top-[84px] z-map-overlay flex items-center gap-1.5 whitespace-nowrap rounded-fluent-large border border-edge bg-surface px-2 py-1 font-semibold text-ink shadow-8"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  {activeTool.label}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

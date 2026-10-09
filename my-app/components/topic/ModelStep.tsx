@@ -10,6 +10,7 @@
  */
 
 import RadioCards from "@/components/topic/RadioCards";
+import RequestSoFar from "@/components/topic/RequestSoFar";
 import StepShell from "@/components/topic/StepShell";
 import { Notice } from "@/components/ui/Notice";
 import { useWizard } from "@/components/topic/useWizard";
@@ -27,7 +28,12 @@ export default function ModelStep({ topic, initial }: ModelStepProps) {
   const { state, dispatch } = wizard;
 
   return (
-    <StepShell topic={topic} step="model" wizard={wizard}>
+    <StepShell
+      topic={topic}
+      step="model"
+      wizard={wizard}
+      aside={<RequestSoFar topic={topic} wizard={wizard} />}
+    >
       <RadioCards
         legend="Model"
         hideLegend
@@ -39,10 +45,14 @@ export default function ModelStep({ topic, initial }: ModelStepProps) {
           description: model.tradeoff,
         }))}
         onChange={(modelId: ModelId) => dispatch({ type: "setModel", modelId })}
-        layout="row"
+        // Stacked, full width of the column: each trade-off is a sentence,
+        // and three columns beside the rail squeezed it to a narrow ribbon.
+        layout="stack"
       />
 
-      <Notice intent="info" title="Note." className="mt-6 max-w-2xl">
+      {/* The cards' width exactly, so the note reads as part of the choice
+          rather than a second, narrower block. */}
+      <Notice intent="info" title="Note." className="mt-4">
         No model is trained yet. Flood risk runs a weighted overlay on the
         analysis service; the other three topics validate your request and
         show the exact payload the service will receive, so the whole flow can

@@ -17,8 +17,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowCounterclockwise16Regular } from "@/components/ui/icons";
-import RunAction from "@/components/topic/RunAction";
+import type { ReactNode } from "react";
+import {
+  ArrowCounterclockwise16Regular,
+  CheckmarkCircle16Regular,
+  Warning16Regular,
+} from "@/components/ui/icons";
+import RunAction, { RunBlockedReason } from "@/components/topic/RunAction";
 import { Button } from "@/components/ui/Button";
 import StepShell from "@/components/topic/StepShell";
 import { useWizard } from "@/components/topic/useWizard";
@@ -29,6 +34,7 @@ import { isOverlayTopic } from "@/services/criteria";
 import { writeAreas } from "@/services/handoff/areas";
 import { formatArea } from "@/services/geo/area";
 import type { AnalysisRequest } from "@/services/analysis/request";
+import { SOURCE_LABEL } from "@/components/topic/SelectedAreas";
 import type { Topic, TopicSlug } from "@/services/analysis/topics";
 import type { UrlSelection } from "@/services/analysis/url-state";
 
@@ -108,6 +114,7 @@ function SummaryRow({
   value,
   detail,
   editStep,
+  children,
 }: {
   topic: TopicSlug;
   query: string;
@@ -115,17 +122,27 @@ function SummaryRow({
   value: string;
   detail: string;
   editStep: "scope" | "model" | "areas";
+  /** Extra content under the decision, e.g. the list of areas. */
+  children?: ReactNode;
 }) {
+  /*
+   * A three-column row of one grid: the term, the decision, the way back to
+   * it. On a phone the term sits above the decision and Change stays on the
+   * right, so the row is still one scan wide. `contents` is not used: a dt/dd
+   * pair inside a div is valid HTML for a dl, and the div is what draws the
+   * hairline between rows.
+   */
   return (
-    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 border-t border-edge px-4 py-3 first:border-t-0 lg:px-5">
-      <dt className="type-caption1 w-24 shrink-0 text-ink-faint">{label}</dt>
-      <dd className="min-w-0 flex-1">
-        <span className="type-body1 font-semibold text-ink">{value}</span>
-        <span className="type-body1 ml-2 text-ink-muted">{detail}</span>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-0.5 border-t border-edge px-4 py-3.5 first:border-t-0 sm:grid-cols-[8rem_minmax(0,1fr)_auto] lg:px-5">
+      <dt className="eyebrow col-start-1 sm:pt-0.5">{label}</dt>
+      <dd className="col-start-1 min-w-0 sm:col-start-2 sm:row-start-1">
+        <span className="type-body1 block font-semibold text-ink">{value}</span>
+        <span className="type-caption1 mt-0.5 block text-ink-muted">{detail}</span>
+        {children}
       </dd>
       <Link
         href={stepHref(topic, editStep, query)}
-        className="type-body1 rounded-fluent-small font-semibold text-accent-link hover:underline"
+        className="type-body1 col-start-2 row-span-2 row-start-1 self-center rounded-fluent-small font-semibold text-accent-link hover:underline sm:col-start-3 sm:row-span-1"
       >
         Change
         <span className="sr-only"> {label.toLowerCase()}</span>
@@ -150,6 +167,7 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
     value: string,
     detail: string,
     editStep: "scope" | "model" | "areas",
+    children?: ReactNode,
   ) => (
     <SummaryRow
       topic={topic.slug}
@@ -158,88 +176,120 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
       value={value}
       detail={detail}
       editStep={editStep}
-    />
+    >
+      {children}
+    </SummaryRow>
   );
 
   return (
     <StepShell
       topic={topic}
       step="review"
+      // The band width, like every other step: at the 980px reading width the
+      // summary stopped short of the rail and the footer above and below it.
+      width="band"
       wizard={wizard}
       action={<RunAction validation={validation} onRun={run} />}
+      actionNote={
+        <RunBlockedReason
+          validation={validation}
+          areaCount={state.areas.length}
+          spec={spec}
+        />
+      }
     >
-      <dl
-        data-testid="review-summary"
-        className="card"
-      >
-        {row("Topic", topic.name, topic.question, "scope")}
-        {row("Scope", spec.label, spec.description, "scope")}
-        {row("Model", model.label, model.tradeoff, "model")}
-        {row(
-          "Areas",
-          state.areas.length === 1 ? "1 area" : `${state.areas.length} areas`,
-          state.areas.length === 0
-            ? "Nothing selected yet."
-            : `${spec.minAreas} needed, up to ${spec.maxAreas}.`,
-          "areas",
-        )}
-      </dl>
+      <div className="card overflow-hidden">
+        {/*
+          The card's header: whether this request can run, in words and an
+          icon as well as a colour, and the way to throw it all away.
+        */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-edge bg-surface-subtle px-4 py-2 lg:px-5">
+          {validation.ok ? (
+            <p className="type-body1 inline-flex items-center gap-1.5 font-semibold text-success">
+              <CheckmarkCircle16Regular aria-hidden="true" />
+              Ready to run
+            </p>
+          ) : (
+            <p className="type-body1 inline-flex items-center gap-1.5 font-semibold text-warn">
+              <Warning16Regular aria-hidden="true" />
+              Not ready yet
+            </p>
+          )}
 
-      {/*
-        Start over. On the review step because this is where an analyst decides
-        the whole request was wrong, and where the alternative is walking back
-        to the areas step to press Clear all and then back again for the scope
-        and the model.
+          {/*
+            Start over. On the review step because this is where an analyst
+            decides the whole request was wrong, and where the alternative is
+            walking back to the areas step to press Clear all and then back
+            again for the scope and the model.
 
-        `replace`, not `push`: Back must not return to a review of a selection
-        that no longer exists.
+            `replace`, not `push`: Back must not return to a review of a
+            selection that no longer exists.
 
-        This is the one control in the app that clears the selection and
-        navigates in the same click, which makes it the one that notices when
-        the URL sync in useWizard is writing history entries badly. It stayed
-        on the review page, selection cleared, for as long as that sync passed
-        `null` as the history state. The fix is in useWizard; this button is
-        where it shows up, so if it ever regresses, look there first.
-      */}
-      <div className="mt-2 flex justify-end">
-        <Button
-          type="button"
-          variant="subtle"
-          size="sm"
-          data-testid="start-over"
-          icon={<ArrowCounterclockwise16Regular />}
-          onClick={() => {
-            resetSelection(topic.slug);
-            router.replace(stepHref(topic.slug, "scope"));
-          }}
-        >
-          Start over
-          <span className="sr-only"> and clear this topic&apos;s selection</span>
-        </Button>
+            This is the one control in the app that clears the selection and
+            navigates in the same click, which makes it the one that notices
+            when the URL sync in useWizard is writing history entries badly. It
+            stayed on the review page, selection cleared, for as long as that
+            sync passed `null` as the history state. The fix is in useWizard;
+            this button is where it shows up, so if it ever regresses, look
+            there first.
+          */}
+          <Button
+            type="button"
+            variant="subtle"
+            size="sm"
+            data-testid="start-over"
+            icon={<ArrowCounterclockwise16Regular />}
+            onClick={() => {
+              resetSelection(topic.slug);
+              router.replace(stepHref(topic.slug, "scope"));
+            }}
+          >
+            Start over
+            <span className="sr-only"> and clear this topic&apos;s selection</span>
+          </Button>
+        </div>
+
+        <dl data-testid="review-summary">
+          {row("Topic", topic.name, topic.question, "scope")}
+          {row("Scope", spec.label, spec.description, "scope")}
+          {row("Model", model.label, model.tradeoff, "model")}
+          {row(
+            "Areas",
+            state.areas.length === 1 ? "1 area" : `${state.areas.length} areas`,
+            state.areas.length === 0
+              ? "Nothing selected yet."
+              : `${spec.minAreas} needed, up to ${spec.maxAreas}.`,
+            "areas",
+            state.areas.length > 0 && (
+              <ol
+                data-testid="review-areas"
+                aria-label="Selected areas for this request"
+                className="mt-2.5 divide-y divide-edge overflow-hidden rounded-fluent-medium border border-edge"
+              >
+                {state.areas.map((area, index) => (
+                  <li
+                    key={area.id}
+                    className="flex min-h-9 items-center gap-3 px-3 py-1.5"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="type-caption1 w-5 shrink-0 font-mono tabular-nums text-ink-faint"
+                    >
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="type-body1 min-w-0 flex-1 truncate font-semibold text-ink">
+                      {area.label}
+                    </span>
+                    <span className="type-caption1 shrink-0 tabular-nums text-ink-faint">
+                      {SOURCE_LABEL[area.source]} &middot; {formatArea(area.areaKm2)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ),
+          )}
+        </dl>
       </div>
-
-      {state.areas.length > 0 && (
-        <ol
-          data-testid="review-areas"
-          aria-label="Selected areas for this request"
-          className="card mt-3 divide-y divide-edge overflow-hidden"
-        >
-          {state.areas.map((area, index) => (
-            <li
-              key={area.id}
-              className="type-body1 flex min-h-10 flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5 lg:px-5"
-            >
-              <span className="type-caption1 font-mono text-ink-faint">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span className="font-semibold text-ink">{area.label}</span>
-              <span className="type-caption1 text-ink-faint">
-                {area.source} &middot; {formatArea(area.areaKm2)}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
     </StepShell>
   );
 }

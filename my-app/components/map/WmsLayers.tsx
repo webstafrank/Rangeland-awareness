@@ -186,18 +186,18 @@ function WmsNoticeOverlay({
       data-testid="wms-notices"
       role={hasProblem ? "alert" : "status"}
       aria-live="polite"
-      // z above Leaflet's tile and overlay panes (400/500) so it is never
+      // z-map-overlay: above Leaflet's map pane (400) so it is never
       // painted under a tile, and pointer-events off so it cannot eat a click
       // meant for the map underneath.
-      className="pointer-events-none absolute inset-x-2 top-2 z-[600] space-y-1"
+      className="pointer-events-none absolute inset-x-2 top-2 z-map-overlay space-y-1"
     >
       {notices.map((notice) => (
         <p
           key={notice.layerId}
           className={
             notice.kind === "problem"
-              ? "type-caption1 flex items-center gap-1.5 rounded-fluent-medium border border-danger bg-danger-soft px-2 py-1.5 text-danger shadow-4"
-              : "type-caption1 flex items-center gap-1.5 rounded-fluent-medium border border-warn bg-warn-soft px-2 py-1.5 text-warn shadow-4"
+              ? "type-caption1 flex items-center gap-1.5 rounded-fluent-large border border-danger bg-danger-soft px-2.5 py-1.5 text-danger shadow-8"
+              : "type-caption1 flex items-center gap-1.5 rounded-fluent-large border border-warn bg-warn-soft px-2.5 py-1.5 text-warn shadow-8"
           }
         >
           {notice.kind === "problem" ? (

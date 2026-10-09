@@ -26,8 +26,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ArrowLeft20Regular, ArrowRight20Regular } from "@/components/ui/icons";
 import RequestReceipt from "@/components/topic/RequestReceipt";
-import { Button } from "@/components/ui/Button";
-import { buttonClasses } from "@/components/ui/button-classes";
+import { backClasses, footerNoteClass, forwardClasses } from "@/components/topic/footer-controls";
 import StepRail from "@/components/topic/StepRail";
 import { getStep, nextStep, previousStep, stepHref, type StepId } from "@/services/analysis/steps";
 import type { Topic } from "@/services/analysis/topics";
@@ -45,8 +44,20 @@ export interface StepShellProps {
   blockedReason?: string | null;
   /** Replaces the Continue control entirely. The review step passes its Run action. */
   action?: ReactNode;
+  /**
+   * Printed beside `action`, in the slot a refusing Continue uses for its
+   * reason. The review step passes why Run is disabled, styled with
+   * `footerNoteClass` (footer-controls.ts) so the two match.
+   */
+  actionNote?: ReactNode;
   /** Wider than `step` for the areas step, which has a map to house. */
   width?: "step" | "band";
+  /**
+   * A side rail beside the step's content from lg (under it below lg). Scope
+   * and model pass the request so far, which is what lets them use the band's
+   * width instead of stopping at a reading column.
+   */
+  aside?: ReactNode;
   children: ReactNode;
 }
 
@@ -66,7 +77,9 @@ export default function StepShell({
   wizard,
   blockedReason = null,
   action,
+  actionNote,
   width = "step",
+  aside,
   children,
 }: StepShellProps) {
   const spec = getStep(step);
@@ -90,7 +103,20 @@ export default function StepShell({
    * steps; a narrow step simply ends sooner on the right.
    */
   const container = "mx-auto w-full max-w-band px-gutter lg:px-gutter-lg";
-  const column = width === "band" ? "w-full" : "w-full max-w-step";
+  const column = width === "band" || aside ? "w-full" : "w-full max-w-step";
+
+  /*
+   * Why forward is refusing, printed in the footer. A step's own Continue
+   * reason, or the note the review step passes beside Run. One slot, so the
+   * two read in the same place and the same type.
+   */
+  const reason =
+    actionNote ??
+    (action === undefined && forward !== null && blockedReason !== null ? (
+      <p data-testid="step-blocked-reason" className={footerNoteClass}>
+        {blockedReason}
+      </p>
+    ) : null);
 
   /*
    * Move focus to the step's heading when the flow moves, and only then.
@@ -132,14 +158,14 @@ export default function StepShell({
         </div>
       </div>
 
-      <div className={`${container} pt-5 lg:pt-7`}>
+      <div className={`${container} pt-5 lg:pt-6`}>
         {/* The part of the page that is this step's own, and the only part
             that fades in when the flow moves (step-body in globals.css). */}
         <div className={`step-body ${column}`}>
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="type-subtitle1 text-ink outline-none lg:type-title3"
+            className="type-subtitle1 text-ink outline-none"
           >
             {spec.title}
           </h2>
@@ -147,17 +173,28 @@ export default function StepShell({
             {spec.hint}
           </p>
 
-          <div className="mt-5">{children}</div>
+          {aside ? (
+            // A step with a side rail: the decision on the left, the rail on
+            // the right from lg, under the decision below it. The step uses
+            // the band's width, so it does not stop at 980px while the rail
+            // and the header run the full band.
+            <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+              <div className="min-w-0">{children}</div>
+              <aside className="min-w-0">{aside}</aside>
+            </div>
+          ) : (
+            <div className="mt-5">{children}</div>
+          )}
         </div>
       </div>
 
       {/*
-        Spacer, so the sticky bar cannot sit on top of the last control. Sized
-        to the bar rather than to a round number: at h-28 it was 112px and made
-        the scope step scroll on a 900px viewport for the sake of two radio
-        cards.
+        No spacer above the bar. The bar is sticky, not fixed, so at the end
+        of the page it sits in the flow under the last control and can never
+        cover it; the h-16 spacer that used to live here only added 64px of
+        empty canvas (190px on a phone, with the bar). pb-6 is breathing room.
       */}
-      <div aria-hidden="true" className="h-16" />
+      <div aria-hidden="true" className="h-6" />
 
       {/*
         The bar is kept short on purpose, and the receipt is what makes that
@@ -173,7 +210,7 @@ export default function StepShell({
       */}
       <div className="sticky bottom-0 z-action-bar mt-auto border-t border-edge bg-surface shadow-up">
         <div
-          className={`${container} flex flex-col gap-2 py-2 lg:flex-row lg:items-center lg:gap-6 lg:py-3`}
+          className={`${container} flex flex-col gap-1 py-1.5 lg:flex-row lg:items-center lg:gap-6 lg:py-2.5`}
         >
           <RequestReceipt
             topic={topic}
@@ -183,52 +220,53 @@ export default function StepShell({
             validation={validation}
           />
 
-          <div className="flex items-center gap-3 lg:ml-auto lg:shrink-0">
-            {back !== null && (
-              <Link
-                href={stepHref(topic.slug, back, query)}
-                className={buttonClasses()}
-              >
-                <ArrowLeft20Regular aria-hidden="true" />
-                {back.label}
-              </Link>
-            )}
+          {/*
+            The movement. On a phone: any refusal reason on its own line, then
+            the buttons right-aligned under it, which keeps the bar near 93px
+            with the receipt (73px without a reason). From lg: one row, the
+            reason right-aligned against the buttons.
+          */}
+          <div className="flex flex-col gap-1 lg:ml-auto lg:shrink-0 lg:flex-row lg:items-center lg:gap-4">
+            {reason}
 
-            {action ??
-              (forward !== null &&
-                (blockedReason === null ? (
-                  <Link
-                    href={stepHref(topic.slug, forward, query)}
-                    data-testid="step-continue"
-                    className={buttonClasses({ appearance: "primary", className: "min-w-28" })}
-                  >
-                    Continue
-                    <ArrowRight20Regular aria-hidden="true" />
-                  </Link>
-                ) : (
-                  // A disabled anchor is not a thing, so a refusing Continue is
-                  // a real disabled button with its reason printed beside it
-                  // rather than hidden in a tooltip.
-                  <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:gap-4">
-                    <p
-                      data-testid="step-blocked-reason"
-                      className="type-caption1 order-2 max-w-xs text-ink-muted lg:order-1 lg:text-right"
-                    >
-                      {blockedReason}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      disabled
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              {back !== null && (
+                <Link
+                  href={stepHref(topic.slug, back, query)}
+                  className={backClasses}
+                >
+                  <ArrowLeft20Regular aria-hidden="true" />
+                  {back.label}
+                </Link>
+              )}
+
+              {action ??
+                (forward !== null &&
+                  (blockedReason === null ? (
+                    <Link
+                      href={stepHref(topic.slug, forward, query)}
                       data-testid="step-continue"
-                      icon={<ArrowRight20Regular />}
-                      iconAfter
-                      className="order-1 lg:order-2"
+                      className={forwardClasses}
                     >
                       Continue
-                    </Button>
-                  </div>
-                )))}
+                      <ArrowRight20Regular aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    // A disabled anchor is not a thing, so a refusing Continue
+                    // is a real disabled button, wearing the same skin as the
+                    // link it becomes (footer-controls.ts), with its reason
+                    // printed beside it rather than hidden in a tooltip.
+                    <button
+                      type="button"
+                      disabled
+                      data-testid="step-continue"
+                      className={forwardClasses}
+                    >
+                      Continue
+                      <ArrowRight20Regular aria-hidden="true" />
+                    </button>
+                  )))}
+            </div>
           </div>
         </div>
       </div>

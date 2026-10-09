@@ -24,9 +24,9 @@
  * rules are not in a cascade layer and so outrank every Tailwind utility,
  * which are. An inline style is the one thing that beats both.
  *
- * `webLightTheme`, unmodified: the @theme block in app/globals.css declares
- * the same values under the app's own token names, so a Fluent Button and a
- * Tailwind `bg-accent` are the same blue by construction, not by coincidence.
+ * `appTheme` (lib/theme/fluent-theme.ts) is built from the palette: its brand
+ * ramp's step 80 is `--color-accent`, so a Fluent Button and a Tailwind
+ * `bg-accent` are the same blue by construction, and a test pins it.
  */
 
 import { useRef, useState, type ReactNode } from "react";
@@ -37,8 +37,8 @@ import {
   SSRProvider,
   createDOMRenderer,
   renderToStyleElements,
-  webLightTheme,
 } from "@fluentui/react-components";
+import { appTheme } from "@/lib/theme/fluent-theme";
 
 export function FluentRoot({ children }: { children: ReactNode }) {
   const [renderer] = useState(() => createDOMRenderer());
@@ -54,7 +54,7 @@ export function FluentRoot({ children }: { children: ReactNode }) {
     <RendererProvider renderer={renderer}>
       <SSRProvider>
         <FluentProvider
-          theme={webLightTheme}
+          theme={appTheme}
           className="flex min-h-full flex-1 flex-col"
           style={{
             backgroundColor: "transparent",

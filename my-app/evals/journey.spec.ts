@@ -1034,9 +1034,13 @@ test.describe("topic steps", () => {
     // and is not a dead end.
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
+    // Scoped to <main>: on a desktop the app shell's sidebar also lists every
+    // topic, so an unscoped query finds two links per topic. The page itself
+    // must offer the way out, not lean on the navigation around it.
+    const main = page.getByRole("main");
     for (const topic of TOPICS) {
       await expect(
-        page.getByRole("link", { name: new RegExp(topic.name, "i") }),
+        main.getByRole("link", { name: new RegExp(topic.name, "i") }),
       ).toHaveAttribute("href", `/topics/${topic.slug}`);
     }
   });

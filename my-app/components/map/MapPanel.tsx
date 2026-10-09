@@ -28,7 +28,7 @@ function MapSkeleton() {
       role="status"
       aria-live="polite"
     >
-      <span className="text-sm text-ink-faint">Loading map...</span>
+      <span className="type-caption1 text-ink-faint">Loading map...</span>
     </div>
   );
 }

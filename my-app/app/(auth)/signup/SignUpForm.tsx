@@ -33,7 +33,7 @@ export function SignUpForm() {
           name="name"
           autoComplete="name"
           required
-          placeholder="Amina Yusuf"
+          placeholder="e.g. Amina Yusuf"
           invalid={Boolean(err("name"))}
           aria-describedby={err("name") ? "name-error" : undefined}
         />
@@ -46,7 +46,7 @@ export function SignUpForm() {
           type="email"
           autoComplete="email"
           required
-          placeholder="you@ksa.go.ke"
+          placeholder="e.g. you@ksa.go.ke"
           invalid={Boolean(err("email"))}
           aria-describedby={err("email") ? "email-error" : "email-hint"}
         />
@@ -57,7 +57,7 @@ export function SignUpForm() {
           id="organisation"
           name="organisation"
           autoComplete="organization"
-          placeholder="Kenya Space Agency"
+          placeholder="e.g. Kenya Space Agency"
           invalid={Boolean(err("organisation"))}
           aria-describedby={err("organisation") ? "organisation-error" : "organisation-hint"}
         />
@@ -80,12 +80,11 @@ export function SignUpForm() {
           name="password"
           type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
           aria-describedby="password-hint"
         />
       </Field>
 
-      <Button type="submit" variant="primary" size="lg" block disabled={pending}>
+      <Button type="submit" variant="primary" block disabled={pending}>
         {pending ? "Creating account…" : "Create account"}
       </Button>
     </form>

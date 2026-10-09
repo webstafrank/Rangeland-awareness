@@ -7,7 +7,7 @@ import { stepHref } from "@/services/analysis/steps";
 import { createBackendClient } from "@/services/backend-api";
 import type { TopicCriteria } from "@/services/backend-api";
 import StartRun from "@/components/run/StartRun";
-import { receiptHref, resultHref } from "@/services/run-flow/links";
+import { receiptHref, resultHref, runningHref } from "@/services/run-flow/links";
 import RunWatch from "@/components/run/RunWatch";
 import RunProblem from "@/components/run/RunProblem";
 
@@ -114,6 +114,14 @@ export default async function RunningPage({
           receiptHref={
             request === null ? null : receiptHref(topic.slug, query, request)
           }
+          // A run id exists either way. A 404 means the service answered and
+          // has none; anything else means it did not answer, and the run may
+          // still be going, so the screen must not say nothing is running.
+          kind={unknownRun ? "not-found" : "unreachable"}
+          retryHref={runningHref(topic.slug, query, {
+            runId,
+            ...(request === null ? {} : { request }),
+          })}
         />
       );
     }

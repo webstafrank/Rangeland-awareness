@@ -22,8 +22,13 @@
  */
 
 import { render, screen, within } from "@testing-library/react";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Route } from "next";
+
+// The area panel puts the run's areas on the Leaflet basemap, loaded in the
+// browser only. jsdom has no map to draw on, so the map module is stubbed and
+// these tests assert on the server-rendered outline underneath it.
+vi.mock("@/components/map/AoiMap", () => ({ default: () => null }));
 
 import type { RunResult } from "@/services/backend-api";
 import { getTopic } from "@/services/analysis/topics";

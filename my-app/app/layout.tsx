@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import { token } from "@/lib/theme/palette";
+import { getSession } from "@/services/auth";
 import { FluentRoot } from "@/components/shell/FluentRoot";
-import { Logo } from "@/components/ui/Logo";
-import { PrimaryNav } from "@/components/shell/PrimaryNav";
+import { AppShell } from "@/components/shell/AppShell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,20 +50,21 @@ export const metadata: Metadata = {
  * before first paint.
  */
 export const viewport: Viewport = {
-  // The header's own ground, so the browser's bar and the app header read as
-  // one continuous strip of Fluent's light neutral chrome.
-  themeColor: token("--color-sunken"),
+  // The top bar's own ground, so the browser's bar and the app header read
+  // as one continuous strip.
+  themeColor: token("--color-surface"),
   colorScheme: "light",
 };
 
-const FOOTER_LINKS = [
-  ["About", "/about"],
-  ["Help", "/help"],
-  ["Contact", "/contact"],
-  ["Account", "/account"],
-] as const;
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
+/*
+ * The session is read here, once, and handed to the shell so the sidebar can
+ * show who is signed in and offer sign out. Reading the cookie makes every
+ * route dynamic; nearly every route already was (the topic steps read
+ * searchParams, the run screens fetch), and the handful of static pages are
+ * cheap to render per request.
+ */
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const session = await getSession();
   return (
     <html
       lang="en-GB"
@@ -87,74 +87,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </a>
 
         <FluentRoot>
-          {/*
-            Fluent's app header: 48px (layout-header-height) of light neutral
-            chrome, colorNeutralBackground4 with dark ink, separated from the
-            canvas by a colorNeutralStroke2 hairline rather than by a change
-            of ground. The dark navy band it replaces told the eye where the
-            chrome ended by contrast alone; Fluent does it with the stroke,
-            which is also what keeps the header from being the loudest thing
-            on a screen whose job is a map and a table.
-          */}
-          <header className="band-chrome sticky top-0 z-header border-b border-edge">
-            <div className="mx-auto flex h-12 w-full max-w-band items-center gap-3 px-gutter lg:px-gutter-lg">
-              {/*
-                The wordmark needs ~180px, and at 360px the three nav links
-                need the rest, so below sm the mark stands alone and the link
-                is named by its aria-label instead of by the hidden text. One
-                Logo either way, so the mark is preloaded once.
-              */}
-              <Link
-                href="/"
-                aria-label="Disaster Monitor home"
-                className="flex min-w-0 items-center rounded-fluent-medium"
-              >
-                <Logo size={30} wordmarkClassName="hidden sm:flex" />
-              </Link>
-
-              <span aria-hidden="true" className="hidden h-6 w-px bg-edge-strong md:block" />
-              <span className="type-caption1 hidden text-ink-faint md:block">
-                Earth observation decision support
-              </span>
-
-              <PrimaryNav />
-            </div>
-          </header>
-
-          <main id="main" className="flex flex-1 flex-col">
-            {children}
-          </main>
-
-          <footer className="band-chrome mt-auto border-t border-edge">
-            <div className="mx-auto w-full max-w-band px-gutter py-6 lg:px-gutter-lg">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="type-caption1 flex max-w-2xl flex-col gap-1 text-ink-faint">
-                  <p>
-                    Earth observation analysis for Kenya&apos;s rangelands. Model
-                    outputs are decision support, not a forecast of record.
-                  </p>
-                  <p>
-                    Basemaps &copy; OpenStreetMap contributors. Imagery &copy; Esri,
-                    Maxar, Earthstar Geographics.
-                  </p>
-                </div>
-                <nav
-                  aria-label="Footer navigation"
-                  className="type-caption1 flex flex-wrap gap-x-5 gap-y-2"
-                >
-                  {FOOTER_LINKS.map(([label, href]) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className="rounded-fluent-small font-semibold text-accent-link hover:underline"
-                    >
-                      {label}
-                    </Link>
-                  ))}
-                </nav>
-              </div>
-            </div>
-          </footer>
+          <AppShell session={session}>{children}</AppShell>
         </FluentRoot>
       </body>
     </html>

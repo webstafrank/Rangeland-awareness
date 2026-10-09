@@ -25,6 +25,12 @@ export interface RadioCardOption<T extends string> {
   disabled?: boolean;
   /** Extra note rendered under the description, e.g. a consequence warning. */
   note?: string;
+  /**
+   * A short fact pinned to the right of the title, e.g. "1 area". Sits in the
+   * title row so it costs no height, and is part of the label, so it is read
+   * with the choice.
+   */
+  badge?: string;
 }
 
 export interface RadioCardsProps<T extends string> {
@@ -76,7 +82,8 @@ export default function RadioCards<T extends string>({
         role="radiogroup"
         aria-labelledby={labelId}
         className={[
-          hideLegend ? "gap-3" : "mt-2 gap-3",
+          hideLegend ? "" : "mt-2",
+          compact ? "gap-1.5" : "gap-3",
           layout === "row"
             ? "grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr"
             : "flex flex-col",
@@ -124,19 +131,27 @@ export default function RadioCards<T extends string>({
               <label
                 htmlFor={inputId}
                 className={[
-                  // A Fluent selectable card: shadow4 at rest, shadow8 on
-                  // hover, and when chosen the brand stroke doubled by an
-                  // inset ring on colorBrandBackground2. Selection is the
+                  // A selectable card: the card hairline and shadow-4 at
+                  // rest, a stronger edge and shadow-8 on hover (it acts, so
+                  // it lifts), and when chosen the accent stroke doubled by
+                  // an inset ring on the soft accent fill. Selection is the
                   // stroke AND the fill AND the filled radio dot, never one.
-                  "type-body1 flex h-full cursor-pointer flex-col rounded-fluent-large border bg-surface px-3.5 py-3 shadow-4 transition-[box-shadow,background-color,border-color] duration-100",
+                  "type-body1 flex h-full cursor-pointer flex-col border bg-surface transition-[box-shadow,background-color,border-color] duration-150",
+                  // Compact is a dense tool list inside a panel: flat rows,
+                  // no lift, since the panel already carries the elevation.
+                  compact
+                    ? "rounded-fluent-medium px-3 py-2"
+                    : "rounded-fluent-xlarge px-4 py-3.5 shadow-4",
                   "peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent",
                   checked
                     ? "border-accent bg-accent-soft ring-1 ring-inset ring-accent"
-                    : "border-transparent hover:shadow-8",
+                    : compact
+                      ? "border-edge hover:border-edge-strong hover:bg-surface-subtle"
+                      : "border-edge hover:border-edge-strong hover:shadow-8",
                   option.disabled ? "cursor-not-allowed text-ink-faint shadow-none" : "",
                 ].join(" ")}
               >
-                <span className="flex items-center gap-2 font-semibold text-ink">
+                <span className="flex items-center gap-2.5 font-semibold text-ink">
                   <span
                     aria-hidden="true"
                     className={[
@@ -154,13 +169,18 @@ export default function RadioCards<T extends string>({
                       <span className="h-2.5 w-2.5 rounded-full bg-accent" />
                     )}
                   </span>
-                  {option.label}
+                  <span className="min-w-0 flex-1">{option.label}</span>
+                  {option.badge && (
+                    <span className="type-caption1 shrink-0 rounded-fluent-circular bg-sunken px-2 py-0.5 font-semibold text-ink-muted">
+                      {option.badge}
+                    </span>
+                  )}
                 </span>
 
                 {!compact && option.description && (
                   <span
                     id={descId}
-                    className="type-caption1 mt-1 pl-6 text-ink-muted"
+                    className="type-body1 mt-1 pl-6.5 text-ink-muted"
                   >
                     {option.description}
                   </span>
@@ -169,7 +189,7 @@ export default function RadioCards<T extends string>({
                 {option.note && (
                   <span
                     id={noteId}
-                    className="type-caption1 mt-1.5 flex gap-1 pl-6 font-semibold text-warn"
+                    className="type-caption1 mt-1.5 flex gap-1 pl-6.5 font-semibold text-warn"
                   >
                     <Warning12Filled aria-hidden="true" className="mt-0.5 shrink-0" />
                     {option.note}

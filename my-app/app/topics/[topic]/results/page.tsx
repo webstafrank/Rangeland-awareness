@@ -5,7 +5,7 @@ import { getTopic } from "@/services/analysis/topics";
 import { carryUrlSelection, readSearchParamSelection } from "@/services/analysis/url-state";
 import { RUN_PARAM } from "@/services/analysis/request-id";
 import { stepHref } from "@/services/analysis/steps";
-import { runningHref } from "@/services/run-flow/links";
+import { resultHref, runningHref } from "@/services/run-flow/links";
 import { createBackendClient } from "@/services/backend-api";
 import ResultsStep from "@/components/results/ResultsStep";
 import ResultView from "@/components/results/ResultView";
@@ -87,11 +87,13 @@ export default async function ResultsPage({
               ? `The service has no run "${runId}". A run id is a hash of its ` +
                 "configuration, so a link from another deployment does not resolve here. " +
                 "Run it again to compute it on this one."
-              : "The result exists on the service; this page could not reach it to read. " +
-                "Reload to try again."
+              : "This page could not reach the service to read the result of run " +
+                `"${runId}". Try again in a moment.`
           }
           query={query}
           receiptHref={null}
+          kind={unknownRun ? "not-found" : "unreachable"}
+          retryHref={resultHref(topic.slug, query, runId)}
         />
       );
     }

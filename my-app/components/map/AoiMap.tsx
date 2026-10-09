@@ -16,7 +16,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GeoJSON,
-  LayersControl,
   MapContainer,
   TileLayer,
   useMap,
@@ -34,8 +33,39 @@ import {
   type FocusRequest,
   draftAreaFromGeometry,
 } from "@/services/analysis/selection";
-import { KENYA_BOUNDS, type MapTool } from "@/components/map/tools";
+import {
+  KENYA_BOUNDS,
+  TILE_LOADING,
+  type MapTool,
+} from "@/components/map/tools";
 import { token } from "@/lib/theme/palette";
+import { BasemapSwitch } from "@/components/explore/MapOverlays";
+import type { Basemap } from "@/components/explore/ExploreMapLibre";
+
+/*
+ * Leaflet's controls on Explore's MapLibre skin (components/explore/
+ * ExploreMapLibre.tsx CONTROL_SKIN): the zoom stack as one rounded-large
+ * group with a hairline and shadow-8, 32px buttons, and the attribution in
+ * caption type. The two maps cannot share a library (drawing needs geoman),
+ * so they share a look instead.
+ *
+ * leaflet.css is unlayered and Tailwind's utilities sit in a cascade layer,
+ * and an unlayered rule beats a layered one whatever its specificity, so
+ * every override carries `!`.
+ */
+const CONTROL_SKIN = [
+  "font-sans!",
+  "[&_.leaflet-bar]:rounded-fluent-large!",
+  "[&_.leaflet-bar]:border!",
+  "[&_.leaflet-bar]:border-edge!",
+  "[&_.leaflet-bar]:shadow-8!",
+  "[&_.leaflet-bar]:overflow-hidden",
+  "[&_.leaflet-bar_a]:size-8!",
+  "[&_.leaflet-bar_a]:leading-8!",
+  "[&_.leaflet-bar_a]:rounded-none!",
+  "[&_.leaflet-control-attribution]:type-caption1!",
+  "[&_.leaflet-control-attribution]:rounded-tl-fluent-medium",
+].join(" ");
 
 export interface AoiMapProps {
   areas: readonly AreaOfInterest[];
@@ -100,11 +130,37 @@ function areaStyle(): L.PathOptions {
 function FocusController({ focus }: { focus: FocusRequest | null }) {
   const map = useMap();
   const lastToken = useRef<number | null>(null);
+  const [arrived, setArrived] = useState("");
+  const pending = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (focus === null) return;
     if (lastToken.current === focus.token) return;
     lastToken.current = focus.token;
+
+    /*
+     * Say where the map landed, once, when a flight to a selection ends.
+     *
+     * This is the feedback a screen reader user needs ("the map zoomed to
+     * your selection"), and it is the ONLY map movement announced. The view
+     * readout used to be a live region, which spoke on every pan and zoom the
+     * user made themselves: noise that buried the one move worth hearing.
+     * The text changes each time (the centre and zoom are in it), so a second
+     * flight to the same place is still announced.
+     */
+    const announce = () => {
+      const c = map.getCenter();
+      setArrived(
+        `Map moved to the selection: centre ${c.lat.toFixed(2)}, ` +
+          `${c.lng.toFixed(2)}, zoom ${map.getZoom()}.`,
+      );
+    };
+    // A newer flight replaces an unfinished one, and its announcement too.
+    // Not an effect cleanup: the effect also re-runs when `focus` is a new
+    // object with the same token, and that must not cancel a flight in the air.
+    if (pending.current) map.off("moveend", pending.current);
+    pending.current = announce;
+    map.once("moveend", announce);
 
     map.flyToBounds(focus.bounds, {
       // Keep the fitted area clear of the floating controls.
@@ -117,16 +173,21 @@ function FocusController({ focus }: { focus: FocusRequest | null }) {
     });
   }, [focus, map]);
 
-  return null;
+  return (
+    <p role="status" aria-live="polite" className="sr-only">
+      {arrived}
+    </p>
+  );
 }
 
 /**
- * Announce where the map currently is.
+ * Show where the map currently is.
  *
- * A sighted user reads the viewport; a screen reader user has no way to know
- * the map moved, and "the map zoomed to your selection" is the single most
- * important feedback this page gives. So the centre and zoom are published as
- * polite live text.
+ * Plain text, not a live region. It used to be role="status" aria-live, which
+ * made a screen reader speak on every pan and zoom the user made themselves.
+ * The move worth hearing, "the map zoomed to your selection", is announced
+ * once per flight by FocusController instead. This stays readable at any time
+ * in the reading order.
  *
  * It is also the only honest way to assert the zoom behaviour from a browser
  * test: Leaflet exposes its view on the map instance, not on the DOM, and
@@ -150,8 +211,8 @@ function ViewReadout() {
   });
 
   const { center, zoom } = view;
-  const lat = `${Math.abs(center.lat).toFixed(2)} ${center.lat >= 0 ? "N" : "S"}`;
-  const lng = `${Math.abs(center.lng).toFixed(2)} ${center.lng >= 0 ? "E" : "W"}`;
+  const lat = `${Math.abs(center.lat).toFixed(2)}° ${center.lat >= 0 ? "N" : "S"}`;
+  const lng = `${Math.abs(center.lng).toFixed(2)}° ${center.lng >= 0 ? "E" : "W"}`;
 
   return (
     <p
@@ -159,11 +220,13 @@ function ViewReadout() {
       data-lat={center.lat.toFixed(5)}
       data-lng={center.lng.toFixed(5)}
       data-zoom={zoom}
-      role="status"
-      aria-live="polite"
-      className="pointer-events-none absolute bottom-2 left-2 z-map-overlay rounded bg-surface/90 px-2 py-1 font-mono text-[11px] text-ink-muted shadow-sm"
+      // On a phone the attribution runs the full width of the bottom edge
+      // (18px tall), so the readout stacks above it with 8px clear rather
+      // than sitting on it. From sm the attribution keeps to the right and
+      // the readout drops to the corner.
+      className="type-caption1 pointer-events-none absolute bottom-[26px] left-2.5 z-map-overlay rounded-fluent-large border border-edge bg-surface/90 px-2 py-1 font-mono tabular-nums text-ink-muted shadow-8 sm:bottom-2.5"
     >
-      Centre {lat}, {lng} at zoom {zoom}
+      {lat}, {lng} · z{Number(zoom.toFixed(1))}
     </p>
   );
 }
@@ -177,7 +240,9 @@ function ResizeController() {
     // Leaflet caches the container size at init. In a flex or grid parent the
     // final size arrives after mount, and on a mobile breakpoint change it
     // changes again, so both need an explicit invalidateSize.
-    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    const observer = new ResizeObserver(() =>
+      map.invalidateSize({ pan: false }),
+    );
     observer.observe(container);
     return () => observer.disconnect();
   }, [map]);
@@ -242,9 +307,8 @@ function DrawController({
 
   useEffect(() => {
     const handleCreate = ({ layer }: { layer: L.Layer }) => {
-      const geometry = (
-        layer as L.Polygon
-      ).toGeoJSON() as Feature<Geometry> | Geometry;
+      const geometry = (layer as L.Polygon).toGeoJSON() as
+        Feature<Geometry> | Geometry;
 
       const raw: Geometry =
         "type" in geometry && geometry.type === "Feature"
@@ -338,48 +402,65 @@ export default function AoiMap({
     [areas, onFocusArea, pointToLayer, style],
   );
 
+  const [basemap, setBasemap] = useState<Basemap>("street");
+
   return (
-    <MapContainer
-      bounds={KENYA_BOUNDS}
-      className="relative h-full w-full"
-      // Scroll-wheel zoom is off by default: on a page that scrolls, a wheel
-      // over the map would otherwise hijack the page scroll. Ctrl+wheel and the
-      // zoom buttons still work, which is the convention analysts expect.
-      scrollWheelZoom={false}
-      worldCopyJump
-    >
-      <LayersControl position="topright">
-        <LayersControl.BaseLayer checked name="Street">
+    <div className="relative h-full w-full">
+      <MapContainer
+        bounds={KENYA_BOUNDS}
+        className={`relative h-full w-full ${CONTROL_SKIN}`}
+        // Scroll-wheel zoom is off by default: on a page that scrolls, a wheel
+        // over the map would otherwise hijack the page scroll. Ctrl+wheel and
+        // the zoom buttons still work, which is the convention analysts expect.
+        scrollWheelZoom={false}
+        worldCopyJump
+      >
+        {/*
+          One basemap at a time, chosen by the switch below rather than by
+          Leaflet's layers control, so this map reads like Explore's. Keyed,
+          so a change swaps the layer (and its attribution) cleanly. No
+          className on the street layer: the dark-mode tile filter that hook
+          served is gone with the second theme.
+        */}
+        {basemap === "street" ? (
           <TileLayer
-            // No className here. It used to carry `basemap-street`, which the
-            // dark-mode tile inversion in globals.css targeted. That filter is
-            // gone with the second theme, so the hook is gone too rather than
-            // left behind with a comment describing CSS that no longer exists.
+            key="street"
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             maxZoom={19}
+            {...TILE_LOADING}
           />
-        </LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Satellite">
+        ) : (
           <TileLayer
+            key="satellite"
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             attribution="Imagery &copy; Esri, Maxar, Earthstar Geographics"
             maxZoom={19}
+            {...TILE_LOADING}
           />
-        </LayersControl.BaseLayer>
-      </LayersControl>
+        )}
 
-      {layers}
+        {layers}
 
-      <FocusController focus={focus} />
-      <ResizeController />
-      <ViewReadout />
-      <PointSelector active={tool === "point"} onAddAreas={onAddAreas} />
-      <DrawController
-        tool={tool}
-        onAddAreas={onAddAreas}
-        onDrawFinished={onDrawFinished}
-      />
-    </MapContainer>
+        <FocusController focus={focus} />
+        <ResizeController />
+        <ViewReadout />
+        <PointSelector active={tool === "point"} onAddAreas={onAddAreas} />
+        <DrawController
+          tool={tool}
+          onAddAreas={onAddAreas}
+          onDrawFinished={onDrawFinished}
+        />
+      </MapContainer>
+
+      {/*
+        Explore's own basemap switch, top right where Explore has it. Outside
+        MapContainer on purpose: inside it, a click on the switch would bubble
+        to Leaflet as a map click and drop a point under it.
+      */}
+      <div className="pointer-events-none absolute right-2.5 top-2.5 z-map-overlay">
+        <BasemapSwitch basemap={basemap} onBasemap={setBasemap} />
+      </div>
+    </div>
   );
 }
