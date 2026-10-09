@@ -74,6 +74,12 @@ export default function AboutPage() {
         eyebrow="Programme"
         title="Disaster Monitor"
         lead="Earth observation decision support for Kenya's rangelands."
+        actions={
+          <Link href="/" className={buttonClasses({ appearance: "primary" })}>
+            Choose a topic
+            <ArrowRight20Regular aria-hidden="true" />
+          </Link>
+        }
       />
 
       <PageSection
@@ -96,14 +102,23 @@ export default function AboutPage() {
         }
       >
         <dl className="grid grid-cols-3 gap-2 sm:gap-4">
-          <StatTile compact label="Analysis topics" value={String(TOPICS.length)} />
-          <StatTile compact label="Counties covered" value="47" />
-          <StatTile compact label="Open data sources" value={String(SOURCES.length)} />
+          <StatTile
+            compact
+            label="Topics"
+            value={String(TOPICS.length)}
+            detail="All open to guests"
+          />
+          <StatTile compact label="Counties" value="47" detail="23 arid and semi-arid" />
+          <StatTile
+            compact
+            label="Sources"
+            value={String(SOURCES.length)}
+            detail="Open, no proprietary data"
+          />
         </dl>
       </PageSection>
 
       <PageSection
-        tier="panel"
         eyebrow="Who it's for"
         title="Built for rangeland managers"
         intro="The platform serves county-level rangeland managers, national planning agencies, and research institutions working across Kenya's arid and semi-arid lands: people who decide on land use, livestock movement, and disaster preparedness from current satellite-derived data."
@@ -119,27 +134,6 @@ export default function AboutPage() {
         <InfoGrid items={SOURCES} columns={2} />
       </PageSection>
 
-      <PageSection
-        tier="panel"
-        title="Ready to analyse?"
-        intro="Four topics, each answering one question about Kenya's rangelands. No account required to start."
-      >
-        <div className="flex flex-wrap gap-2">
-          {TOPICS.slice(0, 2).map((topic, index) => (
-            <Link
-              key={topic.slug}
-              href={`/topics/${topic.slug}`}
-              className={buttonClasses({ appearance: index === 0 ? "primary" : "secondary" })}
-            >
-              Start with {topic.name.toLowerCase()}
-              <ArrowRight20Regular aria-hidden="true" />
-            </Link>
-          ))}
-          <Link href="/" className={buttonClasses({ appearance: "subtle" })}>
-            See all topics
-          </Link>
-        </div>
-      </PageSection>
     </>
   );
 }

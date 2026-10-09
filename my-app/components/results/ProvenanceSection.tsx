@@ -31,7 +31,7 @@ export function ProvenanceSection({
     <section aria-labelledby="provenance-heading">
       <SectionHead id="provenance-heading" title="Reproduce and export" />
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
         <Panel title="Run provenance">
           <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
             <Fact term="Run id">

@@ -552,8 +552,11 @@ export default function ExploreMapLibre({
   const shownErrors = Object.entries(featureErrors).filter(
     ([id]) => stack.entries[id] !== undefined,
   );
-  const lat = `${Math.abs(view.lat).toFixed(2)} ${view.lat >= 0 ? "N" : "S"}`;
-  const lng = `${Math.abs(view.lng).toFixed(2)} ${view.lng >= 0 ? "E" : "W"}`;
+  // The app's one readout format, shared with the wizard's map:
+  // "0.35° N, 37.95° E · z6" (zoom to one decimal, a trailing .0 dropped).
+  const lat = `${Math.abs(view.lat).toFixed(2)}° ${view.lat >= 0 ? "N" : "S"}`;
+  const lng = `${Math.abs(view.lng).toFixed(2)}° ${view.lng >= 0 ? "E" : "W"}`;
+  const zoom = Number(view.zoom.toFixed(1));
 
   return (
     <div className="relative h-full w-full">
@@ -563,13 +566,18 @@ export default function ExploreMapLibre({
         data-testid="explore-maplibre"
       />
       {/*
-        The top-right column: basemap, feature-load problems, legend. Clear of
-        MapLibre's zoom buttons on the left (left-14) and of the scale and
-        attribution along the bottom (bottom-12; bottom-16 on a phone, where
-        the view readout sits a row higher). Pointer events only on the cards
-        themselves, so the gaps between them still pan the map. On a phone
-        the panel is below the map, so the column leads with a button that
-        jumps to it.
+        Two overlay columns, pointer events only on the cards themselves so
+        the gaps between them still pan the map.
+
+        Top right: on a phone the "Layers" jump (the panel is below the map),
+        the basemap switch, and any feature-load problems. Clear of MapLibre's
+        zoom buttons on the left (left-14) and its scale and attribution
+        along the bottom.
+
+        Bottom left: the legend, then the view readout under it. Below the
+        zoom buttons (top-24). On a phone it starts one row up (bottom-9),
+        clear of the attribution that runs along the bottom edge there and
+        the scale bar above it on the right.
       */}
       <div className="pointer-events-none absolute top-3 right-3 bottom-16 left-14 z-map-overlay flex flex-col items-end gap-2 sm:bottom-12">
         <div className="flex items-center gap-2">
@@ -596,27 +604,21 @@ export default function ExploreMapLibre({
             ))}
           </div>
         ) : null}
-        <MapLegend layers={layers} stack={stack} />
       </div>
-      <p
-        data-testid="explore-map-view"
-        data-lat={view.lat.toFixed(5)}
-        data-lng={view.lng.toFixed(5)}
-        data-zoom={view.zoom.toFixed(2)}
-        role="status"
-        aria-live="polite"
-        // On a phone: the short form, one row above the bottom edge, so it
-        // clears MapLibre's attribution (which runs along the bottom) and the
-        // scale bar (bottom right, above the attribution).
-        className="type-caption1 pointer-events-none absolute bottom-9 left-2 z-map-overlay rounded-fluent-large border border-edge bg-surface/90 px-2 py-1 font-mono text-ink-muted shadow-8 sm:bottom-2"
-      >
-        <span className="sm:hidden">
-          {lat} {lng} z{view.zoom.toFixed(1)}
-        </span>
-        <span className="hidden sm:inline">
-          Centre {lat}, {lng} at zoom {view.zoom.toFixed(1)}
-        </span>
-      </p>
+      <div className="pointer-events-none absolute top-24 bottom-9 left-2 z-map-overlay flex max-w-[calc(100%_-_1rem)] flex-col items-start justify-end gap-2 sm:bottom-2">
+        <MapLegend layers={layers} stack={stack} />
+        <p
+          data-testid="explore-map-view"
+          data-lat={view.lat.toFixed(5)}
+          data-lng={view.lng.toFixed(5)}
+          data-zoom={view.zoom.toFixed(2)}
+          role="status"
+          aria-live="polite"
+          className="type-caption1 shrink-0 rounded-fluent-large border border-edge bg-surface/90 px-2 py-1 font-mono text-ink-muted shadow-8"
+        >
+          {lat}, {lng} · z{zoom}
+        </p>
+      </div>
     </div>
   );
 }

@@ -35,19 +35,25 @@ export function ReportEmptyBody({
       icon={<DocumentText20Regular />}
       title="No report published yet"
       actions={
-        <>
+        // Stacked at one width on a phone, side by side from sm.
+        <div className="flex w-full max-w-xs flex-col gap-2 sm:w-auto sm:max-w-none sm:flex-row">
           <ButtonLink
             variant="primary"
             href={`/topics/${slug}` as Route}
             icon={<ArrowRight16Regular aria-hidden="true" />}
             iconAfter
+            className="w-full sm:w-auto"
           >
             Start an analysis
           </ButtonLink>
-          <ButtonLink href="/data" icon={<Map20Regular aria-hidden="true" />}>
+          <ButtonLink
+            href="/data"
+            icon={<Map20Regular aria-hidden="true" />}
+            className="w-full sm:w-auto"
+          >
             Explore the data layers
           </ButtonLink>
-        </>
+        </div>
       }
     >
       What the {name.toLowerCase()} report will contain is still being specified, so this

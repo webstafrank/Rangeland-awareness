@@ -187,7 +187,6 @@ export default async function AccountPage() {
       )}
 
       <PageSection
-        tier="panel"
         eyebrow="In this build"
         title="What an account does today"
         intro="Accounts are a stub while the analysis is built. This is the full list of what one changes."

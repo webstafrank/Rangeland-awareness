@@ -39,6 +39,7 @@ import { HANDOFF_MESSAGE, readAreas } from "@/services/handoff/areas";
 import { planRun } from "@/services/run-flow/plan";
 import { receiptHref, resultHref, runningHref } from "@/services/run-flow/links";
 import { createBackendClient, failureMessage } from "@/services/backend-api";
+import { recordRun } from "@/services/run-history";
 import type {
   BackendFailure,
   RunStatus,
@@ -254,6 +255,14 @@ export default function StartRun({
       setPhase(next);
 
       if (next.kind === "started") {
+        // The service accepted it: remember it for the Overview and Reports
+        // "recent runs" lists. Recorded once, here, with the service's own id.
+        recordRun({
+          runId: next.runId,
+          topic: topic.slug,
+          startedAt: new Date().toISOString(),
+          query,
+        });
         // `replace`, not `push`: Back should return to the review step the
         // analyst came from, not to a URL that would start the run over.
         router.replace(runningHref(topic.slug, query, { request, runId: next.runId }));

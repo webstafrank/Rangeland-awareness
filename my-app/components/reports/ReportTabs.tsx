@@ -84,8 +84,9 @@ export function ReportPanelBand({ children }: { children: ReactNode }) {
  * wrapped tab row reads as two rows of choices) or pushing the page wider
  * than the viewport.
  *
- * Shifted 12px left (Fluent's large-tab padding plus its content inset,
- * measured) so the first label lines up with the heading and the card, not
+ * Shifted left by the tab's side padding plus its 2px content inset (12px,
+ * 8px on a phone where TAB_CLASS trims the padding)
+ * so the first label lines up with the heading and the card, not
  * the invisible edge of its hover background. On a phone the shift sits
  * inside the scroller's padding; from lg the scroller itself moves, so
  * neither clips the tab's hover or focus fill.
@@ -131,8 +132,36 @@ function TabRow({ children }: { children: ReactNode }) {
       className="-mx-gutter overflow-x-auto px-gutter lg:-mx-3 lg:px-0"
       style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
     >
-      <div className="-ml-3 lg:ml-0">{children}</div>
+      <div className="-ml-2 sm:-ml-3 lg:ml-0">{children}</div>
     </div>
+  );
+}
+
+/**
+ * What a tab shows below 640px, so all four fit a 360px phone without
+ * scrolling. The accessible name stays the full topic name (aria-label on
+ * the Tab), which is also what the tablist tests match.
+ */
+const SHORT_LABEL: Record<TopicSlug, string> = {
+  "flood-risk": "Flood",
+  "drought-monitoring": "Drought",
+  "rangeland-dynamics": "Rangeland",
+  "food-security": "Food security",
+};
+
+/**
+ * Fluent's medium tab, with its side padding taken from 10px to 6px on a
+ * phone (the row's left shift above follows: 6px plus the 2px content inset).
+ * `!` because Griffel's atomic classes are unlayered and would otherwise win.
+ */
+const TAB_CLASS = "max-sm:pl-1.5! max-sm:pr-1.5!";
+
+function TabLabel({ slug, name }: { slug: TopicSlug; name: string }) {
+  return (
+    <>
+      <span className="sm:hidden">{SHORT_LABEL[slug]}</span>
+      <span className="hidden sm:inline">{name}</span>
+    </>
   );
 }
 
@@ -143,15 +172,19 @@ function TabRow({ children }: { children: ReactNode }) {
  * imitation was 10px short and shifted the panel when the page landed).
  * Hidden from assistive tech: it cannot be used, and the live one replaces it.
  */
-export function ReportTabsPlaceholder({ names }: { names: readonly string[] }) {
+export function ReportTabsPlaceholder({
+  tabs,
+}: {
+  tabs: readonly { slug: TopicSlug; name: string }[];
+}) {
   return (
     <TabBand>
       <div aria-hidden="true">
         <TabRow>
-          <TabList size="large" disabled selectedValue={null}>
-            {names.map((name) => (
-              <Tab key={name} value={name} tabIndex={-1}>
-                {name}
+          <TabList size="medium" disabled selectedValue={null}>
+            {tabs.map((tab) => (
+              <Tab key={tab.slug} value={tab.slug} tabIndex={-1} className={TAB_CLASS}>
+                <TabLabel slug={tab.slug} name={tab.name} />
               </Tab>
             ))}
           </TabList>
@@ -233,11 +266,18 @@ export function ReportTabs({
             aria-label="Report topics"
             selectedValue={selected}
             onTabSelect={(_, data) => select(data.value as TopicSlug)}
-            size="large"
+            size="medium"
           >
             {tabs.map((tab) => (
-              <Tab key={tab.slug} id={tabId(tab.slug)} value={tab.slug} aria-controls={PANEL_ID}>
-                {tab.name}
+              <Tab
+                key={tab.slug}
+                id={tabId(tab.slug)}
+                value={tab.slug}
+                aria-controls={PANEL_ID}
+                aria-label={tab.name}
+                className={TAB_CLASS}
+              >
+                <TabLabel slug={tab.slug} name={tab.name} />
               </Tab>
             ))}
           </TabList>

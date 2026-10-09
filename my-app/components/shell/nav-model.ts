@@ -74,16 +74,21 @@ export interface Crumb {
   href?: Route;
 }
 
-const PAGE_TITLES: Readonly<Record<string, string>> = {
-  "/": "Overview",
-  "/data": "Explore data",
-  "/reports": "Reports",
-  "/about": "About",
-  "/help": "Help",
-  "/contact": "Contact",
-  "/account": "Account",
-  "/login": "Sign in",
-  "/signup": "Create account",
+/**
+ * Top-level pages, as the section they sit in and their own name. The section
+ * is a plain label, not a link: it names where the page belongs in the
+ * sidebar, so the top bar adds context instead of repeating the page title.
+ */
+const PAGE_TRAILS: Readonly<Record<string, readonly [string | null, string]>> = {
+  "/": [null, "Overview"],
+  "/data": ["Workspace", "Explore data"],
+  "/reports": ["Workspace", "Reports"],
+  "/about": ["Support", "About"],
+  "/help": ["Support", "Help"],
+  "/contact": ["Support", "Contact"],
+  "/account": [null, "Account"],
+  "/login": ["Account", "Sign in"],
+  "/signup": ["Account", "Create account"],
 };
 
 const TERMINAL_TITLES = { running: "Running", results: "Results" } as const;
@@ -94,8 +99,11 @@ const TERMINAL_TITLES = { running: "Running", results: "Results" } as const;
  */
 export function crumbsFor(pathname: string): Crumb[] {
   const path = pathname.replace(/\/+$/, "") || "/";
-  const title = PAGE_TITLES[path];
-  if (title) return [{ label: title }];
+  const trail = PAGE_TRAILS[path];
+  if (trail) {
+    const [section, title] = trail;
+    return section ? [{ label: section }, { label: title }] : [{ label: title }];
+  }
 
   const slug = currentTopic(path);
   if (slug) {

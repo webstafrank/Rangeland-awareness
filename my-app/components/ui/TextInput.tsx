@@ -36,10 +36,21 @@ export function TextInput({ invalid = false, className, tone: _tone, ...rest }: 
       aria-invalid={invalid || undefined}
       className={className}
       style={{ width: "100%" }}
+      input={{ className: PLACEHOLDER }}
       {...(rest as ComponentProps<typeof Input>)}
     />
   );
 }
+
+/*
+ * The placeholder in the palette's faint ink (#566378, about 6:1 on white),
+ * not Fluent's stock colorNeutralForeground4 grey, which the theme leaves
+ * unset and which sat off the cool palette. Griffel's ::placeholder rule is
+ * unlayered and so outranks any Tailwind utility; `!` is what lets this win.
+ * Placeholders are examples ("e.g. ..."), so a reader never mistakes one for
+ * a value already entered.
+ */
+const PLACEHOLDER = "placeholder:text-ink-faint! placeholder:opacity-100!";
 
 type SelectProps = Omit<ComponentProps<"select">, "size"> & { tone?: Tone; invalid?: boolean };
 

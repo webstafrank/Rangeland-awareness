@@ -26,6 +26,7 @@ import type { Session } from "@/contracts/auth";
 import {
   DataBarVertical20Regular,
   Dismiss20Regular,
+  Home20Regular,
   DocumentText20Regular,
   Info20Regular,
   Mail20Regular,
@@ -177,6 +178,22 @@ export function Sidebar({
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
         <div>
           <SectionLabel collapsed={collapsed}>Workspace</SectionLabel>
+          {/*
+            The Overview sits above the Primary nav rather than in it: the
+            three product sections are the same three the phone top bar shows,
+            and the acceptance rubric pins that nav to exactly those. It is
+            still a row like the others, marked when you are on it.
+          */}
+          <ul className="mb-0.5 flex flex-col">
+            <NavRow
+              href="/"
+              label="Overview"
+              icon={<Home20Regular />}
+              current={pathname === "/"}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+            />
+          </ul>
           <nav aria-label="Primary">
             <ul className="flex flex-col gap-0.5">
               {PRIMARY_ITEMS.map((item) => {

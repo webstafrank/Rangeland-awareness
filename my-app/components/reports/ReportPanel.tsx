@@ -1,6 +1,7 @@
 import type { Topic } from "@/services/analysis/topics";
 import { ReportEmptyBody } from "./ReportEmptyBody";
 import { ReportHeader } from "./ReportHeader";
+import { TopicRuns } from "./TopicRuns";
 
 /**
  * One topic's report, the body of its tab.
@@ -18,6 +19,7 @@ export function ReportPanel({ topic }: { topic: Topic }) {
   return (
     <article aria-labelledby="report-title" className="card overflow-hidden">
       <ReportHeader name={topic.name} question={topic.question} titleId="report-title" />
+      <TopicRuns slug={topic.slug} name={topic.name} />
       <ReportEmptyBody slug={topic.slug} name={topic.name} testId="report-body" />
     </article>
   );

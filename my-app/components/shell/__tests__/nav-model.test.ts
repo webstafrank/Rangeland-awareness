@@ -53,10 +53,17 @@ describe("support items", () => {
 });
 
 describe("crumbsFor", () => {
-  it("names a top-level page with one crumb", () => {
+  it("names a top-level page by its section and its own name", () => {
     expect(crumbsFor("/")).toEqual([{ label: "Overview" }]);
-    expect(crumbsFor("/data")).toEqual([{ label: "Explore data" }]);
-    expect(crumbsFor("/reports/")).toEqual([{ label: "Reports" }]);
+    expect(crumbsFor("/data")).toEqual([{ label: "Workspace" }, { label: "Explore data" }]);
+    expect(crumbsFor("/reports/")).toEqual([{ label: "Workspace" }, { label: "Reports" }]);
+    expect(crumbsFor("/help")).toEqual([{ label: "Support" }, { label: "Help" }]);
+  });
+
+  it("never links a section label, since it is not a page", () => {
+    for (const path of ["/data", "/reports", "/about", "/help", "/contact", "/login", "/signup"]) {
+      expect(crumbsFor(path)[0].href, path).toBeUndefined();
+    }
   });
 
   it("walks a topic step as section, topic, step", () => {

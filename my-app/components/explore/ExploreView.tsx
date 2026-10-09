@@ -87,11 +87,11 @@ export function ExploreView() {
    *
    * The DOM order is panel, map, so the keyboard meets the controls before
    * the map's own; on a phone `order` lifts the map above the panel. Panel
-   * widths are the shell's --layout-panel-min / -max tokens; scroll margins
+   * width is the shell's --layout-panel-min (320px); scroll margins
    * clear the sticky top bar (--layout-header-height).
    */
   return (
-    <div className="flex flex-col bg-surface lg:grid lg:h-[calc(100svh_-_var(--layout-header-height)_-_1px)] lg:grid-cols-[var(--layout-panel-min)_minmax(0,1fr)] xl:grid-cols-[var(--layout-panel-max)_minmax(0,1fr)]">
+    <div className="flex flex-col bg-surface lg:grid lg:h-[calc(100svh_-_var(--layout-header-height)_-_1px)] lg:grid-cols-[var(--layout-panel-min)_minmax(0,1fr)]">
       <h1 className="sr-only">Explore data</h1>
 
       <div

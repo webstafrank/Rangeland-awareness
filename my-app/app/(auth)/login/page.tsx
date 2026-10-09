@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <Eyebrow marked>Sign in</Eyebrow>
-        <h1 className="type-title2 text-ink">Welcome back</h1>
+      <div className="flex flex-col gap-1.5">
+        <Eyebrow>Sign in</Eyebrow>
+        <h1 className="type-title3 text-ink">Welcome back</h1>
         <p className="type-body1 text-ink-muted">
           No account yet?{" "}
           <Link href="/signup" className="rounded-fluent-small font-semibold text-accent-link hover:underline">

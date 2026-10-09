@@ -32,13 +32,10 @@
  */
 
 import type { Route } from "next";
-import {
-  ArrowLeft20Regular,
-  ArrowRepeatAll20Regular,
-  Info20Regular,
-} from "@/components/ui/icons";
+import { ArrowLeft20Regular, ArrowRepeatAll20Regular } from "@/components/ui/icons";
 
 import { ButtonLink } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/Notice";
 import { StatTile } from "@/components/ui/StatTile";
 import { FRAME } from "@/components/shell/Page";
 import { JobBadge } from "@/components/run/JobBadge";
@@ -130,7 +127,7 @@ export default function ResultView({
                 <JobBadge kind="run" state="succeeded" />
                 <span className="eyebrow">Completed run</span>
               </div>
-              <h2 id="result-heading" className="type-title2 mt-2 text-ink">
+              <h2 id="result-heading" className="type-subtitle1 mt-2 text-ink">
                 {result.indicator.label}
               </h2>
               <p className="type-caption1 mt-1 text-ink-faint">
@@ -145,14 +142,20 @@ export default function ResultView({
               primary button. Everything else, including the downloads, is
               secondary, so brand blue keeps meaning "this way".
             */}
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <ButtonLink href={reviewHref} icon={<ArrowLeft20Regular aria-hidden="true" />}>
+            {/* Full-width and stacked on a phone, a pair side by side above. */}
+            <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:items-center">
+              <ButtonLink
+                href={reviewHref}
+                icon={<ArrowLeft20Regular aria-hidden="true" />}
+                className="w-full justify-center sm:w-auto"
+              >
                 Back to review
               </ButtonLink>
               <ButtonLink
                 href={rerunHref}
                 variant="primary"
                 icon={<ArrowRepeatAll20Regular aria-hidden="true" />}
+                className="w-full justify-center sm:w-auto"
               >
                 Run this configuration again
               </ButtonLink>
@@ -160,14 +163,15 @@ export default function ResultView({
           </div>
 
           {/* ---------------- 2. the headline figures, 2 x 2 on a phone */}
-          <h3 id="headline-heading" className="sr-only">
+          <h2 id="headline-heading" className="sr-only">
             Headline figures
-          </h3>
+          </h2>
           <dl
             aria-labelledby="headline-heading"
             className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4"
           >
             <StatTile
+              compact
               label="Valid pixels"
               value={formatCount(result.validPixels ?? table.totalPixels)}
               unit="px"
@@ -178,18 +182,21 @@ export default function ResultView({
               }
             />
             <StatTile
+              compact
               label="Classified area"
               value={formatKm2(table.totalAreaKm2)}
               unit="km²"
               detail={`${config.areas.length} ${config.areas.length === 1 ? "area" : "areas"} of interest`}
             />
             <StatTile
+              compact
               label="Cell size"
               value={formatCount(result.grid?.resolution ?? config.resolution)}
               unit="m"
               detail={result.grid?.crs ?? config.targetCrs}
             />
             <StatTile
+              compact
               label="Largest class"
               value={table.largest ? formatPercent(table.largest.percent).replace("%", "") : "0"}
               unit="%"
@@ -202,23 +209,17 @@ export default function ResultView({
           </dl>
 
           {/*
-            The method, named before any number below is read (rubric S5), in
-            one line, with the detail one click down.
+            The method, named before any number below is read (rubric S5), as
+            the app's one note (Notice), one line with the detail one click down.
           */}
-          <div className="mt-4 flex gap-2 rounded-fluent-large bg-accent-soft px-3 py-2.5">
-            <Info20Regular aria-hidden="true" className="mt-px shrink-0 text-accent" />
-            <div className="min-w-0">
-              <p className="type-body1 font-semibold text-ink">
-                This is a weighted overlay, not a model.
-              </p>
-              <More summary="How the score is made">
-                Criterion layers reclassified 1 to 5, weighted and summed per pixel, then split
-                into five classes by Jenks natural breaks. Nothing was fitted to observed
-                outcomes, so there is no accuracy statistic and no training data behind any
-                number here.
-              </More>
-            </div>
-          </div>
+          <Notice intent="info" title="This is a weighted overlay, not a model." className="mt-4">
+            <More summary="How this is computed">
+              Criterion layers reclassified 1 to 5, weighted and summed per pixel, then split
+              into five classes by Jenks natural breaks. Nothing was fitted to observed
+              outcomes, so there is no accuracy statistic and no training data behind any
+              number here.
+            </More>
+          </Notice>
         </div>
       </section>
 

@@ -105,7 +105,7 @@ export default function SelectedAreas({
         // box inside a box reads as a second, empty control.
         <p className="type-caption1 mt-2 text-ink-muted">{emptyHint}</p>
       ) : (
-        <ul className="mt-3 max-h-80 min-h-0 divide-y divide-edge overflow-y-auto rounded-fluent-medium border border-edge lg:max-h-none lg:flex-1">
+        <ul className="mt-3 max-h-80 divide-y divide-edge overflow-y-auto rounded-fluent-medium border border-edge">
           {areas.map((area, index) => (
             <li
               key={area.id}

@@ -14,7 +14,6 @@
  * paint matches the server's HTML and a stored collapse applies right after.
  */
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Session } from "@/contracts/auth";
@@ -27,13 +26,6 @@ import {
   setSidebarCollapsed,
   subscribeSidebar,
 } from "./sidebar-store";
-
-const FOOTER_LINKS = [
-  ["About", "/about"],
-  ["Help", "/help"],
-  ["Contact", "/contact"],
-  ["Account", "/account"],
-] as const;
 
 /**
  * Full-height map workspaces. They fill the viewport under the top bar, so
@@ -102,20 +94,6 @@ export function AppShell({ session, children }: { session: Session | null; child
                   Geographics.
                 </p>
               </div>
-              <nav
-                aria-label="Footer navigation"
-                className="type-caption1 flex flex-wrap gap-x-5 gap-y-2"
-              >
-                {FOOTER_LINKS.map(([label, href]) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="rounded-fluent-small font-semibold text-ink-muted hover:text-accent-link hover:underline"
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </nav>
             </div>
           </footer>
         )}

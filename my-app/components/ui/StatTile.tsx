@@ -27,8 +27,9 @@ interface StatTileProps {
   /** Marks this as the screen's single most important number. */
   emphasis?: boolean;
   /**
-   * Value over label in a tighter card, for a row of three or four small
-   * figures that must stay one row on a phone. Hides `detail` below `sm`.
+   * The dense shape, for a row of three or four figures (the Overview's "At a
+   * glance" row, About): label, figure a step smaller, one caption line.
+   * No delta and no ruled footnote.
    */
   compact?: boolean;
 }
@@ -54,8 +55,9 @@ const senseChip = {
  *
  * The qualifier sits on the card's floor behind a hairline (`mt-auto`) and
  * reserves two caption lines (`min-h-11`), so across a row the hairlines sit
- * at one height whether a footnote runs to one line or two. A change is a tinted chip with an arrow AND a word; the tint
- * repeats what the word says rather than carrying it.
+ * at one height whether a footnote runs to one line or two. A change is a
+ * tinted chip with an arrow AND a word; the tint repeats what the word says
+ * rather than carrying it.
  *
  * Renders as a `dt`/`dd` group inside a wrapping `div`, so a row of tiles can
  * sit in one `<dl>` and a screen reader hears each as a term and its value.
@@ -71,17 +73,17 @@ export function StatTile({
   compact = false,
 }: StatTileProps) {
   if (compact) {
-    // dd before dt visually only: the DOM keeps term then value, so a screen
-    // reader still hears "Counties covered, 47".
+    // The Overview's "At a glance" shape: label, figure a step smaller, one
+    // caption line, tighter padding, so three or four fit one row.
     return (
       <div className="card flex h-full min-w-0 flex-col p-3 sm:p-4">
-        <dt className="type-caption1 order-2 mt-0.5 font-semibold text-ink-muted">{label}</dt>
-        <dd className="order-1 flex min-w-0 flex-wrap items-baseline gap-x-1 text-ink tabular-nums">
+        <dt className="type-caption1 min-w-0 break-words text-ink-faint">{label}</dt>
+        <dd className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-1 text-ink tabular-nums">
           <span className="type-title3 min-w-0 break-words sm:type-title2">{value}</span>
           {unit ? <span className="type-body1 text-ink-faint">{unit}</span> : null}
         </dd>
         {detail ? (
-          <dd className="type-caption1 order-3 mt-2 hidden text-ink-faint sm:block">{detail}</dd>
+          <dd className="type-caption1 min-w-0 break-words text-ink-muted">{detail}</dd>
         ) : null}
       </div>
     );

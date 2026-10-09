@@ -15,7 +15,7 @@ import { TOPICS } from "@/services/analysis/topics";
 export default function Loading() {
   return (
     <ReportsFrame>
-      <ReportTabsPlaceholder names={TOPICS.map((topic) => topic.name)} />
+      <ReportTabsPlaceholder tabs={TOPICS.map(({ slug, name }) => ({ slug, name }))} />
       <ReportPanelBand>
         <ReportSkeleton />
       </ReportPanelBand>

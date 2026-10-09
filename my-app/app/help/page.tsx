@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronDown16Regular } from "@/components/ui/icons";
 import { PageHero, PageSection } from "@/components/shell/Page";
 import { StepMarker } from "@/components/ui/StepMarker";
+import { STEPS } from "@/services/analysis/steps";
 import { buttonClasses } from "@/components/ui/button-classes";
 
 export const metadata: Metadata = {
@@ -10,29 +11,6 @@ export const metadata: Metadata = {
   description:
     "How to use Disaster Monitor: guides for running analysis, selecting areas, and interpreting results.",
 };
-
-const QUICK_START = [
-  {
-    title: "Choose a topic",
-    description:
-      "Pick the question you need answered: flood risk, drought, rangeland condition, or food security.",
-  },
-  {
-    title: "Pick a model",
-    description:
-      "Select between accuracy and speed, or run both and see where they disagree.",
-  },
-  {
-    title: "Select areas",
-    description:
-      "Click on the map, type coordinates, or upload a shapefile. Mix these freely.",
-  },
-  {
-    title: "Review and run",
-    description:
-      "Check the request, then run. The payload is validated before anything is submitted.",
-  },
-] as const;
 
 const FAQ = [
   {
@@ -61,6 +39,11 @@ const FAQ = [
  * Help, as a guide you can scan: the four steps first, then the questions
  * people actually ask as native disclosures.
  *
+ * The steps are the wizard's own registry (services/analysis/steps), label
+ * and hint, so Help cannot name a step the rail does not show. Choosing a
+ * topic comes before step 1 and is not numbered, as in the app: it is how
+ * you enter the flow, not a step of it.
+ *
  * The steps are one card holding a numbered list, each with the app's one
  * step indicator (StepMarker, upcoming): a row per step on a phone, four
  * columns from lg up. The FAQ is `<details>`/`<summary>`, so keyboard, screen
@@ -88,18 +71,30 @@ export default function HelpPage() {
       <PageSection
         eyebrow="Quick start"
         title="Four steps to your first analysis"
-        intro="Every analysis follows the same four-step flow. Each decision gets its own screen, and the step rail across the top keeps the other three one click away."
+        intro={
+          <>
+            First choose a topic on the{" "}
+            <Link
+              href="/"
+              className="rounded-fluent-small font-semibold text-accent-link hover:underline"
+            >
+              overview
+            </Link>
+            . Every topic then runs the same four steps, each on its own screen, with the step
+            rail keeping the others one click away.
+          </>
+        }
       >
         <ol className="card grid divide-y divide-edge lg:grid-cols-4 lg:divide-x lg:divide-y-0">
-          {QUICK_START.map((item, index) => (
-            <li key={item.title} className="flex gap-3 px-4 py-3.5 lg:flex-col lg:p-5">
+          {STEPS.map((item, index) => (
+            <li key={item.id} className="flex gap-3 px-4 py-3.5 lg:flex-col lg:p-5">
               <StepMarker number={index + 1} state="upcoming" />
               <div className="min-w-0">
                 <h3 className="type-subtitle2 text-ink">
                   <span className="sr-only">Step {index + 1}: </span>
-                  {item.title}
+                  {item.label}
                 </h3>
-                <p className="type-body1 mt-0.5 text-ink-muted">{item.description}</p>
+                <p className="type-body1 mt-0.5 text-ink-muted">{item.hint}</p>
               </div>
             </li>
           ))}
@@ -107,7 +102,6 @@ export default function HelpPage() {
       </PageSection>
 
       <PageSection
-        tier="panel"
         eyebrow="FAQ"
         title="Common questions"
         intro="Open a question to read the answer. Written guides for each step are in progress."

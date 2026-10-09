@@ -35,13 +35,13 @@ export function AccountCard({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  // The card keeps its place and shape on every route, the auth and account
+  // pages included: a sidebar that re-lays itself out per page reads as a
+  // different product on those pages. On /account it is marked as current.
   const onAccount = pathname === "/account";
-  // On the sign-in, sign-up and account pages the page itself is the call to
-  // action, so the sidebar does not repeat it.
-  const onAuthPage = pathname === "/login" || pathname === "/signup" || onAccount;
 
   if (!session) {
-    if (collapsed || onAuthPage) {
+    if (collapsed) {
       return (
         <Link
           href="/account"
@@ -58,7 +58,9 @@ export function AccountCard({
       );
     }
     return (
-      <div className="flex flex-col gap-2 rounded-fluent-large bg-nav-raised p-3">
+      <div
+        className={`flex flex-col gap-2 rounded-fluent-large p-3 ${onAccount ? "bg-nav-active" : "bg-nav-raised"}`}
+      >
         <p className="type-caption1 text-nav-ink-muted">
           Browsing as a visitor. Every topic and model works without an account.
         </p>
@@ -73,7 +75,7 @@ export function AccountCard({
           <Link
             href="/signup"
             onClick={onNavigate}
-            className="type-caption1 inline-flex h-7 flex-1 items-center justify-center rounded-fluent-medium border border-nav-edge font-semibold text-nav-ink hover:bg-nav-active"
+            className="type-caption1 inline-flex h-7 flex-1 items-center justify-center rounded-fluent-medium border border-nav-ink-faint font-semibold text-nav-ink hover:bg-nav-active"
           >
             Create account
           </Link>

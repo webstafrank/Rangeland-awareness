@@ -1,6 +1,7 @@
 import { TOPICS, type TopicSlug } from "@/services/analysis/topics";
 import { ReportEmptyBody } from "./ReportEmptyBody";
 import { ReportHeader } from "./ReportHeader";
+import { TopicRuns } from "./TopicRuns";
 
 /**
  * The loading state of a report panel, with a shimmer passing over its grey
@@ -46,6 +47,7 @@ export function ReportSkeleton({
       )}
       <div aria-hidden="true" inert className="relative">
         <div className="invisible">
+          <TopicRuns slug={sizer.slug} name={sizer.name} />
           <ReportEmptyBody slug={sizer.slug} name={sizer.name} />
         </div>
         {/* Positioned by a wrapper: `.skeleton` sets its own position:

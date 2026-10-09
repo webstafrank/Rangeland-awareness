@@ -67,7 +67,7 @@ export function ResultAreaMap({
   }, [shown]);
 
   return (
-    <div className="relative h-full min-h-[280px] w-full overflow-hidden bg-sunken">
+    <div className="relative h-full min-h-48 w-full overflow-hidden bg-sunken">
       <div className="absolute inset-0 grid place-items-center p-4">{fallback}</div>
       {shown.length > 0 ? (
         <div className="absolute inset-0">

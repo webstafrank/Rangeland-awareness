@@ -55,10 +55,12 @@ export function ClassificationSection({
       {/*
         `grid-cols-[minmax(0,1fr)]` on the one-column case, not just on lg: a
         grid's implicit column is sized by its content, and the table would
-        stretch it past 360px. Stretch alignment, so the map card ends where
-        the table card ends.
+        stretch it past 360px. Start-aligned: each card is as tall as what it
+        holds, never padded out to match its neighbour. The map is secondary
+        (a narrower column), because it shows where the run looked, not what
+        it found.
       */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
         <Panel title="Class table" pad="none" className="overflow-hidden">
           {/*
             `relative` is load-bearing: the visually hidden "%" in every share
@@ -134,11 +136,17 @@ export function ClassificationSection({
 
           <div className="border-t border-edge px-4 py-3 lg:px-5">
             {table.split.withinTolerance ? (
-              <p className="type-caption1 text-ink-faint">
-                Shares are of the valid pixels and add to 100%. Each one is rounded to a
-                tenth of a point by largest remainder, so the column totals exactly 100.0%
-                rather than 99.9%; no row moves by more than a tenth of a point.
-              </p>
+              <>
+                <p className="type-caption1 text-ink-faint">
+                  Shares are of the valid pixels and add to 100%.
+                </p>
+                <More summary="How this is computed">
+                  Each share is rounded to a tenth of a point by largest remainder, so the
+                  column totals exactly 100.0% rather than 99.9%; no row moves by more than a
+                  tenth of a point. The index range of each class comes from this run&apos;s
+                  Jenks breaks, below.
+                </More>
+              </>
             ) : (
               <p className="type-caption1 text-ink" data-testid="share-sum-warning">
                 <span className="font-semibold text-danger">These shares do not add to 100%.</span>{" "}
@@ -150,20 +158,34 @@ export function ClassificationSection({
           </div>
         </Panel>
 
-        <Panel
-          title="Area covered"
-          pad="none"
-          className="overflow-hidden"
-          action={<span className="type-caption1 text-ink-faint">{count} {count === 1 ? "area" : "areas"}</span>}
-        >
+        {/*
+          Its own header rather than Panel's, because the honest sentence
+          belongs in the header, under the title, not in a disclosure: the
+          service writes the classified raster to its own disk and serves no
+          tiles, so this map can only show where the run looked.
+        */}
+        <section aria-labelledby="areas-map-heading" className="card min-w-0 overflow-hidden">
+          <header className="border-b border-edge px-4 py-2.5 lg:px-5">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 id="areas-map-heading" className="type-subtitle2 text-ink">
+                Areas of this run
+              </h3>
+              <span className="type-caption1 shrink-0 text-ink-faint">
+                {count} {count === 1 ? "area" : "areas"}
+              </span>
+            </div>
+            <p className="type-caption1 mt-0.5 text-ink-muted">
+              The class surface is not served, so the map shows the areas only.
+            </p>
+          </header>
           {outline === null ? (
             <p className="type-body1 p-4 text-ink-muted lg:p-5">
               The configuration carries no polygon this page can draw. The class table is the
               whole result.
             </p>
           ) : (
-            <div className="flex h-full flex-col">
-              <div className="min-h-[280px] flex-1">
+            <div>
+              <div className="h-56">
                 <ResultAreaMap
                   areas={config.areas}
                   fallback={
@@ -205,17 +227,14 @@ export function ClassificationSection({
               </div>
               <div className="border-t border-edge px-4 py-3 lg:px-5">
                 <p className="type-caption1 break-words text-ink-faint tabular-nums">
-                  Extent {formatBounds(outline.bounds)}, WGS84
+                  Extent {formatBounds(outline.bounds)}, WGS84. The classified raster is
+                  written to the service&apos;s own filesystem and is not part of this
+                  response.
                 </p>
-                <More summary="Why the classes are not drawn on the map">
-                  The map shows the areas from the run&apos;s configuration. The classified
-                  raster is written to the service&apos;s own filesystem and is not part of
-                  this response, so there is no per-pixel surface to colour here.
-                </More>
               </div>
             </div>
           )}
-        </Panel>
+        </section>
       </div>
     </section>
   );

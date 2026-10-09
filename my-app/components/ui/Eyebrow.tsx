@@ -6,8 +6,9 @@ interface EyebrowProps {
   /** Accepted for compatibility. There is one light theme. */
   tone?: Tone;
   /**
-   * Prefixes a short brand-blue tick. The old kit drew this in scarlet; with
-   * one brand hue it is the accent, at its smallest useful size.
+   * Accepted for compatibility, and ignored. It used to prefix a brand-blue
+   * tick, but only some eyebrows had it, which made one label pattern look
+   * like two. Every eyebrow is now the same plain label.
    */
   marked?: boolean;
   className?: string;
@@ -17,17 +18,10 @@ interface EyebrowProps {
  * The small label above a heading. It carries the section's category so the
  * heading itself can stay short.
  *
- * Fluent caption1Strong in sentence case, not the tracked all-caps overline
- * the old kit used: the design system's content rule is sentence case for
- * every label, and the `eyebrow` utility in globals.css holds the one recipe.
+ * caption1 strong in sentence case, not a tracked all-caps overline: sentence
+ * case for every label, and the `eyebrow` utility in globals.css holds the one
+ * recipe.
  */
-export function Eyebrow({ children, marked = false, className = "" }: EyebrowProps) {
-  return (
-    <p className={`eyebrow flex items-center gap-2 ${className}`}>
-      {marked ? (
-        <span className="inline-block h-3 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
-      ) : null}
-      {children}
-    </p>
-  );
+export function Eyebrow({ children, className = "" }: EyebrowProps) {
+  return <p className={`eyebrow ${className}`}>{children}</p>;
 }

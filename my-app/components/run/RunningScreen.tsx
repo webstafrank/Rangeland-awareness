@@ -59,14 +59,11 @@ import { ProgressBar } from "@fluentui/react-components";
 import {
   ArrowClockwise20Regular,
   ArrowLeft20Regular,
-  ArrowSync16Regular,
-  Checkmark16Regular,
-  Dismiss16Regular,
   ErrorCircle20Filled,
   PlugDisconnected20Regular,
 } from "@/components/ui/icons";
 import { FRAME } from "@/components/shell/Page";
-import { JobBadge, stageWord } from "@/components/run/JobBadge";
+import { JobBadge } from "@/components/run/JobBadge";
 import { Button } from "@/components/ui/Button";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { Panel } from "@/components/ui/Panel";
@@ -138,15 +135,6 @@ const STAGE_LABEL_INK: Record<StageState, string> = {
   done: "text-ink",
   skipped: "text-ink-faint",
   failed: "text-ink font-semibold",
-};
-
-/** The state word's ink: the node's hue, darkened to text contrast. */
-const STAGE_WORD_INK: Record<StageState, string> = {
-  pending: "text-ink-faint",
-  running: "text-accent",
-  done: "text-success",
-  skipped: "text-ink-faint",
-  failed: "text-danger",
 };
 
 /* ------------------------------------------------------------- pure bits */
@@ -451,13 +439,14 @@ export default function RunningScreen({
         data-run-status={state.status}
       >
         {/* ---------------------------------------------- status column */}
-        <div className="flex min-w-0 flex-col gap-4">
+        {/* Sticky on a wide screen, so the status stays beside a long stage list. */}
+        <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6">
           <section aria-labelledby="run-heading" className="card p-4 lg:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <JobBadge kind="run" state={state.status} />
               <code className="type-caption1 font-mono break-all text-ink-faint">{runId}</code>
             </div>
-            <h2 id="run-heading" className="type-title3 mt-3 text-ink">
+            <h2 id="run-heading" className="type-subtitle1 mt-3 text-ink">
               Analysis run
             </h2>
 
@@ -506,6 +495,28 @@ export default function RunningScreen({
               is calculated in this browser; the stages are what the service reports
               it has done.
             </p>
+
+            {/*
+              The card's action row. Rendered whether or not the run is going:
+              leaving mid-run is a normal thing to want, and a screen whose
+              only exit appears on failure traps anyone who changed their mind.
+              Hidden on failure only because the failure block carries it.
+            */}
+            {!runFailed || paused ? (
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-edge pt-3">
+                {!runFailed && (
+                  <Link href={reviewHref} className={buttonClasses({ appearance: "subtle" })}>
+                    <ArrowLeft20Regular aria-hidden="true" />
+                    Back to review
+                  </Link>
+                )}
+                {paused && (
+                  <p className="type-caption1 text-ink-faint">
+                    Paused while this tab is in the background.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </section>
 
           {/*
@@ -622,7 +633,7 @@ export default function RunningScreen({
                       <span
                         aria-hidden="true"
                         className={`absolute top-8 bottom-1 left-[calc(0.875rem-1px)] w-0.5 rounded-full ${
-                          stage.state === "done" ? "bg-success/40" : "bg-edge"
+                          stage.state === "done" ? "bg-edge-strong" : "bg-edge"
                         }`}
                       />
                     )}
@@ -644,18 +655,16 @@ export default function RunningScreen({
                         className="type-caption1 block h-4 truncate text-ink-faint"
                         title={stage.detail ?? undefined}
                       >
-                        {stage.detail ?? ""}
+                        {stage.detail ? formatDetail(stage.detail) : ""}
                       </span>
                     </span>
 
                     {/*
-                      The state's word, beside the node's icon: icon plus word,
-                      once per row, so state is never colour alone.
+                      The state, once per row, as the JobBadge chip the run's
+                      own status uses: icon plus word, never colour alone.
                     */}
-                    <span className="flex flex-col items-end gap-0.5 pt-1">
-                      <span className={`type-caption1 font-semibold ${STAGE_WORD_INK[stage.state]}`}>
-                        {stageWord(stage.state)}
-                      </span>
+                    <span className="flex flex-col items-end gap-0.5 pt-0.5">
+                      <JobBadge kind="stage" state={stage.state} />
                       {/* Reserved for the same reason as the detail line. */}
                       <span className="type-caption1 block h-4 text-ink-faint tabular-nums">
                         {duration}
@@ -667,26 +676,6 @@ export default function RunningScreen({
             </ol>
           )}
         </Panel>
-
-        {/*
-          Rendered whether or not the run is going, after the stage list on
-          every width. Leaving mid-run is a normal thing to want, and a screen
-          whose only exit appears on failure traps anyone who changed their
-          mind. Hidden on failure only because the failure block carries it.
-        */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:col-span-2">
-          {!runFailed && (
-            <Link href={reviewHref} className={buttonClasses({ appearance: "subtle" })}>
-              <ArrowLeft20Regular aria-hidden="true" />
-              Back to review
-            </Link>
-          )}
-          {paused && (
-            <p className="type-caption1 text-ink-faint">
-              Paused while this tab is in the background.
-            </p>
-          )}
-        </div>
       </div>
 
       {state.status === "succeeded" && !onSucceeded && (
@@ -708,35 +697,38 @@ function StageCount({ finished, total }: { finished: number; total: number }) {
 }
 
 /**
- * The timeline node: the row's icon. aria-hidden, because the state's word is
- * printed beside it (and read), so neither the node's colour nor its glyph is
- * the only channel. Done shows a tick, failed a cross, running the turning
- * sync arrows (still under reduced motion), pending and skipped their step
- * number, skipped in a dashed ring.
+ * A stage's free-text detail in the app's one number format: the service
+ * writes "928x922 at 30m", the page says "928 × 922 at 30 m". Presentation
+ * only; the raw string stays in the row's tooltip.
+ */
+function formatDetail(detail: string): string {
+  return detail
+    .replace(/(\d)\s*[x×]\s*(\d)/g, "$1 × $2")
+    .replace(/(\d)(m|km|px)\b/g, "$1 $2");
+}
+
+/**
+ * The timeline node: the step number on the rail, nothing more. aria-hidden
+ * and deliberately quiet, because the state is the JobBadge chip on the right
+ * (icon plus word); a second state glyph here would say it twice. The node
+ * only echoes position: filled for the stage in progress, a soft fill for the
+ * ones behind it, an outline for the ones ahead.
  */
 const NODE: Record<StageState, string> = {
   pending: "border border-edge-strong bg-surface text-ink-faint",
   running: "bg-accent text-white",
-  done: "bg-success-soft text-success ring-1 ring-success/30",
-  skipped: "border border-dashed border-edge-strong bg-surface text-ink-faint",
-  failed: "bg-danger-soft text-danger ring-1 ring-danger/30",
+  done: "bg-sunken text-ink-muted",
+  skipped: "border border-edge bg-surface text-ink-faint",
+  failed: "bg-sunken text-ink-muted",
 };
 
 function StageNode({ state, number }: { state: StageState; number: number }) {
   return (
     <span
       aria-hidden="true"
-      className={`type-caption1 relative grid h-7 w-7 place-items-center rounded-full font-mono font-semibold tabular-nums ${NODE[state]}`}
+      className={`type-caption1 relative grid h-7 w-7 place-items-center rounded-full font-semibold tabular-nums ${NODE[state]}`}
     >
-      {state === "done" ? (
-        <Checkmark16Regular />
-      ) : state === "failed" ? (
-        <Dismiss16Regular />
-      ) : state === "running" ? (
-        <ArrowSync16Regular className="animate-spin [animation-duration:2s]" />
-      ) : (
-        number
-      )}
+      {number}
     </span>
   );
 }

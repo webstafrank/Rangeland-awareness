@@ -14,9 +14,12 @@ export const FRAME = "mx-auto w-full max-w-band px-gutter lg:px-gutter-lg";
 
 /**
  * The page header: a white band under the top bar, closed by a hairline, so
- * the canvas-grey sections below read as the page's body. The title is
- * title2, not a marketing-sized display: this is an application, and the
- * page's content is what should be large.
+ * the canvas-grey sections below read as the page's body.
+ *
+ * The heading system, one size per level across the app: the page title (the
+ * one h1) is title3, a section heading (h2) is subtitle1, a card heading (h3)
+ * is subtitle2. This is an application, and the page's content is what
+ * should be large, not its name.
  *
  * `actions` sit to the right of the title on a wide screen and below the lead
  * on a narrow one. `children` is anything else the header needs to hold.
@@ -39,9 +42,9 @@ export function PageHero({
       <div className={`${FRAME} py-6 lg:py-8`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <div className="max-w-3xl">
-            <Eyebrow marked>{eyebrow}</Eyebrow>
-            <h1 className="type-title2 mt-2 text-ink">{title}</h1>
-            <p className="type-body2 mt-2 text-ink-muted">{lead}</p>
+            <Eyebrow>{eyebrow}</Eyebrow>
+            <h1 className="type-title3 mt-1.5 text-ink">{title}</h1>
+            <p className="type-body1 mt-1.5 text-ink-muted">{lead}</p>
           </div>
           {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
         </div>
@@ -52,8 +55,12 @@ export function PageHero({
 }
 
 /**
- * A section of a page's body. `canvas` sits on the page grey; `panel` is a
- * white band, for alternating two sections that would otherwise run together.
+ * A section of a page's body, always on the page grey: optional eyebrow, the
+ * subtitle1 h2, an optional muted line, then its cards. Sections are told
+ * apart by their headings and the cards inside them, not by alternating
+ * white and grey full-bleed bands, which read as a marketing site.
+ *
+ * `tier` is accepted for compatibility and no longer changes the ground.
  */
 export function PageSection({
   eyebrow,
@@ -68,10 +75,10 @@ export function PageSection({
   children?: ReactNode;
   tier?: "canvas" | "panel";
 }) {
-  const ground = tier === "panel" ? "border-y border-edge bg-surface" : "";
+  void tier;
   return (
-    <section className={ground}>
-      <div className={`${FRAME} py-8 lg:py-10`}>
+    <section>
+      <div className={`${FRAME} py-6 lg:py-8`}>
         <div className="max-w-3xl">
           {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
           <h2 className={`type-subtitle1 text-ink ${eyebrow ? "mt-1.5" : ""}`}>{title}</h2>

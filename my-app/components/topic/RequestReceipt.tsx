@@ -62,7 +62,7 @@ export default function RequestReceipt({
      */
     <p
       data-testid="request-receipt"
-      className="type-caption1 flex min-h-7 min-w-0 items-center gap-x-1.5 gap-y-1 overflow-x-auto whitespace-nowrap rounded-fluent-medium bg-page px-3 py-1 sm:min-h-8 sm:py-1.5 text-ink-muted sm:flex-wrap sm:overflow-visible sm:whitespace-normal"
+      className="type-caption1 flex min-h-6 min-w-0 items-center gap-x-1.5 gap-y-1 overflow-x-auto whitespace-nowrap rounded-fluent-medium bg-page px-3 py-0.5 sm:min-h-8 sm:py-1.5 text-ink-muted sm:flex-wrap sm:overflow-visible sm:whitespace-normal"
     >
       {chip("topic", topic.name)}
       <span aria-hidden="true" className="text-ink-faint">

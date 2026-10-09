@@ -35,7 +35,6 @@ import {
   ErrorCircle16Regular,
   Eye16Regular,
   EyeOff16Regular,
-  LayerDiagonal20Regular,
   Search16Regular,
   ZoomFit16Regular,
 } from "@/components/ui/icons";
@@ -109,6 +108,8 @@ function StackRow({
   count,
   dispatch,
   onFocus,
+  selected,
+  onSelect,
 }: {
   layer: ExploreLayer;
   entry: StackEntry;
@@ -116,6 +117,9 @@ function StackRow({
   count: number;
   dispatch: (action: StackAction) => void;
   onFocus: (layer: ExploreLayer) => void;
+  /** Whether the panel's details foot is showing this layer. */
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const percent = Math.round(entry.opacity * 100);
   const opacityId = `stack-opacity-${layer.id}`;
@@ -125,7 +129,11 @@ function StackRow({
       data-testid="stack-row"
       data-layer-id={layer.id}
       className={`rounded-fluent-large border bg-surface p-2.5 ${
-        entry.status === "error" && entry.visible ? "border-danger" : "border-edge"
+        entry.status === "error" && entry.visible
+          ? "border-danger"
+          : selected
+            ? "border-accent"
+            : "border-edge"
       }`}
     >
       <div className="flex items-start gap-2">
@@ -137,11 +145,18 @@ function StackRow({
           {index + 1}
         </span>
         <div className="min-w-0 flex-1">
-          <p
-            className={`type-body1 font-semibold break-words ${entry.visible ? "text-ink" : "text-ink-muted"}`}
+          {/* The title picks the layer for the details foot. Named by its
+              title plus "details", never the bare title, which the catalogue
+              checkbox's label already is. */}
+          <button
+            type="button"
+            onClick={onSelect}
+            aria-pressed={selected}
+            aria-label={`${layer.title} details`}
+            className={`type-body1 rounded-fluent-small text-left font-semibold break-words hover:underline ${entry.visible ? "text-ink" : "text-ink-muted"}`}
           >
             {layer.title}
-          </p>
+          </button>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
             <StatusBadge entry={entry} />
             <span className="type-caption1 text-ink-faint">{layer.category}</span>
@@ -282,22 +297,23 @@ function CatalogRow({
 function CatalogStatusNote({ status }: { status: CatalogStatus }) {
   if (status.kind === "loading") {
     return (
-      <p role="status" className="type-caption1 flex items-center gap-1.5 text-ink-faint">
-        <ArrowSync16Regular aria-hidden="true" />
+      <Notice intent="info" role="status">
         Loading the KSA GeoServer layers&hellip;
-      </p>
+      </Notice>
     );
   }
   if (status.kind === "error") {
+    // The title is the Overview's wording (components/overview/a/CatalogStatus),
+    // so the two pages describe the same outage in the same words.
     return (
-      <Notice intent="warning" title="KSA layers unavailable.">
-        {status.message} NASA layers are still available.
+      <Notice intent="warning" title="Layer catalogue not reachable: showing built-in layers only.">
+        {status.message} The built-in NASA layers below still work.
       </Notice>
     );
   }
   if (status.stale) {
     return (
-      <Notice intent="warning" title="Catalogue may be out of date.">
+      <Notice intent="warning" title="Layer catalogue: cached copy.">
         GeoServer did not answer, so this is the last list the backend saw. New layers may be
         missing.
       </Notice>
@@ -325,8 +341,20 @@ export function LayerPanel({
     [shown, searching],
   );
 
+  // The layer whose details the panel's foot shows: the one picked from the
+  // stack, or the top of the stack until one is.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const detailsId =
+    selectedId !== null && stack.entries[selectedId] !== undefined
+      ? selectedId
+      : (stack.order[0] ?? null);
+  const detailsLayer = detailsId === null ? undefined : layersById.get(detailsId);
+
   return (
-    <section aria-label="Map layers" className="text-ink lg:h-full lg:overflow-y-auto">
+    <section
+      aria-label="Map layers"
+      className="flex flex-col text-ink lg:h-full lg:overflow-y-auto"
+    >
       {/* ---------------------------------------------------- on the map */}
       <section aria-labelledby="stack-heading" className="px-gutter py-4 lg:px-4">
         <div className="flex items-center justify-between gap-2">
@@ -348,17 +376,9 @@ export function LayerPanel({
           </div>
         </div>
         {stack.order.length === 0 ? (
-          <div className="mt-2.5 flex items-start gap-3 rounded-fluent-large border border-dashed border-edge-strong px-3 py-3">
-            <span
-              aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-fluent-medium bg-sunken text-ink-faint"
-            >
-              <LayerDiagonal20Regular />
-            </span>
-            <p className="type-caption1 text-ink-muted">
-              Nothing on the map yet. Tick a layer below to add it; the newest goes on top.
-            </p>
-          </div>
+          <p className="type-caption1 mt-0.5 text-ink-muted">
+            Nothing on the map yet. Tick a layer below to add it; the newest goes on top.
+          </p>
         ) : (
           <>
             <p className="type-caption1 mt-0.5 text-ink-faint">Top of the list is drawn on top.</p>
@@ -376,6 +396,8 @@ export function LayerPanel({
                     count={stack.order.length}
                     dispatch={dispatch}
                     onFocus={onFocus}
+                    selected={id === detailsLayer?.id}
+                    onSelect={() => setSelectedId(id)}
                   />
                 );
               })}
@@ -418,6 +440,7 @@ export function LayerPanel({
               {searching
                 ? `${shown.length} of ${layers.length} layers match`
                 : `${layers.length} layers`}
+              {ksaStatus.kind === "error" ? ", built-in only" : ""}
             </p>
           </div>
         </div>
@@ -442,15 +465,16 @@ export function LayerPanel({
                   className="group"
                   data-testid="category"
                 >
-                  {/* An empty category is drawn quieter (lighter label, a
-                      zero badge) so the ones with layers stand out, but it
-                      keeps its place in the configured order: the order is
-                      the catalogue's, and E1 pins it. */}
+                  {/* An empty category is drawn quieter (faint label on the
+                      subtle ground, a zero badge) so the ones with layers
+                      stand out, but it keeps its place in the configured
+                      order: the order is the catalogue's, and E1 pins it.
+                      Every row is the same height, counted or not. */}
                   <summary
-                    className={`type-body1 flex cursor-pointer list-none items-center gap-2 px-3 transition-colors duration-150 hover:bg-surface-subtle [&::-webkit-details-marker]:hidden ${
+                    className={`type-body1 flex min-h-10 cursor-pointer list-none items-center gap-2 px-3 py-2 transition-colors duration-150 [&::-webkit-details-marker]:hidden ${
                       group.layers.length === 0
-                        ? "py-1.5 text-ink-faint"
-                        : "py-2 font-semibold text-ink"
+                        ? "bg-surface-subtle text-ink-faint hover:bg-sunken"
+                        : "font-semibold text-ink hover:bg-surface-subtle"
                     }`}
                   >
                     <ChevronDown16Regular
@@ -484,6 +508,55 @@ export function LayerPanel({
           ) : null}
         </div>
       </section>
+
+      {/* -------------------------------------------------- layer details */}
+      {detailsLayer !== undefined ? <LayerDetails layer={detailsLayer} /> : null}
+    </section>
+  );
+}
+
+const degrees = (value: number, positive: string, negative: string) =>
+  `${Math.abs(value).toFixed(2)}° ${value >= 0 ? positive : negative}`;
+
+/**
+ * The picked layer's particulars, in the panel's foot: what it is, who
+ * publishes it, which date is drawn and where it has data. Pushed to the
+ * bottom of the docked panel (mt-auto), so it fills the room under the
+ * catalogue rather than leaving it blank. The legend itself is on the map.
+ */
+function LayerDetails({ layer }: { layer: ExploreLayer }) {
+  const rows: [string, string][] = [
+    ["Source", layer.sourceLabel],
+    ["Category", layer.category],
+  ];
+  if (layer.timeNote !== null) rows.push(["Date", layer.timeNote]);
+  if (layer.bounds !== null) {
+    const [w, s, e, n] = layer.bounds;
+    rows.push([
+      "Extent",
+      `${degrees(w, "E", "W")} to ${degrees(e, "E", "W")}, ${degrees(s, "N", "S")} to ${degrees(n, "N", "S")}`,
+    ]);
+  }
+  return (
+    <section
+      aria-labelledby="layer-details-heading"
+      className="mt-auto border-t border-edge bg-surface-subtle px-gutter py-4 lg:px-4"
+    >
+      <p className="eyebrow">Layer details</p>
+      <h2 id="layer-details-heading" className="type-subtitle2 mt-0.5 break-words text-ink">
+        {layer.title}
+      </h2>
+      {layer.description !== "" ? (
+        <p className="type-caption1 mt-1 text-ink-muted">{layer.description}</p>
+      ) : null}
+      <dl className="type-caption1 mt-2.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        {rows.map(([term, value]) => (
+          <div key={term} className="contents">
+            <dt className="text-ink-faint">{term}</dt>
+            <dd className="break-words text-ink">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

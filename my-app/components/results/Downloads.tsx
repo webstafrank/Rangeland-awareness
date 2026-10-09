@@ -106,16 +106,15 @@ function DownloadRow({ file }: { file: DownloadFile }) {
             {file.detail}
           </span>
           {/*
-            The filename on its own line, never broken inside the name. A run
-            id plus the suffix is about 48 characters, wider than a 360px
-            screen leaves, so it truncates with the full name in the tooltip;
-            the size sits outside the truncation so it is always readable.
+            The full filename on its own line, in caption mono, wrapping only
+            where the name has a hyphen (the browser's own break opportunity)
+            and never inside a token. The longest token, the run id, is about
+            15 characters, well inside a phone's width. The size follows on the
+            same line, kept whole.
           */}
-          <span className="type-caption1 mt-1 flex min-w-0 items-baseline gap-1.5 text-ink-faint">
-            <span className="min-w-0 truncate font-mono" title={file.filename}>
-              {file.filename}
-            </span>
-            <span className="shrink-0 tabular-nums">{sizeOf(file.body)}</span>
+          <span className="type-caption1 mt-1 block text-ink-faint">
+            <span className="font-mono break-normal">{file.filename}</span>
+            <span className="whitespace-nowrap tabular-nums"> · {sizeOf(file.body)}</span>
           </span>
         </span>
         <span

@@ -368,7 +368,7 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
                 </span>
                 <span className="eyebrow">Validated request</span>
               </div>
-              <h2 id="receipt-heading" className="type-title2 mt-2 text-ink">
+              <h2 id="receipt-heading" className="type-subtitle1 mt-2 text-ink">
                 Request receipt
               </h2>
               <p className="type-caption1 mt-1 text-ink-faint">
@@ -400,14 +400,15 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
 
       <div className={`${FRAME} flex flex-col gap-8 py-8 lg:gap-10 lg:py-10`}>
         <section aria-labelledby="request-summary-heading">
-          <h3 id="request-summary-heading" className="sr-only">
+          <h2 id="request-summary-heading" className="sr-only">
             Request summary
-          </h3>
+          </h2>
           <dl data-testid="results-summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatTile label="Topic" value={topic.name} />
-            <StatTile label="Analysis type" value={spec.label} />
-            <StatTile label="Model" value={model?.label ?? request.model} detail="Not run" />
+            <StatTile compact label="Topic" value={topic.name} />
+            <StatTile compact label="Analysis type" value={spec.label} />
+            <StatTile compact label="Model" value={model?.label ?? request.model} detail="Not run" />
             <StatTile
+              compact
               label="Areas"
               value={String(request.areas.length)}
               unit={request.areas.length === 1 ? "area" : "areas"}
@@ -417,9 +418,9 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
         </section>
 
         <section aria-labelledby="area-details-heading">
-          <h3 id="area-details-heading" className="type-subtitle1 mb-4 text-ink">
+          <h2 id="area-details-heading" className="type-subtitle1 mb-4 text-ink">
             Areas in this request
-          </h3>
+          </h2>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
             <div className="card h-[360px] overflow-hidden lg:h-[clamp(400px,calc(100svh-320px),560px)]">
               <AoiMap
@@ -460,7 +461,7 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
 
               <div className="card flex min-h-[200px] flex-1 flex-col overflow-hidden">
                 <header className="flex min-h-11 items-center justify-between border-b border-edge px-4 py-2.5">
-                  <h4 className="type-subtitle2 text-ink">Analyst notes</h4>
+                  <h3 className="type-subtitle2 text-ink">Analyst notes</h3>
                   <span className="type-caption1 text-ink-faint tabular-nums">
                     {notes.length > 0 ? `${notes.length} chars` : "Empty"}
                   </span>
@@ -488,9 +489,9 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
         </section>
 
         <section aria-labelledby="export-heading">
-          <h3 id="export-heading" className="type-subtitle1 text-ink">
+          <h2 id="export-heading" className="type-subtitle1 text-ink">
             Export this request
-          </h3>
+          </h2>
           <p className="type-caption1 mt-0.5 mb-4 text-ink-faint">
             Every file carries the notice above, so one detached from this page cannot be
             mistaken for model output.

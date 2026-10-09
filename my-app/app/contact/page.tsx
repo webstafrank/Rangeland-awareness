@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { Mail20Regular } from "@/components/ui/icons";
+import {
+  Handshake20Regular,
+  Mail20Regular,
+  Megaphone20Regular,
+  QuestionCircle20Regular,
+  Wrench20Regular,
+} from "@/components/ui/icons";
 import { PageHero, PageSection } from "@/components/shell/Page";
 import { buttonClasses } from "@/components/ui/button-classes";
 
@@ -12,21 +18,25 @@ export const metadata: Metadata = {
 const CHANNELS = [
   {
     label: "General enquiries",
+    Icon: QuestionCircle20Regular,
     value: "info@rangeland-awareness.go.ke",
     description: "Questions about the platform or its data.",
   },
   {
     label: "Technical support",
+    Icon: Wrench20Regular,
     value: "support@rangeland-awareness.go.ke",
     description: "Issues with the platform or your account.",
   },
   {
     label: "Partnerships",
+    Icon: Handshake20Regular,
     value: "partnerships@ksa.go.ke",
     description: "Collaboration and data sharing enquiries.",
   },
   {
     label: "Media",
+    Icon: Megaphone20Regular,
     value: "communications@ksa.go.ke",
     description: "Press and media enquiries.",
   },
@@ -68,7 +78,7 @@ export default function ContactPage() {
                 aria-hidden="true"
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-fluent-large bg-accent-soft text-accent"
               >
-                <Mail20Regular />
+                <channel.Icon />
               </span>
               <div className="min-w-0">
                 <h3 className="type-subtitle2 text-ink">{channel.label}</h3>
@@ -86,7 +96,6 @@ export default function ContactPage() {
       </PageSection>
 
       <PageSection
-        tier="panel"
         eyebrow="Location"
         title="Kenya Space Agency"
         intro="The Kenya Space Agency is the national space agency responsible for coordinating and promoting Kenya's space activities. Disaster Monitor is one of its earth observation initiatives."

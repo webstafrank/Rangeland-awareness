@@ -185,6 +185,9 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
     <StepShell
       topic={topic}
       step="review"
+      // The band width, like every other step: at the 980px reading width the
+      // summary stopped short of the rail and the footer above and below it.
+      width="band"
       wizard={wizard}
       action={<RunAction validation={validation} onRun={run} />}
       actionNote={
@@ -200,14 +203,14 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
           The card's header: whether this request can run, in words and an
           icon as well as a colour, and the way to throw it all away.
         */}
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-edge bg-surface-subtle px-4 py-2.5 lg:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-edge bg-surface-subtle px-4 py-2 lg:px-5">
           {validation.ok ? (
-            <p className="type-caption1 inline-flex items-center gap-1.5 rounded-fluent-circular bg-success-soft px-2.5 py-0.5 font-semibold text-success">
+            <p className="type-body1 inline-flex items-center gap-1.5 font-semibold text-success">
               <CheckmarkCircle16Regular aria-hidden="true" />
               Ready to run
             </p>
           ) : (
-            <p className="type-caption1 inline-flex items-center gap-1.5 rounded-fluent-circular bg-warn-soft px-2.5 py-0.5 font-semibold text-warn">
+            <p className="type-body1 inline-flex items-center gap-1.5 font-semibold text-warn">
               <Warning16Regular aria-hidden="true" />
               Not ready yet
             </p>

@@ -36,14 +36,14 @@ export const backClasses = buttonClasses({
 });
 
 /**
- * Why the forward control is refusing: one short line, beside the buttons.
- * On a phone it takes the room left of them (two lines at most, no taller
- * than the buttons), from lg it sits right-aligned against them. Shared by
+ * Why the forward control is refusing: one short line. On a phone it has its
+ * own full-width line above the buttons (beside them it wrapped to three
+ * lines); from lg it sits right-aligned against them. Shared by
  * Continue's reason and Run's, so both read in the same place and the same
  * type.
  */
 export const footerNoteClass =
-  "type-caption1 min-w-0 flex-1 text-ink-muted lg:max-w-xs lg:flex-none lg:text-right";
+  "type-caption1 text-ink-muted lg:max-w-xs lg:text-right";
 
 /**
  * The area rule as one short line, for the footer.

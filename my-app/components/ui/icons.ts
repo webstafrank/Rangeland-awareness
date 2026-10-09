@@ -61,6 +61,7 @@ export { FullScreenMaximize16Regular } from "@fluentui/react-icons/svg/full-scre
 export { FullScreenMinimize16Regular } from "@fluentui/react-icons/svg/full-screen-minimize";
 export { Globe20Regular } from "@fluentui/react-icons/svg/globe";
 export { Grid20Regular } from "@fluentui/react-icons/svg/grid";
+export { Handshake20Regular } from "@fluentui/react-icons/svg/handshake";
 export { Home20Regular } from "@fluentui/react-icons/svg/home";
 export { Info20Regular } from "@fluentui/react-icons/svg/info";
 export { LayerDiagonal16Regular, LayerDiagonal20Regular } from "@fluentui/react-icons/svg/layer-diagonal";
@@ -69,7 +70,9 @@ export { Location16Regular, Location20Regular } from "@fluentui/react-icons/svg/
 export { LockClosed16Regular } from "@fluentui/react-icons/svg/lock-closed";
 export { Mail20Regular } from "@fluentui/react-icons/svg/mail";
 export { Map20Regular } from "@fluentui/react-icons/svg/map";
+export { Megaphone20Regular } from "@fluentui/react-icons/svg/megaphone";
 export { Navigation20Regular } from "@fluentui/react-icons/svg/navigation";
+export { Next16Regular } from "@fluentui/react-icons/svg/next";
 export { Open16Regular } from "@fluentui/react-icons/svg/open";
 export { PanelLeftContract20Regular } from "@fluentui/react-icons/svg/panel-left-contract";
 export { PanelLeftExpand20Regular } from "@fluentui/react-icons/svg/panel-left-expand";
@@ -86,4 +89,5 @@ export { Timer20Regular } from "@fluentui/react-icons/svg/timer";
 export { Warning12Filled, Warning16Regular, Warning20Regular } from "@fluentui/react-icons/svg/warning";
 export { WeatherRainShowersDay20Regular, WeatherRainShowersDay24Regular } from "@fluentui/react-icons/svg/weather-rain-showers-day";
 export { WeatherSunny20Regular, WeatherSunny24Regular } from "@fluentui/react-icons/svg/weather-sunny";
+export { Wrench20Regular } from "@fluentui/react-icons/svg/wrench";
 export { ZoomFit16Regular } from "@fluentui/react-icons/svg/zoom-fit";

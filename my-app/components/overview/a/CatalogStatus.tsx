@@ -1,14 +1,16 @@
+import type { ReactNode } from "react";
 import { connection } from "next/server";
 import { createBackendClient, failureMessage } from "@/services/backend-api";
+import { StatusBadge } from "./StatusBadge";
 
 /**
- * The live layer catalogue, as one quiet status line beside "At a glance".
+ * The live layer catalogue, as a row of the Overview's status card: whether
+ * it answered, how many layers and workspaces it lists, and how fresh it is.
  *
- * An async server component, rendered inside <Suspense> by Overview, so the
- * page streams at once and only this line waits, for at most the client's 2s.
- * It says what it read or that it could not read, nothing else: no API path
- * and no raw failure text on the page. failureMessage rides in a title
- * tooltip for anyone who wants the reason.
+ * An async server component inside <Suspense>, so the page streams at once
+ * and only this row waits, for at most the client's 2s. It says what it read
+ * or that it could not read: never an API path or raw failure text on the
+ * page. failureMessage rides in a title tooltip for anyone who wants it.
  *
  * `connection()` keeps it live: without it Next would prerender the homepage
  * at build time and bake in whatever the catalogue said on the build machine.
@@ -20,14 +22,23 @@ function plural(n: number, one: string, many: string): string {
   return `${NUMBER.format(n)} ${n === 1 ? one : many}`;
 }
 
-const DOT = {
-  success: "bg-success",
-  warn: "bg-warn",
-  muted: "bg-edge-strong",
-} as const;
+/** "40 seconds", "12 minutes", "3 hours": the age of a cached copy. */
+export function age(seconds: number): string {
+  if (seconds < 60) return plural(Math.max(0, Math.round(seconds)), "second", "seconds");
+  if (seconds < 3600) return plural(Math.round(seconds / 60), "minute", "minutes");
+  return plural(Math.round(seconds / 3600), "hour", "hours");
+}
 
-function Dot({ tone }: { tone: keyof typeof DOT }) {
-  return <span aria-hidden="true" className={`inline-block h-2 w-2 shrink-0 rounded-full ${DOT[tone]}`} />;
+function Row({ badge, detail, title }: { badge: ReactNode; detail: string; title?: string }) {
+  return (
+    <div className="py-3 last:pb-0" title={title}>
+      <dt className="flex items-center justify-between gap-3">
+        <span className="type-body1 font-semibold text-ink">Layer catalogue</span>
+        {badge}
+      </dt>
+      <dd className="type-caption1 mt-1 text-ink-muted">{detail}</dd>
+    </div>
+  );
 }
 
 export default async function CatalogStatus() {
@@ -36,36 +47,47 @@ export default async function CatalogStatus() {
 
   if (!result.ok) {
     return (
-      <p
-        className="type-caption1 flex items-center gap-1.5 text-ink-faint"
+      <Row
+        badge={<StatusBadge tone="idle" word="Not reachable" />}
+        detail="Layer catalogue not reachable. No layer count until it answers."
         title={failureMessage(result.failure)}
-      >
-        <Dot tone="muted" />
-        Layer catalogue not reachable
-      </p>
+      />
     );
   }
 
-  const { count, workspaces, stale } = result.data;
+  const { count, workspaces, stale, fetchedAgoSeconds } = result.data;
+  const listing = `${plural(count, "layer", "layers")} in ${plural(workspaces.length, "workspace", "workspaces")}`;
+
+  if (stale) {
+    const when = fetchedAgoSeconds !== undefined ? ` from ${age(fetchedAgoSeconds)} ago` : "";
+    return (
+      <Row
+        badge={<StatusBadge tone="warn" word="Cached" />}
+        detail={`${listing}. A cached copy${when}: GeoServer did not answer.`}
+      />
+    );
+  }
+
   return (
-    <p className="type-caption1 flex min-w-0 items-center gap-1.5 text-ink-muted">
-      <Dot tone={stale ? "warn" : "success"} />
-      <span className="truncate">
-        Layer catalogue: {plural(count, "layer", "layers")} in{" "}
-        {plural(workspaces.length, "workspace", "workspaces")}
-        {stale ? " (cached copy)" : ""}
-      </span>
-    </p>
+    <Row
+      badge={<StatusBadge tone="good" word="Live" />}
+      detail={`${listing}, read from GeoServer just now.`}
+    />
   );
 }
 
-/** The Suspense fallback: the same line, its figures pending. */
+/** The Suspense fallback: the same row, its reading pending. */
 export function CatalogStatusSkeleton() {
   return (
-    <p className="type-caption1 flex items-center gap-1.5 text-ink-faint" aria-busy="true">
-      <Dot tone="muted" />
-      <span className="sr-only">Checking the layer catalogue</span>
-      <span aria-hidden="true" className="skeleton block h-2.5 w-40 rounded-fluent-medium" />
-    </p>
+    <div className="py-3 last:pb-0" aria-busy="true">
+      <dt className="flex items-center justify-between gap-3">
+        <span className="type-body1 font-semibold text-ink">Layer catalogue</span>
+        <StatusBadge tone="idle" word="Checking" />
+      </dt>
+      <dd className="mt-2">
+        <span className="sr-only">Checking the layer catalogue</span>
+        <span aria-hidden="true" className="skeleton block h-2.5 w-48 rounded-fluent-medium" />
+      </dd>
+    </div>
   );
 }

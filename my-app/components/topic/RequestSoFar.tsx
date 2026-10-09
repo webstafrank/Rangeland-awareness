@@ -22,22 +22,23 @@ import type { Wizard } from "@/components/topic/useWizard";
 export interface RequestSoFarProps {
   topic: Topic;
   wizard: Wizard;
-  /** Show what the topic returns and reads. The scope step, where a wrong topic is cheapest to notice. */
-  showTopicFacts?: boolean;
 }
 
-export default function RequestSoFar({
-  topic,
-  wizard,
-  showTopicFacts = false,
-}: RequestSoFarProps) {
+/*
+ * The same rows on every step that shows it, in the same order: the four
+ * decisions, then what the topic returns and reads. A rail that changed its
+ * contents from step to step read as a different panel each time.
+ */
+export default function RequestSoFar({ topic, wizard }: RequestSoFarProps) {
   const { spec, model, state, query } = wizard;
   const count = state.areas.length;
 
   const row = (label: string, value: React.ReactNode) => (
     <div className="flex items-baseline justify-between gap-4 border-t border-edge py-2.5 first:border-t-0 first:pt-0">
       <dt className="eyebrow shrink-0">{label}</dt>
-      <dd className="type-body1 min-w-0 text-right font-semibold text-ink">{value}</dd>
+      <dd className="type-body1 min-w-0 text-right font-semibold text-ink">
+        {value}
+      </dd>
     </div>
   );
 
@@ -62,30 +63,28 @@ export default function RequestSoFar({
         )}
       </dl>
 
-      {/* What this topic actually returns. It belongs on the first step: it
-          is the last chance to notice you opened the wrong topic before
-          spending four screens on it. */}
-      {showTopicFacts && (
-        <dl className="mt-4 space-y-3 border-t border-edge pt-4">
-          <div>
-            <dt className="eyebrow">What comes back</dt>
-            <dd className="type-caption1 mt-1 text-ink-muted">{topic.output}</dd>
-          </div>
-          <div>
-            <dt className="eyebrow">Model inputs</dt>
-            <dd className="mt-1.5 flex flex-wrap gap-1.5">
-              {topic.inputs.map((input) => (
-                <span
-                  key={input}
-                  className="type-caption1 rounded-fluent-medium border border-edge bg-surface-subtle px-2 py-0.5 text-ink-muted"
-                >
-                  {input}
-                </span>
-              ))}
-            </dd>
-          </div>
-        </dl>
-      )}
+      {/* What this topic actually returns. On the first step it is the last
+          chance to notice the wrong topic before spending four screens on
+          it; on the others it is what the decisions above are for. */}
+      <dl className="mt-4 space-y-3 border-t border-edge pt-4">
+        <div>
+          <dt className="eyebrow">What comes back</dt>
+          <dd className="type-caption1 mt-1 text-ink-muted">{topic.output}</dd>
+        </div>
+        <div>
+          <dt className="eyebrow">Model inputs</dt>
+          <dd className="mt-1.5 flex flex-wrap gap-1.5">
+            {topic.inputs.map((input) => (
+              <span
+                key={input}
+                className="type-caption1 rounded-fluent-medium border border-edge bg-surface-subtle px-2 py-0.5 text-ink-muted"
+              >
+                {input}
+              </span>
+            ))}
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }

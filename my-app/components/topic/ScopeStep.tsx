@@ -59,7 +59,7 @@ export default function ScopeStep({ topic, initial }: ScopeStepProps) {
       wizard={wizard}
       // The request so far, plus what this topic returns: the last chance to
       // notice the wrong topic before spending four screens on it.
-      aside={<RequestSoFar topic={topic} wizard={wizard} showTopicFacts />}
+      aside={<RequestSoFar topic={topic} wizard={wizard} />}
     >
       <RadioCards
         legend="Analysis type"
@@ -70,9 +70,9 @@ export default function ScopeStep({ topic, initial }: ScopeStepProps) {
         onChange={(analysisType: AnalysisTypeId) =>
           dispatch({ type: "setAnalysisType", analysisType })
         }
-        // Side by side: two cards with room, and the choice reads as a fork
-        // rather than as a list where the first option is the default.
-        layout="row"
+        // Stacked, like the model step: full-width rows beside the rail. Side
+        // by side they were two short cards over a column of empty canvas.
+        layout="stack"
       />
 
       {state.notice !== null && (

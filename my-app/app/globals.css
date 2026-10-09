@@ -138,7 +138,7 @@
    * ------------------------------------------------------------- data-viz
    *
    * The Fluent design system's map/chart data colours: categorical
-   * (Okabe-Ito, colour-blind safe), sequential (viridis), diverging (BrBG)
+   * (Okabe-Ito, colour-blind safe), sequential (YlOrRd, a risk ramp), diverging (BrBG)
    * and confusion-matrix ramps, plus the two map-specific tokens. These are
    * NOT app chrome, same rule as the --color-navy-*, --color-scarlet-* data-viz
    * namespace below: a category keeps its colour on the map, the legend, the
@@ -166,11 +166,16 @@
   --data-cat-7: #f0e442;
   --data-cat-8: #8a8a8a;
 
-  --data-seq-1: #440154;
-  --data-seq-2: #3b528b;
-  --data-seq-3: #21918c;
-  --data-seq-4: #5ec962;
-  --data-seq-5: #fde725;
+  /* Result classes, lowest to highest risk: ColorBrewer YlOrRd, light warm to
+     dark red. Viridis ran dark purple to bright yellow, so "very high" flood
+     risk was the brightest, safest-looking class. Luminance falls monotonically
+     (0.72, 0.53, 0.40, 0.17, 0.05), so the order survives every form of colour
+     blindness; each class also carries its name in the table. */
+  --data-seq-1: #fed976;
+  --data-seq-2: #feb24c;
+  --data-seq-3: #fd8d3c;
+  --data-seq-4: #e31a1c;
+  --data-seq-5: #800026;
 
   --data-div-1: #8c510a;
   --data-div-2: #d8b365;

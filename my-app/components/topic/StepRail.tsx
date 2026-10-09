@@ -22,7 +22,7 @@
  *   complete   filled marker with a check, a link, and ", done" spoken.
  *              Only when the step's requirement is met: see isComplete
  *   upcoming   outlined number, and a link
- *   locked     dashed outline with its number, plain text, and ", not yet
+ *   locked     drawn as upcoming, but plain text rather than a link, and ", not yet
  *              available" spoken
  *
  * From `sm` up a hairline joins each step to the next, turning accent once
@@ -68,7 +68,7 @@ const LABEL: Record<StepMarkerState, string> = {
   current: "font-semibold text-ink",
   complete: "text-ink-muted group-hover:text-ink",
   upcoming: "text-ink-muted group-hover:text-ink",
-  locked: "text-ink-faint",
+  locked: "text-ink-muted",
 };
 
 export default function StepRail({
@@ -127,8 +127,8 @@ export default function StepRail({
                 <span className={shell}>
                   {body}
                   {/*
-                    Said out loud rather than implied by the dashed marker, because
-                    the dash is invisible to the people most likely to be stuck.
+                    Said out loud rather than implied: locked looks like upcoming, and
+                    only this text and the missing link tell the two apart.
 
                     Deliberately NOT aria-disabled: on a bare span with no
                     role, that attribute is inert to every assistive

@@ -9,6 +9,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { TOPICS } from "../services/analysis/topics";
+import { STUB_RUN_ID, startStubBackend } from "./stub-backend";
 
 const isPhone = (name: string) => name === "mobile";
 
@@ -113,6 +114,30 @@ test.describe("app shell", () => {
     await tabs.getByRole("tab", { name: TOPICS[0].name, exact: true }).focus();
     await page.keyboard.press("ArrowRight");
     await expect(tabs.getByRole("tab", { name: TOPICS[1].name, exact: true })).toBeFocused();
+  });
+
+  test("S6: a run the service accepted is listed on the Overview, linked back to it", async ({
+    page,
+  }) => {
+    // A real run, end to end against the stub service: areas, review, Run.
+    const backend = await startStubBackend(Number(process.env.STUB_BACKEND_PORT ?? 8791));
+    try {
+      await page.goto("/topics/flood-risk/areas");
+      await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+      await page.getByLabel(/^coordinates$/i).fill("2.4512, 36.8203");
+      await page.getByLabel(/^coordinates$/i).press("Enter");
+      await page.getByTestId("step-continue").click();
+      await page.getByRole("button", { name: /run analysis/i }).click();
+      await expect(page).toHaveURL(new RegExp(`running\\?.*\\brun=${STUB_RUN_ID}`));
+
+      await page.goto("/");
+      const recent = page.getByTestId("recent-runs");
+      await expect(recent).toContainText("Flood risk");
+      const link = recent.getByRole("link").first();
+      await expect(link).toHaveAttribute("href", new RegExp(`/topics/flood-risk/running\\?.*\\brun=${STUB_RUN_ID}`));
+    } finally {
+      await backend.close();
+    }
   });
 
   test("S5: the top bar shows the live service state", async ({ page }, testInfo) => {

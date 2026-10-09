@@ -27,7 +27,7 @@ export function Swatch({ colour }: { colour: string }) {
 /** A labelled fact in a definition list. Used for the provenance block. */
 export function Fact({ term, children }: { term: string; children: ReactNode }) {
   return (
-    <div className="min-w-0 border-t border-edge pt-2.5">
+    <div className="min-w-0">
       <dt className="type-caption1 text-ink-faint">{term}</dt>
       <dd className="type-body1 mt-0.5 break-words text-ink">{children}</dd>
     </div>
@@ -95,9 +95,9 @@ export function SectionHead({
 }) {
   return (
     <div className="mb-4">
-      <h3 id={id} className="type-subtitle1 text-ink">
+      <h2 id={id} className="type-subtitle1 text-ink">
         {title}
-      </h3>
+      </h2>
       {lead ? <p className="type-body1 mt-0.5 text-ink-muted">{lead}</p> : null}
     </div>
   );

@@ -135,7 +135,7 @@ values that were repeated across twelve class strings:
 | `--container-band` | `max-w-band` | The content ceiling every band agrees on. |
 | `--container-step` | `max-w-step` | One step's reading width. Narrower than the band, because a decision is a column. |
 | `--spacing-gutter`, `--spacing-gutter-lg` | `px-gutter`, `lg:px-gutter-lg` | The page gutter. |
-| `--shadow-lifted` | `shadow-lifted` | The sticky action bar, which casts upward. |
+| `shadow-up` (utility) | `shadow-up` | The sticky action bar, which casts upward. |
 
 Two custom utilities are defined with `@utility`, both because a repeated
 decision is a decision and should be named once:
@@ -208,15 +208,16 @@ scrolling on a 900px viewport.
 the top, that step was 1737px tall — 969px of scrolling on a 1366x768 laptop —
 and the map was never on screen at the same time as the controls that drive it,
 so every selection moved a viewport the analyst could not see. On `lg` and up
-the three methods and the running list stack in a 340px column, the map takes
-the rest, and the map is `sticky` so the column scrolls past it. Below `lg`
-they stay stacked: a phone has no second column to give.
+the three methods and the running list stack in a 360px column at their
+natural height, the map takes the rest, and the map card is `sticky` under the
+top bar so the column scrolls past it. Below `lg` they stay stacked, map
+first: a phone has no second column to give.
 
 This is not the arrangement the old single page rejected. That one put eight
 controls in a narrow rail, including the scope and the model; those have their
 own screens now, so the column holds three panels and a list.
 
-The map's height comes from the viewport (`clamp(360px, 100svh - 320px, 620px)`)
+The map's height comes from the viewport (`clamp(360px, 100svh - 145px, 620px)`)
 rather than a fixed 620, so it fits the screen it is on. The `sticky` only
 works because the grid does **not** set `items-start`: that would size the map
 column to the map, leaving it nothing to travel inside.

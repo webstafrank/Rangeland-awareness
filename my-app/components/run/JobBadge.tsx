@@ -8,7 +8,7 @@ import {
   Clock16Regular,
   DismissCircle16Regular,
   ErrorCircle16Regular,
-  SubtractCircle16Regular,
+  Next16Regular,
 } from "@/components/ui/icons";
 import type { RunStatus, StageState } from "@/services/backend-api";
 
@@ -32,8 +32,10 @@ import type { RunStatus, StageState } from "@/services/backend-api";
 
 type Look = {
   word: string;
-  color: "brand" | "success" | "danger" | "informative";
+  color: "brand" | "success" | "danger" | "informative" | "subtle";
   Icon: typeof Clock16Regular;
+  /** Tint by default. A skipped stage is an outline, so it never reads as pending. */
+  appearance?: "tint" | "outline";
 };
 
 const RUN: Record<RunStatus, Look> = {
@@ -48,7 +50,9 @@ const STAGE: Record<StageState, Look> = {
   pending: { word: "Pending", color: "informative", Icon: Circle16Regular },
   running: { word: "Running", color: "brand", Icon: ArrowSync16Regular },
   done: { word: "Done", color: "success", Icon: CheckmarkCircle16Regular },
-  skipped: { word: "Skipped", color: "informative", Icon: SubtractCircle16Regular },
+  // Muted, outlined and with the skip glyph: a stage that will not run is
+  // information, but it must not look like one that is waiting to.
+  skipped: { word: "Skipped", color: "subtle", Icon: Next16Regular, appearance: "outline" },
   failed: { word: "Failed", color: "danger", Icon: ErrorCircle16Regular },
 };
 
@@ -68,7 +72,7 @@ export function JobBadge(
 
   return (
     <Badge
-      appearance="tint"
+      appearance={look.appearance ?? "tint"}
       color={look.color}
       size="medium"
       shape="rounded"

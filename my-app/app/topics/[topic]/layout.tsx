@@ -46,11 +46,11 @@ export default async function TopicLayout({
         beside the tile, and the band is one row tall.
       */}
       <section className="band-chrome border-b border-edge">
-        <div className="mx-auto flex w-full max-w-band items-center gap-3 px-gutter py-2.5 lg:gap-4 lg:px-gutter-lg">
+        <div className="mx-auto flex w-full max-w-band items-center gap-3 px-gutter py-2 lg:gap-4 lg:px-gutter-lg">
           <TopicIcon slug={topic.slug} />
 
           <div className="min-w-0 flex-1">
-            <h1 className="type-subtitle2 text-ink sm:type-subtitle1">{topic.name}</h1>
+            <h1 className="type-title3 text-ink">{topic.name}</h1>
             <p className="type-caption1 text-ink-muted sm:type-body1">
               {topic.question}
             </p>

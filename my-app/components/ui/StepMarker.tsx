@@ -8,8 +8,8 @@ import { Checkmark16Regular } from "./icons";
  *   complete   filled accent, a check
  *   current    filled accent, the number, with a soft ring
  *   upcoming   outlined, the number
- *   locked     outlined and dimmed, the number (why it is locked is said in
- *              text beside it, never by an icon alone)
+ *   locked     drawn exactly as upcoming; why it is locked is said in text
+ *              beside it, never by a different outline or an icon alone
  *
  * Complete is the heaviest state on purpose: work already done should read as
  * solid, and what is ahead as open. Decorative: the caller names the step and
@@ -28,7 +28,10 @@ const STATE: Record<StepMarkerState, string> = {
   complete: "bg-accent text-white",
   current: "bg-accent text-white ring-4 ring-accent-soft",
   upcoming: "border border-edge-strong bg-surface text-ink-muted",
-  locked: "border border-dashed border-edge-strong bg-surface-subtle text-ink-faint",
+  // Same as upcoming, on purpose: one idle style. What makes a step locked
+  // is said in text beside it ("not yet available"), never by a second
+  // outline that reads as a different kind of step.
+  locked: "border border-edge-strong bg-surface text-ink-muted",
 };
 
 export function StepMarker({

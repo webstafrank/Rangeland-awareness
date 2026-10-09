@@ -29,7 +29,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           required
-          placeholder="you@ksa.go.ke"
+          placeholder="e.g. you@ksa.go.ke"
           invalid={Boolean(err("email"))}
           aria-describedby={err("email") ? "email-error" : undefined}
         />

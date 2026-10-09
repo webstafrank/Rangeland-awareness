@@ -165,7 +165,7 @@ export default function StepShell({
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="type-subtitle1 text-ink outline-none lg:type-title3"
+            className="type-subtitle1 text-ink outline-none"
           >
             {spec.title}
           </h2>
@@ -210,7 +210,7 @@ export default function StepShell({
       */}
       <div className="sticky bottom-0 z-action-bar mt-auto border-t border-edge bg-surface shadow-up">
         <div
-          className={`${container} flex flex-col gap-2 py-2 lg:flex-row lg:items-center lg:gap-6 lg:py-2.5`}
+          className={`${container} flex flex-col gap-1 py-1.5 lg:flex-row lg:items-center lg:gap-6 lg:py-2.5`}
         >
           <RequestReceipt
             topic={topic}
@@ -221,15 +221,15 @@ export default function StepShell({
           />
 
           {/*
-            The movement: one row at every width. Any refusal reason takes
-            the room to the left of the buttons, one short line (two at most
-            on a phone, never taller than the buttons), so the bar stays two
-            rows on a phone and one from lg.
+            The movement. On a phone: any refusal reason on its own line, then
+            the buttons right-aligned under it, which keeps the bar near 93px
+            with the receipt (73px without a reason). From lg: one row, the
+            reason right-aligned against the buttons.
           */}
-          <div className="flex min-h-8 items-center gap-3 lg:ml-auto lg:shrink-0 lg:gap-4">
+          <div className="flex flex-col gap-1 lg:ml-auto lg:shrink-0 lg:flex-row lg:items-center lg:gap-4">
             {reason}
 
-            <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center justify-end gap-2">
               {back !== null && (
                 <Link
                   href={stepHref(topic.slug, back, query)}
