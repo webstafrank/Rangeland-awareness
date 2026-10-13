@@ -39,7 +39,7 @@ export function PageHero({
   children?: ReactNode;
 }) {
   return (
-    <section className="border-b border-edge bg-gradient-to-r from-surface via-surface to-accent/15">
+    <section className="border-b border-edge bg-gradient-to-r from-surface via-surface to-accent/35">
       <div className={`${FRAME} py-6 lg:py-8`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <div className="rise max-w-3xl" style={stagger(0)}>

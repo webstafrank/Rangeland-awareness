@@ -353,7 +353,7 @@
  * The soft card: a white card that carries a breath of the accent along its
  * top edge, so the right-hand column reads as light blue and white instead of
  * a stack of identical white boxes. The wash is the accent
- * token mixed into the surface (13%), fading out, so it follows any retune of the palette and
+ * token mixed into the surface (18%), under a solid accent bar, fading out, so it follows any retune of the palette and
  * adds no colour of its own. `lift` is the hover for a card that is a link or
  * holds one: a 1px rise and the next shadow step, nothing that moves layout.
  */
@@ -361,13 +361,17 @@
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)) 0,
+      color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)) 0,
       var(--color-surface) 7rem
     ),
     var(--color-surface);
-  border: 1px solid color-mix(in srgb, var(--color-accent) 24%, var(--color-edge));
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-edge));
   border-radius: var(--radius-fluent-xlarge);
-  box-shadow: var(--shadow-4);
+  /* The button's own blue, as a solid bar along the top edge. Inset, so it
+     adds no height and shifts nothing. */
+  box-shadow:
+    inset 0 3px 0 var(--color-accent),
+    var(--shadow-4);
 }
 
 @utility lift {
