@@ -97,7 +97,7 @@ export function ExploreView() {
       <div
         id={PANEL_ID}
         tabIndex={-1}
-        className="order-2 min-w-0 scroll-mt-[var(--layout-header-height)] border-edge outline-none lg:order-none lg:min-h-0 lg:border-r"
+        className="order-2 min-w-0 scroll-mt-[var(--layout-header-height)] border-t-[3px] border-edge border-t-accent outline-none lg:order-none lg:min-h-0 lg:border-r"
       >
         <LayerPanel
           layers={layers}

@@ -31,7 +31,7 @@ export function ReportSkeleton({
 }) {
   const sizer = topic ?? TOPICS[0];
   return (
-    <div data-testid="report-skeleton" className="card overflow-hidden">
+    <div data-testid="report-skeleton" className="card-soft overflow-hidden">
       {topic ? (
         <ReportHeader name={topic.name} question={topic.question} />
       ) : (

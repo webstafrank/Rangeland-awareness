@@ -550,6 +550,44 @@ test.describe("motion", () => {
       .toEqual({ opacity: 1, transform: "none", animation: "none" });
   });
 
+  test("M9: the homepage's status column and every page header rise in, then settle", async ({
+    page,
+  }) => {
+    // Listen before the page's own scripts run: the entrance starts at load.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __rise: string[] };
+      w.__rise = [];
+      document.addEventListener("animationstart", (e) => {
+        if (e.animationName === "rise") w.__rise.push((e.target as HTMLElement).tagName);
+      });
+    });
+    await page.goto("/");
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __rise: string[] }).__rise.length))
+      .toBeGreaterThanOrEqual(4);
+
+    // Finished means opaque and un-lifted, so nothing is left as a containing
+    // block under the status card or the map.
+    const status = page.locator("section[aria-labelledby='overview-status']");
+    await expect.poll(() => settled(status)).toBe(true);
+    await expect(status).toHaveCSS("transform", "none");
+
+    // A shared page header plays it too.
+    await page.goto("/about");
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __rise: string[] }).__rise.length))
+      .toBeGreaterThanOrEqual(1);
+  });
+
+  test("M9b: reduced motion turns the rise off", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await expect(page.locator("section[aria-labelledby='overview-status']")).toHaveCSS(
+      "animation-name",
+      "none",
+    );
+  });
+
   test("M3: reduced motion turns off the fade, the reveal and smooth scrolling", async ({
     page,
   }) => {

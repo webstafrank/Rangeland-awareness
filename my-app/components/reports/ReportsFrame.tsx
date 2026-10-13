@@ -15,7 +15,7 @@ import { FRAME } from "@/components/shell/Page";
 export function ReportsFrame({ children }: { children: ReactNode }) {
   return (
     <>
-      <section className="bg-surface">
+      <section className="bg-gradient-to-r from-surface via-surface to-accent/35">
         <div className={`${FRAME} pt-6 pb-2 lg:pt-8`}>
           <h1 className="type-title3 text-ink">Reports</h1>
           <p className="type-body2 mt-1 max-w-3xl text-ink-muted">

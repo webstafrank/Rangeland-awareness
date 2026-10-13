@@ -128,7 +128,7 @@ function StackRow({
     <li
       data-testid="stack-row"
       data-layer-id={layer.id}
-      className={`rounded-fluent-large border bg-surface p-2.5 ${
+      className={`rounded-fluent-large border bg-gradient-to-b from-accent/10 to-surface p-2.5 ${
         entry.status === "error" && entry.visible
           ? "border-danger"
           : selected
@@ -356,7 +356,7 @@ export function LayerPanel({
       className="flex flex-col text-ink lg:h-full lg:overflow-y-auto"
     >
       {/* ---------------------------------------------------- on the map */}
-      <section aria-labelledby="stack-heading" className="px-gutter py-4 lg:px-4">
+      <section aria-labelledby="stack-heading" className="panel-soft px-gutter py-4 lg:px-4">
         <div className="flex items-center justify-between gap-2">
           <h2 id="stack-heading" className="type-subtitle2 flex items-center gap-2 text-ink">
             On the map

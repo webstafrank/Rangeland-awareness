@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { stagger } from "@/components/ui/stagger";
 
 /**
  * The furniture of a page: its header, its sections and a card grid.
@@ -38,17 +39,25 @@ export function PageHero({
   children?: ReactNode;
 }) {
   return (
-    <section className="border-b border-edge bg-surface">
+    <section className="border-b border-edge bg-gradient-to-r from-surface via-surface to-accent/35">
       <div className={`${FRAME} py-6 lg:py-8`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
-          <div className="max-w-3xl">
+          <div className="rise max-w-3xl" style={stagger(0)}>
             <Eyebrow>{eyebrow}</Eyebrow>
             <h1 className="type-title3 mt-1.5 text-ink">{title}</h1>
             <p className="type-body1 mt-1.5 text-ink-muted">{lead}</p>
           </div>
-          {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+          {actions ? (
+            <div className="rise flex shrink-0 flex-wrap gap-2" style={stagger(1)}>
+              {actions}
+            </div>
+          ) : null}
         </div>
-        {children ? <div className="mt-5">{children}</div> : null}
+        {children ? (
+          <div className="rise mt-5" style={stagger(2)}>
+            {children}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -79,12 +88,16 @@ export function PageSection({
   return (
     <section>
       <div className={`${FRAME} py-6 lg:py-8`}>
-        <div className="max-w-3xl">
+        <div className="rise max-w-3xl" style={stagger(1)}>
           {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
           <h2 className={`type-subtitle1 text-ink ${eyebrow ? "mt-1.5" : ""}`}>{title}</h2>
           {intro ? <div className="type-body1 mt-1.5 text-ink-muted">{intro}</div> : null}
         </div>
-        {children ? <div className="mt-5">{children}</div> : null}
+        {children ? (
+          <div className="rise mt-5" style={stagger(2)}>
+            {children}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -99,8 +112,8 @@ export function InfoGrid({
 }) {
   return (
     <dl className={`grid gap-4 sm:grid-cols-2 ${columns === 3 ? "lg:grid-cols-3" : ""}`}>
-      {items.map((item) => (
-        <div key={item.label} className="card p-4 lg:p-5">
+      {items.map((item, index) => (
+        <div key={item.label} className="rise card lift p-4 lg:p-5" style={stagger(index + 2)}>
           <dt className="type-subtitle2 text-ink">{item.label}</dt>
           {item.value ? (
             <dd className="type-body1 mt-1 font-semibold break-words text-accent-link">
