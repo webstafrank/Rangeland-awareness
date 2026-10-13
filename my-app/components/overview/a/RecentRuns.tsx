@@ -82,17 +82,27 @@ export function RecentRuns() {
     <section
       aria-labelledby="recent-runs-title"
       data-testid="recent-runs"
-      className="card flex flex-col p-4 lg:p-5"
+      className="card flex flex-col border-t-4 p-4 lg:p-5"
+      // The Overview map's zone colours: semi-arid blue panel, navy top edge,
+      // light-blue heading (the non-ASAL tint), white text on the blue.
+      style={{
+        backgroundColor: "var(--data-zone-semi-arid)",
+        borderTopColor: "var(--data-zone-arid)",
+      }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-        <h3 id="recent-runs-title" className="type-subtitle2 text-ink">
+        <h3
+          id="recent-runs-title"
+          className="type-subtitle2"
+          style={{ color: "var(--data-zone-humid)" }}
+        >
           Recent runs
         </h3>
-        <p className="type-caption1 text-ink-faint">Started in this browser</p>
+        <p className="type-caption1 text-white">Started in this browser</p>
       </div>
 
       {!hydrated ? (
-        <ul aria-hidden="true" className="mt-3 divide-y divide-edge">
+        <ul aria-hidden="true" className="mt-3 divide-y divide-white/15">
           {[0, 1, 2].map((row) => (
             <li key={row} className="flex items-center gap-3 py-2.5">
               <span className="skeleton block h-8 w-8 rounded-fluent-medium" />
@@ -111,12 +121,12 @@ export function RecentRuns() {
               Choose a topic
             </Link>
           }
-          className="flex-1 justify-center py-6"
+          className="flex-1 justify-center py-6 [&>div]:text-white [&>h3]:text-white"
         >
           Each run the analysis service accepts is listed here, newest first.
         </StateBlock>
       ) : (
-        <ul className="mt-2 divide-y divide-edge">
+        <ul className="mt-2 divide-y divide-white/15">
           {shown.map((run) => {
             const topic = getTopic(run.topic);
             const name = topic?.name ?? run.topic;
@@ -124,23 +134,23 @@ export function RecentRuns() {
               <li key={run.runId}>
                 <Link
                   href={runningHref(run.topic, run.query, { runId: run.runId })}
-                  className="group -mx-2 flex min-h-12 items-center gap-3 rounded-fluent-medium px-2 py-1.5 transition-colors duration-150 hover:bg-surface-subtle"
+                  className="group -mx-2 flex min-h-12 items-center gap-3 rounded-fluent-medium px-2 py-1.5 transition-colors duration-150 hover:bg-white/10"
                 >
                   <TopicIcon slug={run.topic} size="sm" />
                   <span className="min-w-0 flex-1">
-                    <span className="type-body1 block font-semibold text-ink">{name}</span>
+                    <span className="type-body1 block font-semibold text-white">{name}</span>
                     <time
                       dateTime={run.startedAt}
                       title={ABSOLUTE.format(new Date(run.startedAt))}
-                      className="type-caption1 block text-ink-muted"
+                      className="type-caption1 block text-white"
                     >
                       Started {startedAgo(run.startedAt, now)}
                     </time>
                   </span>
-                  <span className="type-caption1 font-semibold text-accent-link group-hover:underline">
+                  <span className="type-caption1 font-semibold text-white group-hover:underline">
                     Open
                   </span>
-                  <ChevronRight16Regular aria-hidden="true" className="shrink-0 text-ink-faint group-hover:text-accent" />
+                  <ChevronRight16Regular aria-hidden="true" className="shrink-0 text-white/70 group-hover:text-white" />
                 </Link>
               </li>
             );
