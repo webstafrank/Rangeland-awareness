@@ -17,7 +17,7 @@ import { TopicRuns } from "./TopicRuns";
  */
 export function ReportPanel({ topic }: { topic: Topic }) {
   return (
-    <article aria-labelledby="report-title" className="card overflow-hidden">
+    <article aria-labelledby="report-title" className="card-soft overflow-hidden">
       <ReportHeader name={topic.name} question={topic.question} titleId="report-title" />
       <TopicRuns slug={topic.slug} name={topic.name} />
       <ReportEmptyBody slug={topic.slug} name={topic.name} testId="report-body" />

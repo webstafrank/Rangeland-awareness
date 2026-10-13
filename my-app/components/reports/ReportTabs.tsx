@@ -62,7 +62,7 @@ const PANEL_ID = "report-panel";
  */
 function TabBand({ children }: { children: ReactNode }) {
   return (
-    <div className="border-b border-edge bg-surface">
+    <div className="border-b border-edge bg-gradient-to-r from-surface via-surface to-accent/35">
       <div className={FRAME}>{children}</div>
     </div>
   );
