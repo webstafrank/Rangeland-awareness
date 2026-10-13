@@ -6,7 +6,8 @@
  * through the backend's tile proxy, so the browser never needs to reach the
  * LAN-only GeoServer itself. NASA GIBS layers come from the hand-verified
  * registry in services/wms and are fetched from GIBS directly, with a TIME
- * resolved from each layer's published extent. Both end up as an
+ * resolved from each layer's published extent, and clipped to Kenya's outline
+ * on the way to the map (see ./clip.ts). Both end up as an
  * `ExploreLayer`: a title, a category, a tile URL template and a legend, which
  * is everything the panel and the map need and nothing about where it came
  * from.
@@ -17,6 +18,7 @@
  */
 
 import type { CatalogLayer } from "@/services/backend-api/types";
+import { KENYA_CLIP_BOUNDS, clipToKenya } from "@/services/explore/clip";
 import {
   describeLayerTime,
   getMapParams,
@@ -148,7 +150,8 @@ export function fromWmsSource(source: WmsSource, dateWindow: WmsDateWindow): Exp
       description: layer.description,
       category: SATELLITE_CATEGORY,
       sourceLabel: source.label,
-      tiles,
+      // NASA's imagery is global; the explorer shows Kenya. See clip.ts.
+      tiles: clipToKenya(tiles),
       attribution: layer.attribution,
       legend:
         legend.kind === "none"
@@ -156,7 +159,9 @@ export function fromWmsSource(source: WmsSource, dateWindow: WmsDateWindow): Exp
           : legend.kind === "published"
             ? { kind: "image", url: legend.url, width: legend.width, height: legend.height }
             : { kind: "image", url: legend.url },
-      bounds: null,
+      // Clipped to Kenya, so Kenya is the extent: MapLibre requests no tile
+      // outside it, and "Zoom to layer" frames the country.
+      bounds: KENYA_CLIP_BOUNDS,
       timeNote: layer.timeDimension === true ? describeLayerTime(time) : null,
       features: null,
       unavailable: params === null ? describeLayerTime(time) : null,

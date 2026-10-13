@@ -7,3 +7,4 @@ export * from "./categories";
 export * from "./layers";
 export * from "./stack";
 export * from "./popup";
+export * from "./clip";

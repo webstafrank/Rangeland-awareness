@@ -186,3 +186,9 @@ export default geo;
  * before it has any area selected. Same object `geo.frame()` returns.
  */
 export { MAP_FRAME } from "./data/counties.generated";
+
+/**
+ * Kenya's national outline in lon/lat, for the data explorer's satellite clip.
+ * See ./data/kenya-outline.generated.ts.
+ */
+export { KENYA_OUTLINE, KENYA_OUTLINE_BBOX } from "./data/kenya-outline.generated";

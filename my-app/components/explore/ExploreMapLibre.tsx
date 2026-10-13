@@ -34,6 +34,7 @@ import maplibregl, {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import { registerKenyaClip } from "@/components/explore/kenyaClipProtocol";
 import { BasemapSwitch, MapLegend } from "@/components/explore/MapOverlays";
 import { CountBadge } from "@/components/ui/CountBadge";
 import { LayerDiagonal16Regular } from "@/components/ui/icons";
@@ -323,6 +324,8 @@ export default function ExploreMapLibre({
   /* ------------------------------------------------------------ create */
   useEffect(() => {
     if (container.current === null) return;
+    // Before any source exists: NASA layers' tiles are kenya-clip:// URLs.
+    registerKenyaClip();
     const map = new maplibregl.Map({
       container: container.current,
       style: BASE_STYLE,

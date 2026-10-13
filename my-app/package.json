@@ -15,7 +15,7 @@
     "contrast": "vitest run lib/theme/__tests__/palette.test.ts --silent=false --reporter=dot",
     "eval": "playwright test",
     "eval:desktop": "playwright test --project=desktop",
-    "geo:build": "node services/geo/scripts/build-counties.mjs"
+    "geo:build": "node services/geo/scripts/build-counties.mjs && node services/geo/scripts/build-outline.mjs"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.74.9",

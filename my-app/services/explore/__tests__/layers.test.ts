@@ -11,6 +11,8 @@ import {
   fromWmsSource,
   groupByCategory,
   humaniseLayerName,
+  KENYA_CLIP_BOUNDS,
+  unwrapClipUrl,
   type ExploreLayer,
 } from "@/services/explore";
 import { GIBS_LAYERS, SOURCES } from "@/services/wms";
@@ -107,10 +109,21 @@ describe("fromWmsSource", () => {
     expect(ndvi.id).toBe(`gibs:${GIBS_LAYERS[0].id}`);
     expect(ndvi.category).toBe(SATELLITE_CATEGORY);
     expect(ndvi.tiles.endsWith("&BBOX={bbox-epsg-3857}")).toBe(true);
-    const query = new URL(ndvi.tiles.replace("{bbox-epsg-3857}", "0,0,1,1")).searchParams;
+    const real = unwrapClipUrl(ndvi.tiles)!;
+    const query = new URL(real.replace("{bbox-epsg-3857}", "0,0,1,1")).searchParams;
     expect(query.get("LAYERS")).toBe(GIBS_LAYERS[0].layerName);
     expect(query.get("CRS")).toBe("EPSG:3857");
     expect(query.get("TIME")).toBe(GIBS_LAYERS[0].timeDefault);
+  });
+
+  it("clips every NASA layer to Kenya: a kenya-clip:// URL, with Kenya as its extent", () => {
+    const layers = fromWmsSource(gibs, window).filter((l) => l.unavailable === null);
+    expect(layers.length).toBeGreaterThan(0);
+    for (const layer of layers) {
+      expect(layer.tiles.startsWith("kenya-clip://https://")).toBe(true);
+      expect(unwrapClipUrl(layer.tiles)!.startsWith(gibs.endpoint)).toBe(true);
+      expect(layer.bounds).toEqual(KENYA_CLIP_BOUNDS);
+    }
   });
 
   it("marks a layer with nothing in the window as unavailable, with no tiles", () => {

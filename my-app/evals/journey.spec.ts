@@ -9,6 +9,7 @@ import {
   makeZip,
   rect,
 } from "../services/geo/__tests__/fixtures/make-shapefile";
+import { planTile, type MercatorBox } from "../services/explore/clip";
 import { TOPICS } from "../services/analysis/topics";
 import { MODELS } from "../services/analysis/models";
 import { STEPS, type StepId } from "../services/analysis/steps";
@@ -2339,5 +2340,152 @@ test.describe("data explorer", () => {
     await expect(headings).toHaveCount(10);
     await expect(headings.nth(9)).toContainText("Satellite imagery8");
     await expect(page.getByTestId("category").filter({ hasText: "Other" })).toHaveCount(0);
+  });
+
+  test("E6: NASA imagery is clipped to Kenya, and no tile outside it is fetched", async ({
+    page,
+  }, testInfo) => {
+    const problems = watchConsole(page);
+    await stubKsaCatalog(page);
+
+    // Every NASA tile answered with one solid magenta square, so on the map
+    // magenta means "NASA drew here" and nothing else does.
+    await page.goto("about:blank");
+    const magenta = Buffer.from(
+      await page.evaluate(async () => {
+        const canvas = new OffscreenCanvas(256, 256);
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#ff00ff";
+        ctx.fillRect(0, 0, 256, 256);
+        const bytes = new Uint8Array(await (await canvas.convertToBlob()).arrayBuffer());
+        return btoa(String.fromCharCode(...bytes));
+      }),
+      "base64",
+    );
+    const boxes: number[][] = [];
+    await page.route(/gibs\.earthdata\.nasa\.gov\/.*REQUEST=GetMap/, (route) => {
+      const bbox = new URL(route.request().url()).searchParams.get("BBOX");
+      if (bbox !== null) boxes.push(bbox.split(",").map(Number));
+      return route.fulfill({
+        contentType: "image/png",
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: magenta,
+      });
+    });
+
+    await page.goto("/data");
+    await page.getByTestId("category").locator("summary", { hasText: "Satellite imagery" }).click();
+    await page.getByLabel("Land cover type (IGBP, annual)", { exact: true }).check();
+    await page.getByRole("button", { name: "Zoom to layer" }).click();
+    await expect.poll(() => boxes.length, { timeout: 15_000 }).toBeGreaterThan(0);
+    // The fit animation, then the tiles' fetch, mask and fade-in.
+    await page.waitForTimeout(2500);
+
+    // Nothing was asked of NASA outside Kenya's extent.
+    const R = 6378137;
+    const mx = (lon: number) => (R * lon * Math.PI) / 180;
+    const my = (lat: number) => R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+    const [west, south, east, north] = [mx(33.9118), my(-4.7022), mx(41.9063), my(5.4306)];
+    const outside = boxes.filter(([x0, y0, x1, y1]) => x1 < west || x0 > east || y1 < south || y0 > north);
+    expect(outside).toEqual([]);
+
+    // Where on the screen a lon/lat is, from the map's own centre/zoom readout.
+    const view = page.getByTestId("explore-map-view");
+    const lat0 = Number(await view.getAttribute("data-lat"));
+    const lng0 = Number(await view.getAttribute("data-lng"));
+    const zoom = Number(await view.getAttribute("data-zoom"));
+    const map = page.getByTestId("explore-maplibre");
+    const frame = (await map.boundingBox())!;
+    const world = 512 * 2 ** zoom;
+    const wx = (lon: number) => ((lon + 180) / 360) * world;
+    const wy = (lat: number) =>
+      ((180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360))) / 360) * world;
+    const at = (lon: number, lat: number) => ({
+      x: Math.round(frame.width / 2 + wx(lon) - wx(lng0)),
+      y: Math.round(frame.height / 2 + wy(lat) - wy(lat0)),
+    });
+
+    // Read those pixels back out of a screenshot of the map.
+    const places = {
+      Nairobi: at(36.82, -1.29),
+      Lodwar: at(35.6, 3.12),
+      Garissa: at(39.65, -0.45),
+      "Somalia, past Liboi": at(41.6, 1.0),
+      "Uganda, past Busia": at(33.95, 1.0),
+      "the ocean off Kilifi": at(41.2, -3.9),
+    };
+    const shot = (await map.screenshot()).toString("base64");
+    const pixels = await page.evaluate(
+      async ({ shot, places }) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${shot}`;
+        await image.decode();
+        const canvas = new OffscreenCanvas(image.width, image.height);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(image, 0, 0);
+        const scale = image.width / document.querySelector("[data-testid=explore-maplibre]")!.clientWidth;
+        return Object.fromEntries(
+          Object.entries(places).map(([name, { x, y }]) => {
+            const [r, g, b] = ctx.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data;
+            return [name, [r, g, b]];
+          }),
+        );
+      },
+      { shot, places },
+    );
+    // Magenta at 80% opacity over any basemap: red and blue high, green low.
+    const isMagenta = ([r, g, b]: number[]) => r > 150 && b > 150 && g < 110;
+    expect(isMagenta(pixels.Nairobi), `Nairobi ${pixels.Nairobi}`).toBe(true);
+    expect(isMagenta(pixels.Lodwar), `Lodwar ${pixels.Lodwar}`).toBe(true);
+    expect(isMagenta(pixels.Garissa), `Garissa ${pixels.Garissa}`).toBe(true);
+    for (const name of ["Somalia, past Liboi", "Uganda, past Busia", "the ocean off Kilifi"] as const) {
+      expect(isMagenta(pixels[name]), `${name} ${pixels[name]}`).toBe(false);
+    }
+
+    // Zoomed in on the coast, the view holds tiles that are inside Kenya's
+    // bounding box (so MapLibre asks for them) but are all ocean. Those must
+    // never reach NASA. Desktop only: on touch the wheel does not zoom (E2).
+    if (testInfo.project.name === "desktop") {
+      const coast = at(40.6, -3.2);
+      await page.mouse.move(frame.x + coast.x, frame.y + coast.y);
+      for (let i = 0; i < 6; i++) {
+        await page.mouse.wheel(0, -300);
+        await page.waitForTimeout(150);
+      }
+      const fetchedBefore = boxes.length;
+      await page.waitForTimeout(2500);
+      const zoomed = boxes.slice(fetchedBefore);
+      expect(zoomed.length, "the zoomed view fetched tiles").toBeGreaterThan(0);
+
+      // Every tile of the zoomed view at the zoom NASA was asked for, worked
+      // out from the width of a tile it was asked for.
+      const span = zoomed[0][2] - zoomed[0][0];
+      const tiles: MercatorBox[] = [];
+      const lat1 = Number(await view.getAttribute("data-lat"));
+      const lng1 = Number(await view.getAttribute("data-lng"));
+      const zoom1 = Number(await view.getAttribute("data-zoom"));
+      const metresPerPixel = (2 * Math.PI * R) / (512 * 2 ** zoom1);
+      const [cx, cy] = [mx(lng1), my(lat1)];
+      const halfW = (frame.width / 2) * metresPerPixel;
+      const halfH = (frame.height / 2) * metresPerPixel;
+      const origin = -Math.PI * R;
+      for (let x = Math.floor((cx - halfW - origin) / span); x * span + origin < cx + halfW; x++) {
+        for (let y = Math.floor((cy - halfH - origin) / span); y * span + origin < cy + halfH; y++) {
+          const box = [x * span + origin, y * span + origin, (x + 1) * span + origin, (y + 1) * span + origin] as const;
+          const [x0, y0, x1, y1] = box;
+          if (x1 < west || x0 > east || y1 < south || y0 > north) continue; // `bounds` already skips these
+          tiles.push(box);
+        }
+      }
+      const ocean = tiles.filter((box) => planTile(box).kind === "outside");
+      expect(ocean.length, "the zoomed view has all-ocean tiles inside Kenya's box").toBeGreaterThan(0);
+      const fetched = (box: MercatorBox) =>
+        boxes.some((b) => Math.abs(b[0] - box[0]) < 1 && Math.abs(b[1] - box[1]) < 1);
+      expect(ocean.filter(fetched)).toEqual([]);
+      // And the tiles that are Kenya were fetched, so the check above is not
+      // passing because nothing loaded at all.
+      expect(tiles.filter((box) => planTile(box).kind !== "outside").some(fetched)).toBe(true);
+    }
+    expect(problems).toEqual([]);
   });
 });

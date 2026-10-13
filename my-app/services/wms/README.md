@@ -114,6 +114,10 @@ legend URLs verified to return real PNGs on the same day.
 | `soil-moisture` | `SMAP_L4_Analyzed_Root_Zone_Soil_Moisture` | P1D from 2015-03 |
 | `land-cover` | `MODIS_Combined_L3_IGBP_Land_Cover_Type_Annual` | P1Y, 2001..2024 |
 
+GIBS serves the whole globe. The data explorer clips every one of these layers
+to Kenya's outline in the browser, and never requests a tile outside it: see
+`services/explore/clip.ts`.
+
 GIBS needs no key and no account. A KSA GeoServer behind authentication would
 need more than an endpoint swap: browser tile requests carry no Authorization
 header, so it would have to be same-origin, cookie-authenticated, or proxied

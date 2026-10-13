@@ -1,12 +1,35 @@
 # `services/geo/data`
 
-Boundary data for Kenya's 47 counties, and the file generated from it.
+Boundary data for Kenya's 47 counties and for the country as a whole, and the
+files generated from them.
 
 | File | What it is |
 | --- | --- |
 | `raw/geoBoundaries-KEN-ADM1_simplified.geojson` | The source boundaries. Committed, never edited. |
 | `raw/geoBoundaries-KEN-ADM1-metadata.json` | The provenance record shipped with the boundaries. |
+| `raw/geoBoundaries-KEN-ADM0_simplified.geojson` | The national outline. Committed, never edited. See "The national outline" below. |
 | `counties.generated.ts` | Generated. Do not hand-edit. See below. |
+| `kenya-outline.generated.ts` | Generated from the ADM0 file. Do not hand-edit. |
+
+## The national outline
+
+`raw/geoBoundaries-KEN-ADM0_simplified.geojson` is the ADM0 (country) release
+for Kenya from the same geoBoundaries commit as the counties, shape id
+`21065076B29129174773383`, gbOpen, Public Domain:
+
+<https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/KEN/ADM0/geoBoundaries-KEN-ADM0_simplified.geojson>
+
+One MultiPolygon of 108 rings (the mainland, plus the islands of Lake
+Victoria, Lake Turkana and the coast), 4186 points. The release has no
+`-metadata.json` at that path (it answers 404), so this paragraph is the
+provenance record.
+
+`../scripts/build-outline.mjs` bakes it into `kenya-outline.generated.ts` as
+lon/lat rings, rounded to 4 decimals and otherwise unchanged. The data
+explorer clips NASA's global imagery to it (`services/explore/clip.ts`). It is
+a separate file rather than the union of the counties because simplified
+county polygons only nearly share their edges, and a clip built from them
+would show hairline gaps along every county border.
 
 ## Provenance
 
