@@ -76,7 +76,7 @@ export function StatTile({
     // The Overview's "At a glance" shape: label, figure a step smaller, one
     // caption line, tighter padding, so three or four fit one row.
     return (
-      <div className="card flex h-full min-w-0 flex-col p-3 sm:p-4">
+      <div className="card-soft flex h-full min-w-0 flex-col p-3 sm:p-4">
         <dt className="type-caption1 min-w-0 break-words text-ink-faint">{label}</dt>
         <dd className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-1 text-ink tabular-nums">
           <span className="type-title3 min-w-0 break-words sm:type-title2">{value}</span>

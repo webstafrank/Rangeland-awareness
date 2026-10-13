@@ -12,6 +12,7 @@ import { Notice } from "@/components/ui/Notice";
 import { StatTile } from "@/components/ui/StatTile";
 import { StepMarker } from "@/components/ui/StepMarker";
 import { buttonClasses } from "@/components/ui/button-classes";
+import { stagger } from "@/components/ui/stagger";
 import CatalogStatus, { CatalogStatusSkeleton } from "./CatalogStatus";
 import { RecentRuns } from "./RecentRuns";
 import { ServiceRow } from "./ServiceRow";
@@ -60,17 +61,17 @@ export default function Overview() {
   return (
     <>
       {/* Header: title, one line, actions to the right on a desktop. */}
-      <section className="border-b border-edge bg-surface">
+      <section className="border-b border-edge bg-gradient-to-r from-surface via-surface to-accent-soft">
         <div
           className={`${FRAME} flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6`}
         >
-          <div className="min-w-0">
+          <div className="rise min-w-0" style={stagger(0)}>
             <h1 className="type-title3 text-ink">Disaster Monitor</h1>
             <p className="type-body1 mt-0.5 text-ink-muted">
               Flood, drought, rangeland and food security analysis for Kenya.
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="rise flex shrink-0 flex-wrap items-center gap-2" style={stagger(1)}>
             {/* next/link on purpose, so Next owns the history entry and Back
                 from a topic works; TopicsArrival says why. */}
             <Link href="/#topics" className={buttonClasses({ appearance: "primary" })}>
@@ -92,10 +93,10 @@ export default function Overview() {
         </h2>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
           <div className="flex min-w-0 flex-col gap-4">
-            <div className="flex flex-1 flex-col [&>section]:flex-1">
+            <div className="rise flex flex-1 flex-col [&>section]:flex-1" style={stagger(1)}>
               <RecentRuns />
             </div>
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            <dl className="rise grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4" style={stagger(2)}>
               <StatTile compact label="Analysis topics" value={String(TOPICS.length)} />
               <StatTile compact label="Models" value={String(MODELS.length)} />
               <StatTile compact label="Counties" value={String(COUNTY_COUNT)} />
@@ -104,7 +105,11 @@ export default function Overview() {
           </div>
 
           <div className="flex min-w-0 flex-col gap-4">
-            <section aria-labelledby="overview-status" className="card p-4 lg:p-5">
+            <section
+              aria-labelledby="overview-status"
+              className="rise card-soft p-4 lg:p-5"
+              style={stagger(2)}
+            >
               <h3 id="overview-status" className="type-subtitle2 text-ink">
                 Status
               </h3>
@@ -118,7 +123,10 @@ export default function Overview() {
 
             {/* Kenya by climate zone, from the shipped county geometry: the
                 country the tool covers, and which of it is rangeland. */}
-            <figure className="card m-0 flex flex-1 items-center gap-5 p-4 lg:p-5">
+            <figure
+              className="rise card-soft m-0 flex flex-1 items-center gap-5 p-4 lg:p-5"
+              style={stagger(3)}
+            >
               <KenyaMap className="h-[112px] w-[89px] shrink-0" />
               <figcaption className="min-w-0 flex-1">
                 <p className="type-subtitle2 text-ink">Counties by climate zone</p>
@@ -167,7 +175,7 @@ export default function Overview() {
               >
                 <Link
                   href={`/topics/${topic.slug}`}
-                  className="card group row-span-3 grid grid-rows-subgrid gap-y-3 p-4 transition-shadow duration-150 hover:shadow-8 lg:p-5"
+                  className="card lift group row-span-3 grid grid-rows-subgrid gap-y-3 p-4 lg:p-5"
                 >
                   <div className="flex items-start gap-3">
                     <TopicIcon slug={topic.slug} size="sm" />
