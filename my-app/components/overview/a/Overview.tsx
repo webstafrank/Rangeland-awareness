@@ -61,7 +61,7 @@ export default function Overview() {
   return (
     <>
       {/* Header: title, one line, actions to the right on a desktop. */}
-      <section className="border-b border-edge bg-gradient-to-r from-surface via-surface to-accent-soft">
+      <section className="border-b border-edge bg-gradient-to-r from-surface via-surface to-accent/15">
         <div
           className={`${FRAME} flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6`}
         >
