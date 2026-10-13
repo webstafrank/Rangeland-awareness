@@ -83,18 +83,18 @@ export function RecentRuns() {
       aria-labelledby="recent-runs-title"
       data-testid="recent-runs"
       className="card flex flex-col border-t-4 p-4 lg:p-5"
-      // The Overview map's zone colours: arid navy panel, semi-arid blue accent
-      // and heading, white text on top of the navy.
+      // The Overview map's zone colours: semi-arid blue panel, navy top edge,
+      // light-blue heading (the non-ASAL tint), white text on the blue.
       style={{
-        backgroundColor: "var(--data-zone-arid)",
-        borderTopColor: "var(--data-zone-semi-arid)",
+        backgroundColor: "var(--data-zone-semi-arid)",
+        borderTopColor: "var(--data-zone-arid)",
       }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h3
           id="recent-runs-title"
           className="type-subtitle2"
-          style={{ color: "var(--data-zone-semi-arid)" }}
+          style={{ color: "var(--data-zone-humid)" }}
         >
           Recent runs
         </h3>
