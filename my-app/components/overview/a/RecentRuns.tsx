@@ -82,7 +82,9 @@ export function RecentRuns() {
     <section
       aria-labelledby="recent-runs-title"
       data-testid="recent-runs"
-      className="card flex flex-col p-4 lg:p-5"
+      className="card flex flex-col border-t-4 p-4 lg:p-5"
+      // The semi-arid blue from the Overview map, so the card ties to it.
+      style={{ borderTopColor: "var(--data-zone-semi-arid)" }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h3 id="recent-runs-title" className="type-subtitle2 text-ink">
