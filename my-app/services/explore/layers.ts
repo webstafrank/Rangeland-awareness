@@ -31,7 +31,7 @@ import {
   CATEGORY_ORDER,
   FALLBACK_CATEGORY,
   LAYER_CATEGORIES,
-  SATELLITE_CATEGORY,
+  GIBS_CATEGORIES,
   categoryEntryFor,
   categoryLabel,
   type LayerCategoryEntry,
@@ -117,6 +117,16 @@ export function fromCatalogLayer(
   };
 }
 
+/**
+ * A registry layer's panel heading. GIBS_CATEGORIES is keyed by GIBS registry
+ * ids, so it is read for the GIBS source only: another WMS source's layer
+ * that happened to share an id must not be filed as NASA's.
+ */
+function gibsCategory(source: WmsSource, id: string): string {
+  const category = source.id === "gibs" ? GIBS_CATEGORIES[id] : undefined;
+  return category === undefined ? FALLBACK_CATEGORY : categoryLabel(category);
+}
+
 /** Every GIBS registry layer, as the explorer shows it, for one date window. */
 export function fromWmsSource(source: WmsSource, dateWindow: WmsDateWindow): ExploreLayer[] {
   return source.layers.map((layer) => {
@@ -148,7 +158,7 @@ export function fromWmsSource(source: WmsSource, dateWindow: WmsDateWindow): Exp
       id: `${source.id}:${layer.id}`,
       title: layer.title,
       description: layer.description,
-      category: SATELLITE_CATEGORY,
+      category: gibsCategory(source, layer.id),
       sourceLabel: source.label,
       // NASA's imagery is global; the explorer shows Kenya. See clip.ts.
       tiles: clipToKenya(tiles),
@@ -169,7 +179,11 @@ export function fromWmsSource(source: WmsSource, dateWindow: WmsDateWindow): Exp
   });
 }
 
-/** Case-insensitive; every word must match the title, description, category or id. */
+/**
+ * Case-insensitive; every word must match the title, description, category,
+ * source or id. The source is what finds "nasa" now NASA's layers are filed
+ * in the KSA categories rather than under a heading of their own.
+ */
 export function filterExploreLayers(
   layers: readonly ExploreLayer[],
   query: string,
@@ -178,7 +192,7 @@ export function filterExploreLayers(
   if (words.length === 0) return layers;
   return layers.filter((layer) => {
     const haystack =
-      `${layer.title} ${layer.description} ${layer.category} ${layer.id}`.toLowerCase();
+      `${layer.title} ${layer.description} ${layer.category} ${layer.sourceLabel} ${layer.id}`.toLowerCase();
     return words.every((word) => haystack.includes(word));
   });
 }

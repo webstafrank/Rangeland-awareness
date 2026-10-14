@@ -5,9 +5,9 @@
  * category, stacked on a MapLibre map in whatever order the analyst wants.
  *
  * Across the top, the hazard tabs (All, Flood, Drought, Famine, Landslide)
- * narrow both lists to what bears on one hazard. The KSA layers are listed in
- * the panel; NASA's are offered on the map's Satellite view. The tab is kept
- * in the URL as `?hazard=flood`, so a hazard view can be linked to.
+ * narrow the panel to what bears on one hazard, KSA and NASA layers alike,
+ * each in its category. The tab is kept in the URL as `?hazard=flood`, so a
+ * hazard view can be linked to.
  *
  * Composition only. The catalogue comes from useExploreCatalog, the stack is
  * one reducer from services/explore, and the panel and the map both read that
@@ -23,7 +23,6 @@ import { HazardTabs } from "@/components/explore/HazardTabs";
 import { LayerPanel } from "@/components/explore/LayerPanel";
 import { useExploreCatalog } from "@/components/explore/useExploreCatalog";
 import type { Basemap, FocusRequest } from "@/components/explore/ExploreMapLibre";
-import { SATELLITE_LAYERS_ID } from "@/components/explore/MapOverlays";
 import {
   EMPTY_STACK,
   hazardCounts,
@@ -108,15 +107,6 @@ export function ExploreView() {
   }, []);
   const showLayers = useCallback(() => jumpTo(PANEL_ID), [jumpTo]);
   const showMap = useCallback(() => jumpTo(MAP_ID), [jumpTo]);
-  // The panel's way to the NASA layers: the map's Satellite view, with focus
-  // on the list it opens (it mounts on the next frame), not the bare map.
-  const showSatellite = useCallback(() => {
-    setBasemap("satellite");
-    jumpTo(MAP_ID);
-    requestAnimationFrame(() =>
-      document.getElementById(SATELLITE_LAYERS_ID)?.focus({ preventScroll: true }),
-    );
-  }, [jumpTo]);
 
   /*
    * The workspace, in the shape of EO Browser and ArcGIS Map Viewer, under
@@ -161,7 +151,6 @@ export function ExploreView() {
             onFocus={onFocus}
             onShowMap={showMap}
             hazard={hazard}
-            onShowSatellite={showSatellite}
           />
         </div>
 
@@ -179,7 +168,6 @@ export function ExploreView() {
             onBasemap={setBasemap}
             focus={focus}
             onShowLayers={showLayers}
-            hazard={hazard}
           />
         </div>
       </div>

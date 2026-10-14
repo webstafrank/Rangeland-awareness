@@ -11,10 +11,9 @@
  * layer to the top of the stack or takes it off. Legends are on the map
  * itself (MapOverlays.tsx), beside what they explain.
  *
- * The catalogue lists the KSA layers only, narrowed to the hazard tab picked
- * above it. NASA's satellite layers live on the map's Satellite view; the
- * catalogue says how many there are for this view and links there. Once on
- * the map, a NASA layer is in "On the map" like any other.
+ * The catalogue is narrowed to the hazard tab picked above it. NASA's
+ * satellite layers are listed in the same categories as the KSA ones, by what
+ * they show (GIBS_CATEGORIES), each row saying who publishes it.
  *
  * Moving is buttons, not drag. A drag handle is unusable from a keyboard and
  * fiddly on a trackpad, and two buttons per row make the order change an
@@ -48,7 +47,6 @@ import {
   filterExploreLayers,
   groupByCategory,
   hazardFor,
-  isSatelliteLayer,
   type ExploreLayer,
   type HazardView,
   type LayerStack,
@@ -68,8 +66,6 @@ export interface LayerPanelProps {
   onShowMap: () => void;
   /** The hazard tab: narrows the catalogue to what bears on it. */
   hazard: HazardView;
-  /** Switches the map to its Satellite view, where the NASA layers are. */
-  onShowSatellite: () => void;
 }
 
 /** 32px square: the shell's --layout-target-min, the smallest hit target. */
@@ -320,7 +316,7 @@ function CatalogStatusNote({ status }: { status: CatalogStatus }) {
     // so the two pages describe the same outage in the same words.
     return (
       <Notice intent="warning" title="Layer catalogue not reachable: showing built-in layers only.">
-        {status.message} The NASA layers on the map&rsquo;s Satellite view still work.
+        {status.message} The built-in NASA layers below still work.
       </Notice>
     );
   }
@@ -344,22 +340,14 @@ export function LayerPanel({
   onFocus,
   onShowMap,
   hazard,
-  onShowSatellite,
 }: LayerPanelProps) {
   const [query, setQuery] = useState("");
   const activeHazard = hazardFor(hazard);
-  // The KSA half, in this hazard's view; NASA's half is counted for the link.
-  const { listed, satelliteCount } = useMemo(() => {
-    const inView = filterByHazard(layers, hazard);
-    return {
-      listed: inView.filter((layer) => !isSatelliteLayer(layer)),
-      satelliteCount: inView.filter(isSatelliteLayer).length,
-    };
-  }, [layers, hazard]);
+  const listed = useMemo(() => filterByHazard(layers, hazard), [layers, hazard]);
   const shown = useMemo(() => filterExploreLayers(listed, query), [listed, query]);
-  // A hazard view the KSA catalogue has nothing for, said once in words.
-  const hazardEmpty =
-    activeHazard !== undefined && listed.length === 0 && ksaStatus.kind === "ready";
+  // A hazard view with nothing in it, said once in words. Every hazard has
+  // NASA layers today; this is for the day the registry changes.
+  const hazardEmpty = activeHazard !== undefined && listed.length === 0;
   const searching = query.trim() !== "";
   // Every category while browsing All, so the empty ones say what is coming;
   // only the ones with layers in a hazard view or while searching, since an
@@ -481,27 +469,9 @@ export function LayerPanel({
         <div className="space-y-2.5 px-gutter pb-5 lg:px-4">
           <CatalogStatusNote status={ksaStatus} />
 
-          {/* NASA's layers are on the map's Satellite view, not in this list.
-              Said here, with the way there, so they are not lost. */}
-          <div
-            data-testid="satellite-link"
-            className="flex items-center gap-2 rounded-fluent-large border border-edge bg-surface-subtle px-3 py-2"
-          >
-            <p className="type-caption1 min-w-0 flex-1 text-ink-muted">
-              <span className="font-semibold text-ink">
-                {satelliteCount} NASA satellite {satelliteCount === 1 ? "layer" : "layers"}
-              </span>
-              {activeHazard === undefined ? "" : ` for ${activeHazard.label.toLowerCase()}`}{" "}
-              {satelliteCount === 1 ? "is" : "are"} on the map&rsquo;s Satellite view.
-            </p>
-            <button type="button" onClick={onShowSatellite} className={`${textButton} shrink-0`}>
-              Show satellite layers
-            </button>
-          </div>
-
           {hazardEmpty ? (
             <p className="type-body1 rounded-fluent-large bg-surface-subtle px-3 py-3 text-ink-muted">
-              No KSA layers for {activeHazard!.label.toLowerCase()} are published yet.
+              No layers for {activeHazard!.label.toLowerCase()} are published yet.
             </p>
           ) : null}
 

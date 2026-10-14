@@ -2202,7 +2202,7 @@ const stackIds = (page: Page) =>
     .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId));
 
 test.describe("data explorer", () => {
-  test("E1: KSA layers are listed by category, NASA's are left to Satellite, and the filter narrows them", async ({
+  test("E1: KSA and NASA layers are listed together by category, and the filter narrows them", async ({
     page,
   }) => {
     const problems = watchConsole(page);
@@ -2210,34 +2210,50 @@ test.describe("data explorer", () => {
     await page.goto("/data");
 
     const headings = page.getByTestId("category").locator("summary");
-    // Every KSA category, empty ones included, in the configured order; a
-    // layer with no line in the mapping file under Other, last. No NASA
-    // heading: those layers are on the map's Satellite view.
+    // Every category, empty ones included, in the configured order; a layer
+    // with no line in the mapping file under Other, last. NASA's eight are
+    // filed among them by what they show, with no heading of their own.
     await expect(headings).toHaveCount(10);
     await expect(headings.nth(0)).toContainText("Administrative boundaries");
-    await expect(headings.nth(6)).toContainText("Natural features1");
+    await expect(headings.nth(1)).toContainText("Agriculture and livestock2"); // NDVI, EVI
+    await expect(headings.nth(3)).toContainText("Disaster risk management1"); // flooding
+    await expect(headings.nth(6)).toContainText("Natural features4"); // rivers, LST x2, land cover
+    await expect(headings.nth(7)).toContainText("Water2"); // rainfall, soil moisture
     await expect(headings.nth(9)).toContainText("Other1");
     await expect(headings.filter({ hasText: "Satellite imagery" })).toHaveCount(0);
-    await expect(page.getByTestId("satellite-link")).toContainText("8 NASA satellite layers are");
     await headings.nth(0).click();
     await expect(page.getByText("No layers published in this category yet.").first()).toBeVisible();
 
+    // A NASA row sits beside the KSA ones and says who publishes it.
+    await headings.nth(6).click();
+    await expect(page.getByLabel("Rivers", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Land cover type (IGBP, annual)", { exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByTestId("category")
+        .filter({ hasText: "Natural features" })
+        .getByText("From NASA EOSDIS GIBS")
+        .first(),
+    ).toBeVisible();
+
     const count = page.locator("#explore-layer-filter-count");
-    await expect(count).toHaveText("2 layers");
+    await expect(count).toHaveText("10 layers");
 
     const filter = page.getByRole("searchbox", { name: "Filter layers" });
-    await filter.fill("rivers");
-    await expect(count).toHaveText("1 of 2 layers match");
-    await expect(page.getByLabel("Rivers", { exact: true })).toBeVisible();
-    // A NASA layer is not in the panel's list, so the filter cannot find it.
     await filter.fill("temperature");
+    await expect(count).toHaveText("2 of 10 layers match");
+    await filter.fill("nasa");
+    await expect(count).toHaveText("8 of 10 layers match");
+    await filter.fill("rivers");
+    await expect(page.getByLabel("Rivers", { exact: true })).toBeVisible();
+    await filter.fill("no-such-layer-anywhere");
     await expect(page.getByText("No layers match")).toBeVisible();
     await filter.fill("");
-    await expect(count).toHaveText("2 layers");
+    await expect(count).toHaveText("10 layers");
     expect(problems).toEqual([]);
   });
 
-  test("E7: the hazard tabs narrow the panel and the Satellite layers, and live in the URL", async ({
+  test("E7: the hazard tabs narrow the panel, KSA and NASA alike, and live in the URL", async ({
     page,
   }) => {
     const problems = watchConsole(page);
@@ -2256,57 +2272,58 @@ test.describe("data explorer", () => {
         .filter({ hasText: new RegExp(`^${name}`) })
         .click();
     const headings = page.getByTestId("category").locator("summary");
-    const link = page.getByTestId("satellite-link");
+    const count = page.locator("#explore-layer-filter-count");
 
-    // Deep link: the Flood view, rivers only, the three NASA flood layers.
+    // Deep link: the Flood view. Only the headings with flood layers in them,
+    // KSA and NASA side by side: flooding under Disaster risk management,
+    // rivers under Natural features, rainfall and soil moisture under Water.
     await expect(tab("Flood")).toBeChecked();
     await expect(page.getByRole("heading", { name: "Flood layers" })).toBeVisible();
     await expect(page.getByTestId("hazard-summary")).toContainText("Surface water");
-    await expect(headings).toHaveCount(1);
-    await expect(headings.nth(0)).toContainText("Natural features1");
-    await expect(link).toContainText("3 NASA satellite layers for flood are");
-    await expect(page.locator("#explore-layer-filter-count")).toHaveText("1 layer");
+    await expect(headings).toHaveCount(3);
+    await expect(headings.nth(0)).toContainText("Disaster risk management1");
+    await expect(headings.nth(1)).toContainText("Natural features1");
+    await expect(headings.nth(2)).toContainText("Water2");
+    await expect(count).toHaveText("4 layers");
+    await expect(tab("Flood")).toHaveAccessibleName(/^Flood\s*4$/);
 
     // A layer on the map stays on it whatever the tab.
-    await headings.nth(0).click();
+    await headings.nth(1).click();
     await page.getByLabel("Rivers", { exact: true }).check();
     await expect.poll(() => stackIds(page)).toEqual(["ksa:Rangelands:rivers"]);
 
-    // Famine: no KSA layer of the stub's bears on it, and the panel says so,
-    // once, even with a search carried over from the last tab.
+    // Famine: pasture and crop condition, and no rivers. A search carried
+    // over from the last tab narrows the new view, and says so once.
     const filter = page.getByRole("searchbox", { name: "Filter layers" });
     await filter.fill("rivers");
     await pick("Famine");
     await expect(page).toHaveURL(/[?&]hazard=famine/);
-    await expect(headings).toHaveCount(0);
-    await expect(page.getByText("No KSA layers for famine are published yet.")).toBeVisible();
-    await expect(page.getByText("No layers match")).toHaveCount(0);
+    await expect(page.getByText("No layers match")).toHaveCount(1);
+    await expect(page.getByText(/No layers for .* are published yet/)).toHaveCount(0);
     await filter.fill("");
-    await expect(link).toContainText("4 NASA satellite layers for famine are");
+    await expect(headings).toHaveCount(3);
+    await expect(headings.nth(0)).toContainText("Agriculture and livestock2");
+    await expect(page.getByText("Surface water and flooding")).toHaveCount(0);
+    await expect(count).toHaveText("4 layers");
     await expect.poll(() => stackIds(page)).toEqual(["ksa:Rangelands:rivers"]);
 
-    // The panel's link opens the Satellite view, whose list follows the tab,
-    // and puts focus on that list rather than the bare map.
-    await link.getByRole("button", { name: "Show satellite layers" }).click();
-    await expect(page.getByRole("radio", { name: "Satellite", exact: true })).toBeChecked();
-    const satellite = page.getByTestId("satellite-layers");
-    await expect(satellite.getByRole("button", { name: /^Satellite layers/ })).toBeFocused();
-    await expect(satellite.getByRole("checkbox")).toHaveCount(4);
-    await expect(satellite.getByLabel("Vegetation index (NDVI, 8-day)", { exact: true })).toBeVisible();
-    await expect(satellite.getByText("Surface water and flooding")).toHaveCount(0);
-    await pick("Flood");
-    await expect(satellite.getByRole("checkbox")).toHaveCount(3);
-    await expect(satellite.getByText("Surface water and flooding (2-day composite)")).toBeVisible();
+    // Landslide takes Disaster risk management whole, yet NASA's flooding,
+    // filed there, stays out: a NASA layer joins a tab by id, never by heading.
+    await pick("Landslide");
+    await expect(page.getByText("Surface water and flooding")).toHaveCount(0);
+    await expect(headings.filter({ hasText: "Disaster risk management" })).toHaveCount(0);
+    await expect(count).toHaveText("3 layers"); // rainfall, soil moisture, land cover
 
-    // All: every KSA heading again, every NASA layer, and a clean URL.
+    // All: every heading again, and a clean URL.
     await pick("All layers");
     await expect(page).not.toHaveURL(/hazard=/);
     await expect(headings).toHaveCount(10);
-    await expect(satellite.getByRole("checkbox")).toHaveCount(8);
+    await expect(count).toHaveText("10 layers");
 
-    // Street hides the list; Satellite is the one way to it.
-    await page.getByRole("radio", { name: "Street", exact: true }).check({ force: true });
-    await expect(satellite).toHaveCount(0);
+    // The Satellite switch is a basemap and nothing more: no layer list on it.
+    await page.getByRole("radio", { name: "Satellite", exact: true }).check({ force: true });
+    await expect(page.getByTestId("explore-map").getByRole("checkbox")).toHaveCount(0);
+    await expect(headings).toHaveCount(10);
 
     // The shell's own Explore link, a soft navigation to a bare /data, takes
     // the tab back to All with the URL: the two never disagree.
@@ -2436,13 +2453,12 @@ test.describe("data explorer", () => {
     await page.goto("/data");
     await expect(page.getByText("The KSA GeoServer layers could not be listed")).toBeVisible();
     const headings = page.getByTestId("category").locator("summary");
-    // The KSA categories are still listed, empty, so the panel's shape does
-    // not change; NASA's layers are all still on the Satellite view.
+    // The categories are still listed, so the panel's shape does not change;
+    // NASA's eight are all still there, in their categories.
     await expect(headings).toHaveCount(9);
     await expect(page.getByTestId("category").filter({ hasText: "Other" })).toHaveCount(0);
-    await expect(page.getByTestId("satellite-link")).toContainText("8 NASA satellite layers");
-    await page.getByTestId("satellite-link").getByRole("button", { name: "Show satellite layers" }).click();
-    await expect(page.getByTestId("satellite-layers").getByRole("checkbox")).toHaveCount(8);
+    await expect(headings.nth(6)).toContainText("Natural features3");
+    await expect(page.locator("#explore-layer-filter-count")).toHaveText("8 layers");
   });
 
   test("E6: NASA imagery is clipped to Kenya, and no tile outside it is fetched", async ({
@@ -2478,11 +2494,8 @@ test.describe("data explorer", () => {
     });
 
     await page.goto("/data");
-    // NASA's layers are on the Satellite view. Added there, the layer stays
-    // drawn once the basemap is back on Street, which is what is read below.
-    await page.getByRole("radio", { name: "Satellite", exact: true }).check({ force: true });
+    await page.getByTestId("category").locator("summary", { hasText: "Natural features" }).click();
     await page.getByLabel("Land cover type (IGBP, annual)", { exact: true }).check();
-    await page.getByRole("radio", { name: "Street", exact: true }).check({ force: true });
     await page.getByRole("button", { name: "Zoom to layer" }).click();
     await expect.poll(() => boxes.length, { timeout: 15_000 }).toBeGreaterThan(0);
     // The fit animation, then the tiles' fetch, mask and fade-in.

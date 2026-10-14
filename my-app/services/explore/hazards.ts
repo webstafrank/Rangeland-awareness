@@ -10,9 +10,11 @@
  *               under every hazard with no code change.
  *   layers      KSA layer NAMES, the part after the workspace, as in
  *               LAYER_CATEGORIES (`rivers`, not `Rangelands:rivers`).
- *   satellite   NASA GIBS registry ids (services/wms/layers.ts). These are
- *               not in the panel: they are offered on the map's Satellite
- *               view, which the hazard filters too.
+ *   satellite   NASA GIBS registry ids (services/wms/layers.ts). A NASA
+ *               layer is listed in a KSA category (GIBS_CATEGORIES) but
+ *               matches a hazard ONLY through this list, never through its
+ *               category: otherwise flooding, filed under Disaster risk
+ *               management, would show under every hazard.
  *
  * Adding a layer to a hazard is one string in the right list. TypeScript
  * holds `categories` to real category ids; the unit tests hold `satellite`
@@ -20,7 +22,7 @@
  * silently dropping out of a tab.
  */
 
-import { CATEGORIES, SATELLITE_CATEGORY, type CategoryId } from "@/services/explore/categories";
+import { CATEGORIES, type CategoryId } from "@/services/explore/categories";
 import type { ExploreLayer } from "@/services/explore/layers";
 
 export interface Hazard {
@@ -102,9 +104,9 @@ export function hazardFor(view: HazardView): Hazard | undefined {
   return HAZARDS.find((h) => h.id === view);
 }
 
-/** NASA's layers are offered on the map's Satellite view, never in the panel. */
+/** A NASA GIBS layer: its id is `gibs:<registry id>` (fromWmsSource). */
 export function isSatelliteLayer(layer: ExploreLayer): boolean {
-  return layer.category === SATELLITE_CATEGORY;
+  return layer.id.startsWith("gibs:");
 }
 
 /**
@@ -124,7 +126,7 @@ export function layerMatchesHazard(layer: ExploreLayer, hazard: Hazard): boolean
   );
 }
 
-/** Each view's layer count, KSA and NASA together: the tab badges. */
+/** Each view's layer count, KSA and NASA together, as the panel lists them: the tab badges. */
 export function hazardCounts(layers: readonly ExploreLayer[]): Record<HazardView, number> {
   return Object.fromEntries(
     HAZARD_VIEWS.map((view) => [view, filterByHazard(layers, view).length]),

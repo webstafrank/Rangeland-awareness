@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   CATEGORIES,
+  CATEGORY_ORDER,
+  GIBS_CATEGORIES,
   HAZARDS,
   HAZARD_VIEWS,
   LAYER_CATEGORIES,
-  SATELLITE_CATEGORY,
   filterByHazard,
+  fromWmsSource,
   hazardCounts,
   hazardFor,
   isHazardView,
@@ -13,7 +15,7 @@ import {
   layerMatchesHazard,
   type ExploreLayer,
 } from "@/services/explore";
-import { GIBS_LAYERS } from "@/services/wms";
+import { GIBS_LAYERS, SOURCES } from "@/services/wms";
 
 const make = (id: string, category: string): ExploreLayer => ({
   id,
@@ -94,8 +96,13 @@ describe("layerMatchesHazard", () => {
   });
 
   it("matches a NASA layer by its registry id only, never by category", () => {
-    expect(layerMatchesHazard(make("gibs:flood-2day", SATELLITE_CATEGORY), flood)).toBe(true);
-    expect(layerMatchesHazard(make("gibs:ndvi-8day", SATELLITE_CATEGORY), flood)).toBe(false);
+    expect(layerMatchesHazard(make("gibs:flood-2day", drm), flood)).toBe(true);
+    // Filed under Disaster risk management, which Landslide takes whole, yet
+    // flooding is not a landslide layer: the category does not count for NASA.
+    expect(layerMatchesHazard(make("gibs:flood-2day", drm), landslide)).toBe(false);
+    expect(layerMatchesHazard(make("gibs:ndvi-8day", "Agriculture and livestock"), flood)).toBe(
+      false,
+    );
     // A KSA layer that happens to share a GIBS id's name is still KSA.
     expect(layerMatchesHazard(make("ksa:Rangelands:flood-2day", "Other"), flood)).toBe(false);
   });
@@ -106,8 +113,8 @@ describe("filterByHazard", () => {
     make("ksa:Rangelands:rivers", "Natural features"),
     make("ksa:Rangelands:wards", "Administrative boundaries"),
     make("ksa:Rangelands:soils", "Natural features"),
-    make("gibs:flood-2day", SATELLITE_CATEGORY),
-    make("gibs:land-cover", SATELLITE_CATEGORY),
+    make("gibs:flood-2day", "Disaster risk management"),
+    make("gibs:land-cover", "Natural features"),
   ];
 
   it("returns the same list for All", () => {
@@ -127,12 +134,12 @@ describe("filterByHazard", () => {
 });
 
 describe("hazardCounts", () => {
-  it("counts every view's layers, panel and Satellite together, for the tab badges", () => {
+  it("counts every view's layers, KSA and NASA together, for the tab badges", () => {
     const layers = [
       make("ksa:Rangelands:rivers", "Natural features"),
       make("ksa:Rangelands:livestock_routes", "Agriculture and livestock"),
-      make("gibs:flood-2day", SATELLITE_CATEGORY),
-      make("gibs:ndvi-8day", SATELLITE_CATEGORY),
+      make("gibs:flood-2day", "Disaster risk management"),
+      make("gibs:ndvi-8day", "Agriculture and livestock"),
     ];
     expect(hazardCounts(layers)).toEqual({
       all: 4,
@@ -145,8 +152,27 @@ describe("hazardCounts", () => {
 });
 
 describe("isSatelliteLayer", () => {
-  it("is the NASA category, which the panel leaves to the map's Satellite view", () => {
-    expect(isSatelliteLayer(make("gibs:ndvi-8day", SATELLITE_CATEGORY))).toBe(true);
+  it("is a GIBS layer by id, whatever category it is listed in", () => {
+    expect(isSatelliteLayer(make("gibs:ndvi-8day", "Agriculture and livestock"))).toBe(true);
     expect(isSatelliteLayer(make("ksa:Rangelands:rivers", "Natural features"))).toBe(false);
+  });
+});
+
+describe("GIBS_CATEGORIES", () => {
+  // A registry layer with no line would land in "Other", not its category.
+  it("files every NASA registry layer, and names no layer the registry lacks", () => {
+    const gibs = GIBS_LAYERS.map((l) => l.id).sort();
+    expect(Object.keys(GIBS_CATEGORIES).sort()).toEqual(gibs);
+  });
+
+  it("lists each NASA layer under a real panel heading, never Other", () => {
+    const source = SOURCES.find((s) => s.id === "gibs")!;
+    const listed = fromWmsSource(source, { start: "2000-01-01", end: "2026-10-14" });
+    for (const layer of listed) {
+      expect(CATEGORY_ORDER, layer.id).toContain(layer.category);
+    }
+    expect(listed.find((l) => l.id === "gibs:flood-2day")?.category).toBe(
+      "Disaster risk management",
+    );
   });
 });

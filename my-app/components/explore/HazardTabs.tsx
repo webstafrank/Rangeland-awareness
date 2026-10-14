@@ -2,7 +2,7 @@
 
 /**
  * The explorer's header row: All, Flood, Drought, Famine, Landslide. Picking
- * one narrows the layer panel, and the map's Satellite layers, to what bears
+ * one narrows the layer panel, KSA and NASA layers alike, to what bears
  * on that hazard (services/explore/hazards.ts says which).
  *
  * Real radio inputs in a fieldset, like BasemapSwitch and SegmentedControl:
@@ -27,7 +27,7 @@ export function HazardTabs({
 }: {
   value: HazardView;
   onChange: (view: HazardView) => void;
-  /** Layers in each view, panel and Satellite together. */
+  /** Layers in each view, as the panel lists them. */
   counts: Readonly<Record<HazardView, number>>;
 }) {
   return (
