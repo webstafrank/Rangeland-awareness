@@ -34,7 +34,7 @@ import { isOverlayTopic } from "@/services/criteria";
 import { writeAreas } from "@/services/handoff/areas";
 import { formatArea } from "@/services/geo/area";
 import type { AnalysisRequest } from "@/services/analysis/request";
-import { SOURCE_LABEL } from "@/components/topic/SelectedAreas";
+import { areaSourceLabel } from "@/components/topic/SelectedAreas";
 import type { Topic, TopicSlug } from "@/services/analysis/topics";
 import type { UrlSelection } from "@/services/analysis/url-state";
 
@@ -281,7 +281,7 @@ export default function ReviewStep({ topic, initial }: ReviewStepProps) {
                       {area.label}
                     </span>
                     <span className="type-caption1 shrink-0 tabular-nums text-ink-faint">
-                      {SOURCE_LABEL[area.source]} &middot; {formatArea(area.areaKm2)}
+                      {areaSourceLabel(area)} &middot; {formatArea(area.areaKm2)}
                     </span>
                   </li>
                 ))}

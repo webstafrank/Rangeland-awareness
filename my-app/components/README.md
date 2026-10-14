@@ -22,7 +22,7 @@ the four screens no longer ship or parse a mapping library they never render.
 
 `ssr: false` is only legal inside a client component, which is the whole reason
 `MapPanel.tsx` exists as its own module rather than the route importing
-`AoiMap` directly. Anything that imports Leaflet, geoman, or their CSS goes
+`AoiMap` directly. Anything that imports Leaflet or its CSS goes
 under `map/` and is reached only through `MapPanel`.
 
 ## map/
@@ -30,20 +30,16 @@ under `map/` and is reached only through `MapPanel`.
 | File | What it owns |
 | --- | --- |
 | `MapPanel.tsx` | The ssr:false boundary and the loading placeholder. |
-| `AoiMap.tsx` | The Leaflet map: basemaps, click-to-select, geoman drawing, fly-to-focus, the view readout. |
-| `tools.ts` | Tool ids, labels, hints and the initial Kenya bounds. Plain module, so a server component can import the type. |
+| `AoiMap.tsx` | The Leaflet map: basemaps, click-to-select, fly-to-focus, the view readout. |
+| `tools.ts` | The one map tool (click a point), the tile loading policy and the initial Kenya bounds. Plain module, so a server component can import the type. |
 
-Three things in `AoiMap.tsx` are not obvious:
+Two things in `AoiMap.tsx` are not obvious:
 
 **The test id is on `MapPanel`'s wrapper, not on `MapContainer`.** react-leaflet
 destructures only `className`, `id` and `style` off `MapContainer` and forwards
 everything else to Leaflet as *map options*, so a `data-*` attribute put there
 is silently swallowed and never reaches the DOM. This cost a full eval run to
 find.
-
-**Drawn layers are read then removed.** Selected areas render from props like
-every other area, so leaving geoman's own layer on the map would draw each
-shape twice and let the user drag a copy the reducer knows nothing about.
 
 **Points render as `circleMarker`, not `Marker`.** Leaflet's default marker
 icon resolves its image URLs relative to the CSS file, which breaks under every
@@ -61,7 +57,8 @@ description of that sequence; nothing here hardcodes a step order or a URL.
 | `StepRail.tsx` | The four steps as an `<ol>` of links, with the current one marked `aria-current="step"`. |
 | `ScopeStep.tsx` | Step 1: the analysis type, which carries the area cap. |
 | `ModelStep.tsx` | Step 2: the model, on its trade-off. |
-| `AreasStep.tsx` | Step 3: the three input methods, the map, the running list. |
+| `AreasStep.tsx` | Step 3: pick by name, upload a shapefile or type a coordinate, the map, the running list. |
+| `AdminPicker.tsx`, `admin-picker.ts` | County, sub-county and ward as three searchable Fluent Comboboxes, the chosen path, and Add. The rules (options, context, refusals) are pure in `admin-picker.ts`; search and cascade are `services/geo/admin.ts`. |
 | `ReviewStep.tsx` | Step 4: every decision restated, then Run. |
 | `RadioCards.tsx` | A labelled `role="radiogroup"` of native radios. |
 | `CoordinateEntry.tsx` | The keyboard path to an area: type or paste a coordinate. |
@@ -104,7 +101,7 @@ Three shapes were considered and two rejected:
 | Shape | Why not |
 | --- | --- |
 | Context in `app/topics/[topic]/layout.tsx` | Survives sibling navigation, but a layout cannot read `searchParams`, so a bookmarked configuration could only be applied in an effect: a flash of the defaults on every shared link. |
-| Everything in the URL | A drawn polygon is kilobytes of coordinates. It does not fit and it makes a shared link unreadable. |
+| Everything in the URL | A ward boundary or an uploaded polygon is kilobytes of coordinates. It does not fit and it makes a shared link unreadable. |
 | An external store | What ships. The server snapshot comes from the step route's `searchParams`, so hydration matches; the client snapshot adds whatever `sessionStorage` held. |
 
 The store runs the same pure reducer the single page used, so every rule about
@@ -160,8 +157,8 @@ second palette hiding down there.
 
 `svh`, not `dvh` or `vh`, for every mobile height. On iOS the URL bar collapses
 as the page scrolls; `dvh` changes with it and resizes the map container
-mid-gesture, so Leaflet needs an `invalidateSize` and a half-drawn polygon's
-vertices shift under the finger. `svh` is the small stable viewport and holds
+mid-gesture, so Leaflet needs an `invalidateSize` and the spot about to be
+tapped moves under the finger. `svh` is the small stable viewport and holds
 one height for the session.
 
 ### Layout

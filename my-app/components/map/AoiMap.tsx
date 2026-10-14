@@ -23,10 +23,8 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "@geoman-io/leaflet-geoman-free";
-import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
-import type { Feature, Geometry } from "geojson";
+import type { Feature } from "geojson";
 import {
   type AreaOfInterest,
   type DraftArea,
@@ -46,8 +44,8 @@ import type { Basemap } from "@/components/explore/ExploreMapLibre";
  * Leaflet's controls on Explore's MapLibre skin (components/explore/
  * ExploreMapLibre.tsx CONTROL_SKIN): the zoom stack as one rounded-large
  * group with a hairline and shadow-8, 32px buttons, and the attribution in
- * caption type. The two maps cannot share a library (drawing needs geoman),
- * so they share a look instead.
+ * caption type. The two maps do not share a library (this one is Leaflet,
+ * for its plain GeoJSON layers and click handling), so they share a look.
  *
  * leaflet.css is unlayered and Tailwind's utilities sit in a cascade layer,
  * and an unlayered rule beats a layered one whatever its specificity, so
@@ -73,8 +71,6 @@ export interface AoiMapProps {
   tool: MapTool;
   onAddAreas: (areas: DraftArea[]) => void;
   onFocusArea: (id: string) => void;
-  /** Fired once a drawn shape is committed, so the toolbar can disarm. */
-  onDrawFinished: () => void;
 }
 
 /**
@@ -167,7 +163,8 @@ function FocusController({ focus }: { focus: FocusRequest | null }) {
       paddingTopLeft: [24, 24],
       paddingBottomRight: [24, 56],
       // A clicked point is padded to ~5.5km by padBounds, so this ceiling only
-      // bites on very small drawn shapes, where it stops a 20-level slam.
+      // bites on very small shapes (a tiny urban ward, a 0km coordinate box),
+      // where it stops a 20-level slam.
       maxZoom: 13,
       duration: 0.6,
     });
@@ -250,7 +247,7 @@ function ResizeController() {
   return null;
 }
 
-/** Click-to-select, active only while the point tool is armed. */
+/** Click-to-select: a click on the map adds that point. */
 function PointSelector({
   active,
   onAddAreas,
@@ -277,93 +274,12 @@ function PointSelector({
   return null;
 }
 
-/**
- * Geoman drawing.
- *
- * The drawn layer is read for its GeoJSON and then removed: the selected areas
- * are rendered from props like every other area, so leaving Geoman's own layer
- * on the map would draw each shape twice and let the user drag a copy that the
- * reducer knows nothing about.
- */
-function DrawController({
-  tool,
-  onAddAreas,
-  onDrawFinished,
-}: {
-  tool: MapTool;
-  onAddAreas: (areas: DraftArea[]) => void;
-  onDrawFinished: () => void;
-}) {
-  const map = useMap();
-
-  // Held in a ref so re-arming the tool does not tear down the pm:create
-  // listener mid-draw, which would drop the shape the user just finished.
-  // Written in an effect, not during render: a ref mutated while rendering can
-  // be torn between a discarded render and the committed one.
-  const handlers = useRef({ onAddAreas, onDrawFinished });
-  useEffect(() => {
-    handlers.current = { onAddAreas, onDrawFinished };
-  }, [onAddAreas, onDrawFinished]);
-
-  useEffect(() => {
-    const handleCreate = ({ layer }: { layer: L.Layer }) => {
-      const geometry = (layer as L.Polygon).toGeoJSON() as
-        Feature<Geometry> | Geometry;
-
-      const raw: Geometry =
-        "type" in geometry && geometry.type === "Feature"
-          ? (geometry.geometry as Geometry)
-          : (geometry as Geometry);
-
-      map.removeLayer(layer);
-
-      const draft = draftAreaFromGeometry(raw, "drawn", "Drawn area");
-      if (draft !== null) handlers.current.onAddAreas([draft]);
-      handlers.current.onDrawFinished();
-    };
-
-    map.on("pm:create", handleCreate);
-    return () => {
-      map.off("pm:create", handleCreate);
-    };
-  }, [map]);
-
-  // Arm and disarm the requested shape. Geoman keeps its own toolbar hidden;
-  // the app's own toolbar drives it, so the map has one visual language.
-  useEffect(() => {
-    // Same accent as the committed areas, so the shape being drawn does not
-    // change colour the moment it is finished.
-    const accent = accentColor();
-
-    map.pm.setGlobalOptions({
-      allowSelfIntersection: false,
-      finishOn: "dblclick",
-      templineStyle: { color: accent },
-      hintlineStyle: { color: accent, dashArray: "4,4" },
-      pathOptions: areaStyle(),
-    });
-
-    if (tool === "polygon") map.pm.enableDraw("Polygon");
-    else if (tool === "rectangle") map.pm.enableDraw("Rectangle");
-    else map.pm.disableDraw();
-
-    return () => {
-      // Leaving the page mid-draw must not leave a live handler on a map that
-      // is about to be destroyed.
-      map.pm.disableDraw();
-    };
-  }, [map, tool]);
-
-  return null;
-}
-
 export default function AoiMap({
   areas,
   focus,
   tool,
   onAddAreas,
   onFocusArea,
-  onDrawFinished,
 }: AoiMapProps) {
   // A point AOI is rendered as a circle rather than a pin, which sidesteps
   // Leaflet's default marker icon entirely. Its icon URLs are resolved
@@ -446,11 +362,6 @@ export default function AoiMap({
         <ResizeController />
         <ViewReadout />
         <PointSelector active={tool === "point"} onAddAreas={onAddAreas} />
-        <DrawController
-          tool={tool}
-          onAddAreas={onAddAreas}
-          onDrawFinished={onDrawFinished}
-        />
       </MapContainer>
 
       {/*

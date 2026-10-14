@@ -4,13 +4,18 @@
  * without pulling Leaflet into its module graph.
  */
 
-export const MAP_TOOLS = ["point", "polygon", "rectangle"] as const;
+/*
+ * One tool: a click on the map selects that point. Drawing a shape or a box
+ * was removed when areas became pickable by county, sub-county and ward;
+ * a named boundary replaced the hand-drawn outline those tools produced.
+ */
+export const MAP_TOOLS = ["point"] as const;
 export type MapTool = (typeof MAP_TOOLS)[number];
 
 export interface MapToolSpec {
   id: MapTool;
   label: string;
-  /** Imperative instruction shown while the tool is armed. */
+  /** Imperative instruction for the tool. */
   hint: string;
 }
 
@@ -19,16 +24,6 @@ export const MAP_TOOL_SPECS: readonly MapToolSpec[] = [
     id: "point",
     label: "Click a point",
     hint: "Click anywhere on the map to select that location.",
-  },
-  {
-    id: "polygon",
-    label: "Draw a shape",
-    hint: "Click to place each corner, then click the first point to close it.",
-  },
-  {
-    id: "rectangle",
-    label: "Draw a box",
-    hint: "Click one corner, then click the opposite corner.",
   },
 ];
 

@@ -166,6 +166,10 @@ const selectedAreas = (page: Page) =>
 
 const areaRows = (page: Page) => selectedAreas(page).getByRole("listitem");
 
+/** One of the name picker's searchable boxes, by its visible label. */
+const adminBox = (page: Page, level: "County" | "Sub-county" | "Ward" | string) =>
+  page.getByRole("combobox", { name: level, exact: true });
+
 /** The rail's link to a step, which is how a user moves backwards. */
 const railLink = (page: Page, label: string | RegExp) =>
   page.getByRole("navigation", { name: /analysis steps/i }).getByRole("link", {
@@ -1131,28 +1135,171 @@ test.describe("topic steps", () => {
     expect(problems).toEqual([]);
   });
 
-  test("T4b: drawing a box selects the drawn area and zooms to it", async ({
+  /*
+   * T4b used to draw a box with geoman's Rectangle tool. Drawing is gone: an
+   * area is now picked by name, so T4b is the named path, held to the same
+   * bar the box was (a row, a real km2 figure, a boundary on the map, and a
+   * viewport that moves to it).
+   */
+  test("T4b: typing a ward's name adds its real boundary and zooms to it", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await gotoStep(page, "rangeland-dynamics", "areas");
+    const before = await readView(page);
+
+    // The measurable outcome, by keyboard: type 3+ letters, Enter to choose,
+    // Enter to add. Nothing else is chosen first; Ward searches all of Kenya.
+    const ward = adminBox(page, "Ward");
+    await ward.click();
+    await ward.pressSequentially("Bangale");
+    // Where it is, said in the option itself.
+    await expect(
+      page.getByRole("option", { name: "Bangale, Bura, Tana River" }),
+    ).toBeVisible();
+    await ward.press("Enter");
+
+    // Choosing a ward fills the boxes above it.
+    await expect(adminBox(page, "County")).toHaveValue("Tana River");
+    await expect(adminBox(page, "Sub-county")).toHaveValue("Bura");
+    await expect(adminBox(page, "Ward")).toHaveValue("Bangale");
+    await expect(page.getByRole("button", { name: "Add ward" })).toBeEnabled();
+
+    await ward.press("Enter");
+
+    await expect(areaRows(page)).toHaveCount(1);
+    const row = areaRows(page).first();
+    await expect(row).toContainText("Bangale");
+    // The level is the row's source label, and the boundary is a real polygon.
+    await expect(row).toContainText("Ward");
+    await expect(row).toContainText(/km2/);
+    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(1);
+
+    await expect
+      .poll(async () => (await readView(page)).zoom, { timeout: 10_000 })
+      .toBeGreaterThan(before.zoom + 2);
+    // And it landed on Bangale, in Tana River, not somewhere else.
+    const after = await readView(page);
+    expect(after.lat).toBeGreaterThan(-2.5);
+    expect(after.lat).toBeLessThan(0.5);
+    expect(after.lng).toBeGreaterThan(38.5);
+    expect(after.lng).toBeLessThan(40.5);
+
+    expect(problems).toEqual([]);
+  });
+
+  test("T4b: the boxes cascade, and clearing a parent clears what no longer fits", async ({
     page,
   }) => {
     const problems = watchConsole(page);
     await gotoStep(page, "rangeland-dynamics", "areas");
 
-    const before = await readView(page);
-    await page.getByRole("radio", { name: /draw a box/i }).click();
+    // Nothing chosen: Add refuses, and says why where it can be read.
+    const add = page.getByRole("button", { name: /^add$/i });
+    await expect(add).toBeDisabled();
+    await expect(page.getByText(/choose a county, sub-county or ward to add it/i)).toBeVisible();
 
-    // Two corners, which is how geoman's Rectangle tool completes. Driven
-    // through clickMap so that on a touch device these dispatch taps, not
-    // mouse events that Leaflet's touch path would ignore.
-    await clickMap(page, { x: 0.35, y: 0.35 });
-    await clickMap(page, { x: 0.6, y: 0.62 });
+    // A sub-county searched with no county says which county it is in.
+    const sub = adminBox(page, "Sub-county");
+    await sub.click();
+    await sub.pressSequentially("Bura");
+    await expect(page.getByRole("option", { name: "Bura, Tana River" })).toBeVisible();
+    await sub.press("Escape");
 
+    // Choosing a county narrows the sub-counties to its three.
+    const county = adminBox(page, "County");
+    await county.click();
+    await county.pressSequentially("Tana");
+    await county.press("Enter");
+    await expect(county).toHaveValue("Tana River");
+    await sub.click();
+    await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(3);
+    await page.getByRole("option", { name: "Bura" }).click();
+    await expect(sub).toHaveValue("Bura");
+
+    // The breadcrumb names the path, and Add names the level it will add.
+    await expect(page.getByRole("button", { name: "Add sub-county" })).toBeEnabled();
+
+    // Clearing the county clears the sub-county under it.
+    await county.fill("");
+    await expect(sub).toHaveValue("");
+    await expect(page.getByRole("button", { name: /^add$/i })).toBeDisabled();
+
+    expect(problems).toEqual([]);
+  });
+
+  test("T4b: adding a unit already in the list shows it instead of adding it twice", async ({
+    page,
+  }) => {
+    await gotoStep(page, "drought-monitoring", "scope");
+    await page.getByRole("radio", { name: /multiple location/i }).click();
+    await gotoStep(page, "drought-monitoring", "areas");
+
+    const county = adminBox(page, "County");
+    await county.click();
+    await county.pressSequentially("Isiolo");
+    await county.press("Enter");
+    await page.getByRole("button", { name: "Add county" }).click();
     await expect(areaRows(page)).toHaveCount(1);
-    await expect
-      .poll(async () => (await readView(page)).zoom, { timeout: 10_000 })
-      .toBeGreaterThan(before.zoom);
+    await expect(areaRows(page).first()).toContainText("County");
 
-    // The drawn area reports a real area, so the geometry survived the round trip.
-    await expect(areaRows(page).first()).toContainText(/km2/);
+    // The same county again: the action now says it will show, and does.
+    await page.getByRole("button", { name: "Show county" }).click();
+    await expect(page.getByText(/isiolo is already in the list/i)).toBeVisible();
+    await expect(areaRows(page)).toHaveCount(1);
+  });
+
+  test("T4b: a boundary that fails to load says so, and a retry adds it", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "network failure is not layout");
+    await gotoStep(page, "rangeland-dynamics", "areas");
+
+    // Every chunk fetched from here on fails, which is what a dropped
+    // connection looks like to the boundary's lazy import.
+    await page.route("**/_next/static/chunks/**", (route) => route.abort());
+
+    const county = adminBox(page, "County");
+    await county.click();
+    await county.pressSequentially("Samburu");
+    await county.press("Enter");
+    await page.getByRole("button", { name: "Add county" }).click();
+
+    await expect(page.getByText(/could not load the samburu boundary/i)).toBeVisible();
+    await expect(areaRows(page)).toHaveCount(0);
+
+    await page.unroute("**/_next/static/chunks/**");
+    await page.getByRole("button", { name: /try again/i }).click();
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(areaRows(page).first()).toContainText("Samburu");
+  });
+
+  test("T4e: no draw tool exists anywhere on the areas step, and a click still adds a point", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await gotoStep(page, "rangeland-dynamics", "areas");
+
+    await expect(page.getByRole("radio", { name: /draw/i })).toHaveCount(0);
+    await expect(page.getByRole("radiogroup", { name: /map tool/i })).toHaveCount(0);
+    await expect(page.getByText(/draw a (shape|box)/i)).toHaveCount(0);
+    // Nothing of geoman reached the page: no toolbar, no handlers' classes,
+    // no stylesheet.
+    const geoman = await page.evaluate(() => ({
+      nodes: document.querySelectorAll('[class*="leaflet-pm"], [class*="geoman"]').length,
+      sheets: Array.from(document.styleSheets).filter((sheet) => {
+        try {
+          return Array.from(sheet.cssRules).some((rule) => rule.cssText.includes(".leaflet-pm"));
+        } catch {
+          return false;
+        }
+      }).length,
+    }));
+    expect(geoman).toEqual({ nodes: 0, sheets: 0 });
+
+    await clickMap(page);
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(areaRows(page).first()).toContainText(/clicked point/i);
 
     expect(problems).toEqual([]);
   });
@@ -1442,10 +1589,11 @@ test.describe("topic steps", () => {
     await gotoStep(page, "flood-risk", "model");
     await expect(page.getByRole("radiogroup", { name: /model/i })).toBeVisible();
 
+    // The three boxes of the name picker, each labelled by its level.
     await gotoStep(page, "flood-risk", "areas");
-    await expect(
-      page.getByRole("radiogroup", { name: /map tool/i }),
-    ).toBeVisible();
+    for (const level of ["County", "Sub-county", "Ward"]) {
+      await expect(adminBox(page, level)).toBeVisible();
+    }
 
     // No control anywhere in the flow is left unnamed.
     for (const step of STEPS) {

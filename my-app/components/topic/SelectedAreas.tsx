@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { CountBadge } from "@/components/ui/CountBadge";
 import type { AreaOfInterest, AoiSource } from "@/services/analysis/selection";
 import { formatArea } from "@/services/geo/area";
+import { ADMIN_LEVEL_LABEL, ADMIN_LEVELS, type AdminLevel } from "@/services/geo/admin";
 
 // Exhaustive by type, so adding an AoiSource is a compile error here rather
 // than a blank badge in the list. Exported for the review step's list, so an
@@ -29,6 +30,20 @@ export const SOURCE_LABEL: Record<AoiSource, string> = {
   coordinate: "Coordinates",
   admin: "By name",
 };
+
+/**
+ * What a row says an area is. A unit picked by name says its level ("Ward",
+ * "County"), read from the feature's `level` property; everything else says
+ * where it came from. An admin area whose level is missing or unknown falls
+ * back to "By name" rather than a blank.
+ */
+export function areaSourceLabel(area: Pick<AreaOfInterest, "source" | "feature">): string {
+  const level = area.feature.properties?.level as AdminLevel | undefined;
+  if (area.source === "admin" && level !== undefined && ADMIN_LEVELS.includes(level)) {
+    return ADMIN_LEVEL_LABEL[level];
+  }
+  return SOURCE_LABEL[area.source];
+}
 
 export interface SelectedAreasProps {
   areas: readonly AreaOfInterest[];
@@ -133,7 +148,7 @@ export default function SelectedAreas({
                   {area.label}
                 </span>
                 <span className="type-caption1 block text-ink-faint">
-                  {SOURCE_LABEL[area.source]}
+                  {areaSourceLabel(area)}
                   <span aria-hidden="true"> &middot; </span>
                   <span className="tabular-nums">{formatArea(area.areaKm2)}</span>
                 </span>

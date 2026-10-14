@@ -27,6 +27,10 @@ import {
  * `admin` is a county, sub-county or ward picked by name (services/geo/admin);
  * its feature carries the unit's `adminId` and `level` in its properties, so a
  * backend can join on the official unit rather than re-derive it from shape.
+ *
+ * `drawn` is no longer produced, since the map lost its draw tools, but a
+ * selection stored before that and every results page still carry it, so it
+ * stays a valid value.
  */
 export type AoiSource = "point" | "drawn" | "shapefile" | "coordinate" | "admin";
 

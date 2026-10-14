@@ -77,7 +77,6 @@ export function ResultAreaMap({
             tool="point"
             onAddAreas={() => {}}
             onFocusArea={() => {}}
-            onDrawFinished={() => {}}
           />
         </div>
       ) : null}

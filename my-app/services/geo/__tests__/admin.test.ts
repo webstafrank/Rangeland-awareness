@@ -99,12 +99,20 @@ describe("the hierarchy", () => {
 });
 
 describe("loadAdminGeometry", () => {
-  it("loads a boundary for every unit, as closed rings inside Kenya", async () => {
+  /*
+   * Every one of the 1789 units, through the real loader, so it imports all 47
+   * county files (about 4.5s on an idle machine, nearly all of it Vite turning
+   * the JSON into modules). The files load concurrently, and the test has its
+   * own 30s budget: at the 5s default it failed the pre-commit gate whenever
+   * the eval suite was running beside it. A hang still fails it.
+   */
+  it("loads a boundary for every unit, as closed rings inside Kenya", { timeout: 30_000 }, async () => {
     // Problems collected in plain code and asserted once: an expect() per
     // coordinate took this test past five seconds.
     const problems: string[] = [];
-    for (const unit of ADMIN_UNITS) {
-      const g = await loadAdminGeometry(unit);
+    const geometries = await Promise.all(ADMIN_UNITS.map((unit) => loadAdminGeometry(unit)));
+    for (const [i, unit] of ADMIN_UNITS.entries()) {
+      const g = geometries[i];
       if (g.type !== "MultiPolygon" || g.coordinates.length === 0) problems.push(`${unit.id}: empty`);
       for (const polygon of g.coordinates) {
         for (const ring of polygon) {
