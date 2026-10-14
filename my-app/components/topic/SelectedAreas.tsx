@@ -27,6 +27,7 @@ export const SOURCE_LABEL: Record<AoiSource, string> = {
   drawn: "Drawn",
   shapefile: "Shapefile",
   coordinate: "Coordinates",
+  admin: "By name",
 };
 
 export interface SelectedAreasProps {

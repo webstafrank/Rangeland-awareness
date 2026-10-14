@@ -14,7 +14,7 @@ import {
 } from "@/services/run-flow/plan";
 import { DEFAULT_RESOLUTION, DEFAULT_TARGET_CRS } from "@/services/backend-api";
 import type { TopicCriteria } from "@/services/backend-api";
-import type { AnalysisRequest, RequestArea } from "@/services/analysis/request";
+import { SCHEMA_VERSION, type AnalysisRequest, type RequestArea } from "@/services/analysis/request";
 import type { Feature, Geometry } from "geojson";
 
 /* ------------------------------------------------------------- fixtures --- */
@@ -66,7 +66,7 @@ function area(over: Partial<RequestArea> = {}): RequestArea {
 
 function request(areas: RequestArea[] = [area()]): AnalysisRequest {
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion: SCHEMA_VERSION,
     topic: "flood-risk",
     analysisType: "single",
     model: "random-forest",

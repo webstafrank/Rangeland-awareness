@@ -23,8 +23,12 @@ import {
  * `coordinate` is its own source rather than being filed as `point`: a typed
  * coordinate with a radius produces a real polygon with a real area, and
  * labelling that "point" would put a point badge next to a 400 km2 figure.
+ *
+ * `admin` is a county, sub-county or ward picked by name (services/geo/admin);
+ * its feature carries the unit's `adminId` and `level` in its properties, so a
+ * backend can join on the official unit rather than re-derive it from shape.
  */
-export type AoiSource = "point" | "drawn" | "shapefile" | "coordinate";
+export type AoiSource = "point" | "drawn" | "shapefile" | "coordinate" | "admin";
 
 export interface AreaOfInterest {
   /** Assigned by the reducer, monotonic per session: aoi-1, aoi-2, ... */

@@ -1338,7 +1338,7 @@ test.describe("topic steps", () => {
 
     const request = JSON.parse((await payload.textContent()) ?? "{}");
     expect(request).toMatchObject({
-      schemaVersion: "1.0.0",
+      schemaVersion: "1.1.0",
       topic: "rangeland-dynamics",
       analysisType: "single",
       model: "xgboost",
