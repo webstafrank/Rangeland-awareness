@@ -2210,6 +2210,10 @@ test.describe("data explorer", () => {
     await page.goto("/data");
 
     const headings = page.getByTestId("category").locator("summary");
+    const count = page.locator("#explore-layer-filter-count");
+    // The KSA catalogue first: "Other" only appears once it has arrived, and on
+    // a cold first load it can take longer than one default expect timeout.
+    await expect(count).toHaveText("10 layers", { timeout: 15_000 });
     // Every category, empty ones included, in the configured order; a layer
     // with no line in the mapping file under Other, last. NASA's eight are
     // filed among them by what they show, with no heading of their own.
@@ -2236,7 +2240,6 @@ test.describe("data explorer", () => {
         .first(),
     ).toBeVisible();
 
-    const count = page.locator("#explore-layer-filter-count");
     await expect(count).toHaveText("10 layers");
 
     const filter = page.getByRole("searchbox", { name: "Filter layers" });
@@ -2287,7 +2290,8 @@ test.describe("data explorer", () => {
     await expect(count).toHaveText("4 layers");
     await expect(tab("Flood")).toHaveAccessibleName(/^Flood\s*4$/);
 
-    // A layer on the map stays on it whatever the tab.
+    // A layer ticked under one tab is cleared by the next: each hazard view
+    // starts with an empty map (checked once Famine is picked, below).
     await headings.nth(1).click();
     await page.getByLabel("Rivers", { exact: true }).check();
     await expect.poll(() => stackIds(page)).toEqual(["ksa:Rangelands:rivers"]);
@@ -2305,7 +2309,13 @@ test.describe("data explorer", () => {
     await expect(headings.nth(0)).toContainText("Agriculture and livestock2");
     await expect(page.getByText("Surface water and flooding")).toHaveCount(0);
     await expect(count).toHaveText("4 layers");
-    await expect.poll(() => stackIds(page)).toEqual(["ksa:Rangelands:rivers"]);
+    await expect.poll(() => stackIds(page)).toEqual([]);
+    await expect(page.getByRole("heading", { name: /^On the map/ })).toContainText("0");
+
+    // Cleared on every change of tab, including one that adds nothing first.
+    await headings.nth(0).click();
+    await page.getByLabel("Vegetation index (NDVI, 8-day)", { exact: true }).check();
+    await expect.poll(() => stackIds(page)).toEqual(["gibs:ndvi-8day"]);
 
     // Landslide takes Disaster risk management whole, yet NASA's flooding,
     // filed there, stays out: a NASA layer joins a tab by id, never by heading.
@@ -2313,6 +2323,7 @@ test.describe("data explorer", () => {
     await expect(page.getByText("Surface water and flooding")).toHaveCount(0);
     await expect(headings.filter({ hasText: "Disaster risk management" })).toHaveCount(0);
     await expect(count).toHaveText("3 layers"); // rainfall, soil moisture, land cover
+    await expect.poll(() => stackIds(page)).toEqual([]);
 
     // All: every heading again, and a clean URL.
     await pick("All layers");
@@ -2329,8 +2340,13 @@ test.describe("data explorer", () => {
     // the tab back to All with the URL: the two never disagree.
     await pick("Drought");
     await expect(page).toHaveURL(/[?&]hazard=drought/);
+    await headings.nth(0).click();
+    await page.getByLabel("Vegetation index (NDVI, 8-day)", { exact: true }).check();
+    await expect.poll(() => stackIds(page)).toEqual(["gibs:ndvi-8day"]);
     await page.locator('a[href="/data"]:visible').first().click();
     await expect(page).not.toHaveURL(/hazard=/);
+    // A tab change by navigation clears the map just as a click does.
+    await expect.poll(() => stackIds(page)).toEqual([]);
     await expect(tab("All layers")).toBeChecked();
 
     // Not a tab: read as All, not an error.
@@ -2529,7 +2545,9 @@ test.describe("data explorer", () => {
     const places = {
       Nairobi: at(36.82, -1.29),
       Lodwar: at(35.6, 3.12),
-      Garissa: at(39.65, -0.45),
+      // The county's middle, not the town: Garissa town is on the Tana, which
+      // is the county border, and the county lines are drawn over the layer.
+      Garissa: at(40.6, -0.8),
       "Somalia, past Liboi": at(41.6, 1.0),
       "Uganda, past Busia": at(33.95, 1.0),
       "the ocean off Kilifi": at(41.2, -3.9),
@@ -2561,6 +2579,35 @@ test.describe("data explorer", () => {
     for (const name of ["Somalia, past Liboi", "Uganda, past Busia", "the ocean off Kilifi"] as const) {
       expect(isMagenta(pixels[name]), `${name} ${pixels[name]}`).toBe(false);
     }
+
+    // The county boundaries are drawn over the layer, not hidden by it. Under
+    // solid magenta, a dark pixel can only be a county line: round Nairobi,
+    // where five counties meet, there are many; deep inside Turkana, none.
+    const darkIn = (sw: { x: number; y: number }, ne: { x: number; y: number }) =>
+      page.evaluate(
+        async ({ shot, sw, ne }) => {
+          const image = new Image();
+          image.src = `data:image/png;base64,${shot}`;
+          await image.decode();
+          const canvas = new OffscreenCanvas(image.width, image.height);
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(image, 0, 0);
+          const scale = image.width / document.querySelector("[data-testid=explore-maplibre]")!.clientWidth;
+          const [x0, y0] = [Math.round(sw.x * scale), Math.round(ne.y * scale)];
+          const [w, h] = [Math.round((ne.x - sw.x) * scale), Math.round((sw.y - ne.y) * scale)];
+          const data = ctx.getImageData(x0, y0, w, h).data;
+          let dark = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            if (data[i] < 110 && data[i + 1] < 110 && data[i + 2] < 110) dark++;
+          }
+          return dark;
+        },
+        { shot, sw, ne },
+      );
+    const nairobi = await darkIn(at(36.4, -1.7), at(37.3, -0.9));
+    const turkana = await darkIn(at(35.3, 2.6), at(35.8, 3.3));
+    expect(nairobi, "county lines round Nairobi, over the layer").toBeGreaterThan(20);
+    expect(turkana, "no county line inside Turkana").toBeLessThan(3);
 
     // Zoomed in on the coast, the view holds tiles that are inside Kenya's
     // bounding box (so MapLibre asks for them) but are all ocean. Those must

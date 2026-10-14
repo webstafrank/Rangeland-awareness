@@ -89,6 +89,16 @@ export function ExploreView() {
   const fromUrl = useSearchParams().get("hazard");
   const hazard: HazardView = isHazardView(fromUrl) ? fromUrl : "all";
 
+  // Each hazard view starts with a clear map: a change of tab, by click, by
+  // Back, or by the shell's Explore link, empties the stack. Done during
+  // render against the last tab seen (React's "adjusting state when a prop
+  // changes"), so no frame ever draws the old layers under the new tab.
+  const [stackHazard, setStackHazard] = useState<HazardView>(hazard);
+  if (stackHazard !== hazard) {
+    setStackHazard(hazard);
+    dispatch({ type: "clear" });
+  }
+
   const counts = useMemo(() => hazardCounts(layers), [layers]);
 
   const onFocus = useCallback((layer: ExploreLayer) => {
