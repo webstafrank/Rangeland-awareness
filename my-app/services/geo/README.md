@@ -38,6 +38,8 @@ zoom behaviour be proved without a browser.
 | `box.ts` | Parsing a typed coordinate and building a box around it. |
 | `zip.ts` | ZIP structural pre-flight. Exists because of a measured hang, see below. |
 | `shapefile.ts` | Shapefile ingestion and every failure path a user can hit. |
+| `admin.ts` | Counties, sub-counties and wards by name: the index, search, the cascade, and each unit's boundary loaded one county file at a time. |
+| `locate.ts` | The reverse: the ward (else sub-county, else county) under a lon/lat point, for a click on the Areas map. Opens only the county files whose box (`ADMIN_FILE_BBOX`, built from each file's own units) holds the point. |
 
 ## What it exposes
 

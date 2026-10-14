@@ -375,6 +375,7 @@ const index = [
 rmSync(GEOMETRY_DIR, { recursive: true, force: true });
 mkdirSync(GEOMETRY_DIR, { recursive: true });
 const sizes = [];
+const fileBoxes = {};
 for (const county of counties) {
   const shapes = {
     [`county:${county.id}`]: slim(county.geometry, TOLERANCE.county),
@@ -387,6 +388,16 @@ for (const county of counties) {
   }
   writeFileSync(join(GEOMETRY_DIR, `${county.id}.json`), body);
   sizes.push([county.id, body.length]);
+  // The box of everything the file holds, not the county's own outline: a
+  // unit filed by hand under another county (Buret, under Kericho) lies
+  // outside its county's outline, and a click there must still open this file.
+  const boxes = Object.values(shapes).map(bboxOf);
+  fileBoxes[county.id] = [
+    Math.min(...boxes.map((b) => b[0])),
+    Math.min(...boxes.map((b) => b[1])),
+    Math.max(...boxes.map((b) => b[2])),
+    Math.max(...boxes.map((b) => b[3])),
+  ];
 }
 
 const script = relative(REPO_DIR, fileURLToPath(import.meta.url));
@@ -423,6 +434,18 @@ ${counties
   .map((c) => c.id)
   .sort()
   .map((id) => `  ${JSON.stringify(id)}: () => import("./admin/${id}.json").then((m) => m.default as AdminGeometryFile),`)
+  .join("\n")}
+};
+
+/**
+ * Each file's \`[west, south, east, north]\` in lon/lat: the box of every unit
+ * it holds. Lets a map click open only the files that could contain it
+ * (services/geo/locate.ts).
+ */
+export const ADMIN_FILE_BBOX: Readonly<Record<string, readonly [number, number, number, number]>> = {
+${Object.keys(fileBoxes)
+  .sort()
+  .map((id) => `  ${JSON.stringify(id)}: ${JSON.stringify(fileBoxes[id])},`)
   .join("\n")}
 };
 `,

@@ -13,8 +13,8 @@ describe("selection map tile loading", () => {
 });
 
 describe("map tools", () => {
-  it("offers only the point tool: drawing a shape or a box is gone", () => {
-    expect(MAP_TOOL_SPECS.map((t) => t.id)).toEqual(["point"]);
+  it("offers identify (the default, listed first) and point; drawing a shape or a box is gone", () => {
+    expect(MAP_TOOL_SPECS.map((t) => t.id)).toEqual(["identify", "point"]);
     for (const tool of MAP_TOOL_SPECS) {
       expect(tool.label.length).toBeGreaterThan(0);
       expect(tool.hint.length).toBeGreaterThan(0);

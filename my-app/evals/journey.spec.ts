@@ -136,11 +136,25 @@ async function readView(page: Page) {
 async function clickMap(page: Page, fraction = CLICK_FRACTION) {
   const map = page.getByTestId("aoi-map");
   await expect(map).toBeVisible();
+  // These evals click to add a point. The Areas map opens in Identify place,
+  // where a click names the place instead, so switch it to Add point first.
+  // Maps without the switch (the results pages) take the click as it is.
+  await setClickMode(page, "Add point");
   const box = await map.boundingBox();
   if (!box) throw new Error("map has no bounding box");
   await map.click({
     position: { x: box.width * fraction.x, y: box.height * fraction.y },
   });
+}
+
+/** Set the Areas map's click mode, if this map has the switch. */
+async function setClickMode(page: Page, mode: "Identify place" | "Add point") {
+  const radio = page.getByTestId("map-click-mode").getByRole("radio", { name: mode });
+  if ((await radio.count()) === 0) return;
+  if (!(await radio.isChecked())) {
+    await page.getByTestId("map-click-mode").getByText(mode, { exact: true }).click();
+  }
+  await expect(radio).toBeChecked();
 }
 
 /**
@@ -169,6 +183,16 @@ const areaRows = (page: Page) => selectedAreas(page).getByRole("listitem");
 /** One of the name picker's searchable boxes, by its visible label. */
 const adminBox = (page: Page, level: "County" | "Sub-county" | "Ward" | string) =>
   page.getByRole("combobox", { name: level, exact: true });
+
+/** Type a ward's name into Ward and choose it, as T4b does by keyboard. */
+async function chooseWard(page: Page, name: string) {
+  const ward = adminBox(page, "Ward");
+  await ward.click();
+  await ward.pressSequentially(name);
+  await expect(page.getByRole("option", { name: new RegExp(`^${name},`) })).toBeVisible();
+  await ward.press("Enter");
+  await expect(ward).toHaveValue(name);
+}
 
 /** The rail's link to a step, which is how a user moves backwards. */
 const railLink = (page: Page, label: string | RegExp) =>
@@ -1302,6 +1326,126 @@ test.describe("topic steps", () => {
     await expect(areaRows(page).first()).toContainText(/clicked point/i);
 
     expect(problems).toEqual([]);
+  });
+
+  test("T4f: choosing a name flies the map there and outlines it, before Add", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await gotoStep(page, "rangeland-dynamics", "areas");
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+    const before = await readView(page);
+
+    await chooseWard(page, "Bangale");
+
+    // The outline is a preview: dashed on the map, nothing in the list yet.
+    await expect(page.locator('[data-testid="aoi-map"] path[stroke-dasharray]')).toHaveCount(1);
+    await expect(areaRows(page)).toHaveCount(0);
+
+    // And the map flew to Bangale (Bura, Tana River), whose boundary spans
+    // 38.43 to 39.54E and 0.82 to 0.01S: the view centres near 38.98E, 0.41S.
+    await expect
+      .poll(async () => (await readView(page)).zoom, { timeout: 10_000 })
+      .toBeGreaterThan(before.zoom + 2);
+    const after = await readView(page);
+    expect(after.lng).toBeGreaterThan(38.6);
+    expect(after.lng).toBeLessThan(39.4);
+    expect(after.lat).toBeGreaterThan(-0.8);
+    expect(after.lat).toBeLessThan(0);
+
+    // Added, the dashed preview gives way to the solid area.
+    await page.getByRole("button", { name: /^add ward/i }).click();
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(page.locator('[data-testid="aoi-map"] path[stroke-dasharray]')).toHaveCount(0);
+
+    expect(problems).toEqual([]);
+  });
+
+  test("T4g: in Identify place mode a click fills the boxes with the place under it", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await gotoStep(page, "rangeland-dynamics", "areas");
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+
+    // Identify place is the default.
+    await expect(
+      page.getByTestId("map-click-mode").getByRole("radio", { name: "Identify place" }),
+    ).toBeChecked();
+
+    // Fly somewhere known first, so the click lands on a known ward: choose
+    // Bangale, then clear the boxes and click the middle of the map.
+    await chooseWard(page, "Bangale");
+    // Settled over Bangale (see T4f), whatever zoom this viewport fits it at.
+    await expect
+      .poll(async () => (await readView(page)).lng, { timeout: 10_000 })
+      .toBeGreaterThan(38.6);
+    await expect
+      .poll(async () => (await readView(page)).lng, { timeout: 10_000 })
+      .toBeLessThan(39.4);
+    await adminBox(page, "County").fill("");
+    await expect(adminBox(page, "Ward")).toHaveValue("");
+
+    const map = page.getByTestId("aoi-map");
+    const box = (await map.boundingBox())!;
+    await map.click({ position: { x: box.width / 2, y: box.height / 2 } });
+
+    // The map's own line says what it found, and the boxes hold it.
+    await expect(page.getByTestId("map-note")).toContainText(/ward, .*Tana River\. Press Add/i, {
+      timeout: 10_000,
+    });
+    await expect(adminBox(page, "County")).toHaveValue("Tana River");
+    await expect(adminBox(page, "Ward")).not.toHaveValue("");
+    // Outlined, not added.
+    await expect(page.locator('[data-testid="aoi-map"] path[stroke-dasharray]')).toHaveCount(1);
+    await expect(areaRows(page)).toHaveCount(0);
+
+    // Add point mode takes the same click as a point instead.
+    await setClickMode(page, "Add point");
+    await map.click({ position: { x: box.width / 2, y: box.height / 2 } });
+    await expect(areaRows(page)).toHaveCount(1);
+    await expect(areaRows(page).first()).toContainText(/clicked point/i);
+
+    expect(problems).toEqual([]);
+  });
+
+  test("T4h: a click outside Kenya says so and changes nothing", async ({ page }) => {
+    const problems = watchConsole(page);
+    await gotoStep(page, "rangeland-dynamics", "areas");
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+
+    // The default view shows Kenya with margin; low on its right edge is the
+    // Indian Ocean off Lamu, never a county, and clear of every map control.
+    const map = page.getByTestId("aoi-map");
+    const box = (await map.boundingBox())!;
+    await map.click({ position: { x: box.width * 0.92, y: box.height * 0.85 } });
+    await expect(page.getByTestId("map-note")).toContainText(/outside Kenya/i, { timeout: 10_000 });
+    await expect(adminBox(page, "County")).toHaveValue("");
+    await expect(areaRows(page)).toHaveCount(0);
+
+    expect(problems).toEqual([]);
+  });
+
+  test("T4i: Kenya's border is drawn and the world outside it is dimmed", async ({ page }) => {
+    await gotoStep(page, "rangeland-dynamics", "areas");
+    await expect(page.getByTestId("map-view")).toBeVisible({ timeout: 30_000 });
+
+    const pane = page.locator('[data-testid="aoi-map"] .leaflet-kenya-border-pane');
+    // Mask, halo, line.
+    await expect(pane.locator("path")).toHaveCount(3);
+    const fills = await pane.locator("path").evaluateAll((paths) =>
+      paths.map((p) => ({
+        fill: p.getAttribute("fill"),
+        fillRule: p.getAttribute("fill-rule"),
+        stroke: p.getAttribute("stroke"),
+        events: getComputedStyle(p).pointerEvents,
+      })),
+    );
+    // The mask is filled even-odd, so Kenya is cut out of it.
+    expect(fills[0].fillRule).toBe("evenodd");
+    expect(fills[0].fill).not.toBe("none");
+    // None of the three takes a click away from the map.
+    for (const f of fills) expect(f.events).toBe("none");
   });
 
   test("T4c and T5: uploading a shapefile renders and zooms to it", async ({

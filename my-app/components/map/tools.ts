@@ -5,11 +5,12 @@
  */
 
 /*
- * One tool: a click on the map selects that point. Drawing a shape or a box
- * was removed when areas became pickable by county, sub-county and ward;
- * a named boundary replaced the hand-drawn outline those tools produced.
+ * What a click on the map does. `identify` (the default) names the place under
+ * the click in the County, Sub-county and Ward boxes and outlines it, for the
+ * analyst to add; `point` adds the clicked point itself as an area. Drawing a
+ * shape or a box was removed when areas became pickable by name.
  */
-export const MAP_TOOLS = ["point"] as const;
+export const MAP_TOOLS = ["identify", "point"] as const;
 export type MapTool = (typeof MAP_TOOLS)[number];
 
 export interface MapToolSpec {
@@ -21,9 +22,14 @@ export interface MapToolSpec {
 
 export const MAP_TOOL_SPECS: readonly MapToolSpec[] = [
   {
+    id: "identify",
+    label: "Identify place",
+    hint: "Click the map to fill County, Sub-county and Ward with the place there.",
+  },
+  {
     id: "point",
-    label: "Click a point",
-    hint: "Click anywhere on the map to select that location.",
+    label: "Add point",
+    hint: "Click the map to add that exact point as an area.",
   },
 ];
 

@@ -35,7 +35,6 @@ import {
   ADMIN_BY_ID,
   ADMIN_LEVEL_LABEL,
   ADMIN_LEVELS,
-  EMPTY_CHOICE,
   choose,
   loadAdminGeometry,
   mostSpecific,
@@ -57,6 +56,12 @@ import {
 } from "@/components/topic/admin-picker";
 
 export interface AdminPickerProps {
+  /**
+   * What the three boxes hold. Owned by the step, not the picker, because a
+   * click on the map in Identify place mode fills them too.
+   */
+  choice: AdminChoice;
+  onChoice: (next: AdminChoice) => void;
   areas: readonly AreaOfInterest[];
   /** The scope's area cap. Past one, Add refuses at the cap with the reason. */
   maxAreas: number;
@@ -85,8 +90,14 @@ function warm(unit: AdminUnit) {
   loadAdminGeometry(unit).catch(() => {});
 }
 
-export default function AdminPicker({ areas, maxAreas, onAdd, onShow }: AdminPickerProps) {
-  const [choice, setChoice] = useState<AdminChoice>(EMPTY_CHOICE);
+export default function AdminPicker({
+  choice,
+  onChoice,
+  areas,
+  maxAreas,
+  onAdd,
+  onShow,
+}: AdminPickerProps) {
   // What is typed in each box, or null while it shows its chosen name.
   const [queries, setQueries] = useState<Queries>(NO_QUERIES);
   const [open, setOpen] = useState<AdminLevel | null>(null);
@@ -94,11 +105,22 @@ export default function AdminPicker({ areas, maxAreas, onAdd, onShow }: AdminPic
   const messageId = useId();
 
   const unit = mostSpecific(choice);
+
+  // A new unit from outside (a map click) clears what the line under Add said
+  // about the last one. Adjusted during render, React's pattern for state
+  // derived from a prop, rather than in an effect that would paint the stale
+  // line first.
+  const [shownFor, setShownFor] = useState(unit?.id ?? null);
+  if (shownFor !== (unit?.id ?? null)) {
+    setShownFor(unit?.id ?? null);
+    if (outcome?.kind !== "loading") setOutcome(null);
+  }
+
   const action = addAction(choice, areas, maxAreas);
   const busy = outcome?.kind === "loading";
 
   const pick = (level: AdminLevel, next: AdminUnit | null) => {
-    setChoice((current) => choose(current, level, next, ADMIN_BY_ID));
+    onChoice(choose(choice, level, next, ADMIN_BY_ID));
     setQueries(NO_QUERIES);
     setOutcome(null);
     if (next !== null) warm(next);
