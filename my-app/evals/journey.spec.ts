@@ -2181,13 +2181,28 @@ async function stubKsaCatalog(page: Page) {
   );
 }
 
+/**
+ * Esri's imagery, the Satellite basemap, answered locally: the live service
+ * sometimes refuses a burst of tile requests without a CORS header, which is
+ * a console error that has nothing to do with the app.
+ */
+async function stubEsriImagery(page: Page) {
+  await page.route(/server\.arcgisonline\.com\//, (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: TRANSPARENT_PNG,
+    }),
+  );
+}
+
 const stackIds = (page: Page) =>
   page
     .getByTestId("stack-row")
     .evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.layerId));
 
 test.describe("data explorer", () => {
-  test("E1: KSA and NASA layers are listed by category, and the filter narrows them", async ({
+  test("E1: KSA and NASA layers are listed together by category, and the filter narrows them", async ({
     page,
   }) => {
     const problems = watchConsole(page);
@@ -2195,29 +2210,148 @@ test.describe("data explorer", () => {
     await page.goto("/data");
 
     const headings = page.getByTestId("category").locator("summary");
-    // Every KSA category, empty ones included, in the configured order; NASA
-    // after them; a layer with no line in the mapping file under Other, last.
-    await expect(headings).toHaveCount(11);
+    const count = page.locator("#explore-layer-filter-count");
+    // The KSA catalogue first: "Other" only appears once it has arrived, and on
+    // a cold first load it can take longer than one default expect timeout.
+    await expect(count).toHaveText("10 layers", { timeout: 15_000 });
+    // Every category, empty ones included, in the configured order; a layer
+    // with no line in the mapping file under Other, last. NASA's eight are
+    // filed among them by what they show, with no heading of their own.
+    await expect(headings).toHaveCount(10);
     await expect(headings.nth(0)).toContainText("Administrative boundaries");
-    await expect(headings.nth(6)).toContainText("Natural features1");
-    await expect(headings.nth(9)).toContainText("Satellite imagery");
-    await expect(headings.nth(10)).toContainText("Other1");
+    await expect(headings.nth(1)).toContainText("Agriculture and livestock2"); // NDVI, EVI
+    await expect(headings.nth(3)).toContainText("Disaster risk management1"); // flooding
+    await expect(headings.nth(6)).toContainText("Natural features4"); // rivers, LST x2, land cover
+    await expect(headings.nth(7)).toContainText("Water2"); // rainfall, soil moisture
+    await expect(headings.nth(9)).toContainText("Other1");
+    await expect(headings.filter({ hasText: "Satellite imagery" })).toHaveCount(0);
     await headings.nth(0).click();
     await expect(page.getByText("No layers published in this category yet.").first()).toBeVisible();
 
-    const count = page.locator("#explore-layer-filter-count");
-    const total = Number((await count.innerText()).split(" ")[0]);
-    expect(total).toBeGreaterThan(2);
+    // A NASA row sits beside the KSA ones and says who publishes it.
+    await headings.nth(6).click();
+    await expect(page.getByLabel("Rivers", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Land cover type (IGBP, annual)", { exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByTestId("category")
+        .filter({ hasText: "Natural features" })
+        .getByText("From NASA EOSDIS GIBS")
+        .first(),
+    ).toBeVisible();
+
+    await expect(count).toHaveText("10 layers");
 
     const filter = page.getByRole("searchbox", { name: "Filter layers" });
     await filter.fill("temperature");
-    await expect(count).toHaveText(`2 of ${total} layers match`);
+    await expect(count).toHaveText("2 of 10 layers match");
+    await filter.fill("nasa");
+    await expect(count).toHaveText("8 of 10 layers match");
     await filter.fill("rivers");
     await expect(page.getByLabel("Rivers", { exact: true })).toBeVisible();
     await filter.fill("no-such-layer-anywhere");
     await expect(page.getByText("No layers match")).toBeVisible();
     await filter.fill("");
-    await expect(count).toHaveText(`${total} layers`);
+    await expect(count).toHaveText("10 layers");
+    expect(problems).toEqual([]);
+  });
+
+  test("E7: the hazard tabs narrow the panel, KSA and NASA alike, and live in the URL", async ({
+    page,
+  }) => {
+    const problems = watchConsole(page);
+    await stubKsaCatalog(page);
+    await stubEsriImagery(page);
+    await page.goto("/data?hazard=flood");
+
+    const tab = (name: string) =>
+      page.getByTestId("hazard-tabs").getByRole("radio", { name: new RegExp(`^${name}`) });
+    // Clicked by its visible label, as a person would; the radio itself is
+    // sr-only, and on a phone the row may have scrolled away under the map.
+    const pick = (name: string) =>
+      page
+        .getByTestId("hazard-tabs")
+        .locator("label")
+        .filter({ hasText: new RegExp(`^${name}`) })
+        .click();
+    const headings = page.getByTestId("category").locator("summary");
+    const count = page.locator("#explore-layer-filter-count");
+
+    // Deep link: the Flood view. Only the headings with flood layers in them,
+    // KSA and NASA side by side: flooding under Disaster risk management,
+    // rivers under Natural features, rainfall and soil moisture under Water.
+    await expect(tab("Flood")).toBeChecked();
+    await expect(page.getByRole("heading", { name: "Flood layers" })).toBeVisible();
+    await expect(page.getByTestId("hazard-summary")).toContainText("Surface water");
+    await expect(headings).toHaveCount(3);
+    await expect(headings.nth(0)).toContainText("Disaster risk management1");
+    await expect(headings.nth(1)).toContainText("Natural features1");
+    await expect(headings.nth(2)).toContainText("Water2");
+    await expect(count).toHaveText("4 layers");
+    await expect(tab("Flood")).toHaveAccessibleName(/^Flood\s*4$/);
+
+    // A layer ticked under one tab is cleared by the next: each hazard view
+    // starts with an empty map (checked once Famine is picked, below).
+    await headings.nth(1).click();
+    await page.getByLabel("Rivers", { exact: true }).check();
+    await expect.poll(() => stackIds(page)).toEqual(["ksa:Rangelands:rivers"]);
+
+    // Famine: pasture and crop condition, and no rivers. A search carried
+    // over from the last tab narrows the new view, and says so once.
+    const filter = page.getByRole("searchbox", { name: "Filter layers" });
+    await filter.fill("rivers");
+    await pick("Famine");
+    await expect(page).toHaveURL(/[?&]hazard=famine/);
+    await expect(page.getByText("No layers match")).toHaveCount(1);
+    await expect(page.getByText(/No layers for .* are published yet/)).toHaveCount(0);
+    await filter.fill("");
+    await expect(headings).toHaveCount(3);
+    await expect(headings.nth(0)).toContainText("Agriculture and livestock2");
+    await expect(page.getByText("Surface water and flooding")).toHaveCount(0);
+    await expect(count).toHaveText("4 layers");
+    await expect.poll(() => stackIds(page)).toEqual([]);
+    await expect(page.getByRole("heading", { name: /^On the map/ })).toContainText("0");
+
+    // Cleared on every change of tab, including one that adds nothing first.
+    await headings.nth(0).click();
+    await page.getByLabel("Vegetation index (NDVI, 8-day)", { exact: true }).check();
+    await expect.poll(() => stackIds(page)).toEqual(["gibs:ndvi-8day"]);
+
+    // Landslide takes Disaster risk management whole, yet NASA's flooding,
+    // filed there, stays out: a NASA layer joins a tab by id, never by heading.
+    await pick("Landslide");
+    await expect(page.getByText("Surface water and flooding")).toHaveCount(0);
+    await expect(headings.filter({ hasText: "Disaster risk management" })).toHaveCount(0);
+    await expect(count).toHaveText("3 layers"); // rainfall, soil moisture, land cover
+    await expect.poll(() => stackIds(page)).toEqual([]);
+
+    // All: every heading again, and a clean URL.
+    await pick("All layers");
+    await expect(page).not.toHaveURL(/hazard=/);
+    await expect(headings).toHaveCount(10);
+    await expect(count).toHaveText("10 layers");
+
+    // The Satellite switch is a basemap and nothing more: no layer list on it.
+    await page.getByRole("radio", { name: "Satellite", exact: true }).check({ force: true });
+    await expect(page.getByTestId("explore-map").getByRole("checkbox")).toHaveCount(0);
+    await expect(headings).toHaveCount(10);
+
+    // The shell's own Explore link, a soft navigation to a bare /data, takes
+    // the tab back to All with the URL: the two never disagree.
+    await pick("Drought");
+    await expect(page).toHaveURL(/[?&]hazard=drought/);
+    await headings.nth(0).click();
+    await page.getByLabel("Vegetation index (NDVI, 8-day)", { exact: true }).check();
+    await expect.poll(() => stackIds(page)).toEqual(["gibs:ndvi-8day"]);
+    await page.locator('a[href="/data"]:visible').first().click();
+    await expect(page).not.toHaveURL(/hazard=/);
+    // A tab change by navigation clears the map just as a click does.
+    await expect.poll(() => stackIds(page)).toEqual([]);
+    await expect(tab("All layers")).toBeChecked();
+
+    // Not a tab: read as All, not an error.
+    await page.goto("/data?hazard=wildfire");
+    await expect(tab("All layers")).toBeChecked();
     expect(problems).toEqual([]);
   });
 
@@ -2335,11 +2469,12 @@ test.describe("data explorer", () => {
     await page.goto("/data");
     await expect(page.getByText("The KSA GeoServer layers could not be listed")).toBeVisible();
     const headings = page.getByTestId("category").locator("summary");
-    // The KSA categories are still listed, empty, so the panel's shape does
-    // not change; only NASA has layers in it.
-    await expect(headings).toHaveCount(10);
-    await expect(headings.nth(9)).toContainText("Satellite imagery8");
+    // The categories are still listed, so the panel's shape does not change;
+    // NASA's eight are all still there, in their categories.
+    await expect(headings).toHaveCount(9);
     await expect(page.getByTestId("category").filter({ hasText: "Other" })).toHaveCount(0);
+    await expect(headings.nth(6)).toContainText("Natural features3");
+    await expect(page.locator("#explore-layer-filter-count")).toHaveText("8 layers");
   });
 
   test("E6: NASA imagery is clipped to Kenya, and no tile outside it is fetched", async ({
@@ -2347,6 +2482,7 @@ test.describe("data explorer", () => {
   }, testInfo) => {
     const problems = watchConsole(page);
     await stubKsaCatalog(page);
+    await stubEsriImagery(page);
 
     // Every NASA tile answered with one solid magenta square, so on the map
     // magenta means "NASA drew here" and nothing else does.
@@ -2374,7 +2510,7 @@ test.describe("data explorer", () => {
     });
 
     await page.goto("/data");
-    await page.getByTestId("category").locator("summary", { hasText: "Satellite imagery" }).click();
+    await page.getByTestId("category").locator("summary", { hasText: "Natural features" }).click();
     await page.getByLabel("Land cover type (IGBP, annual)", { exact: true }).check();
     await page.getByRole("button", { name: "Zoom to layer" }).click();
     await expect.poll(() => boxes.length, { timeout: 15_000 }).toBeGreaterThan(0);
@@ -2409,7 +2545,9 @@ test.describe("data explorer", () => {
     const places = {
       Nairobi: at(36.82, -1.29),
       Lodwar: at(35.6, 3.12),
-      Garissa: at(39.65, -0.45),
+      // The county's middle, not the town: Garissa town is on the Tana, which
+      // is the county border, and the county lines are drawn over the layer.
+      Garissa: at(40.6, -0.8),
       "Somalia, past Liboi": at(41.6, 1.0),
       "Uganda, past Busia": at(33.95, 1.0),
       "the ocean off Kilifi": at(41.2, -3.9),
@@ -2441,6 +2579,35 @@ test.describe("data explorer", () => {
     for (const name of ["Somalia, past Liboi", "Uganda, past Busia", "the ocean off Kilifi"] as const) {
       expect(isMagenta(pixels[name]), `${name} ${pixels[name]}`).toBe(false);
     }
+
+    // The county boundaries are drawn over the layer, not hidden by it. Under
+    // solid magenta, a dark pixel can only be a county line: round Nairobi,
+    // where five counties meet, there are many; deep inside Turkana, none.
+    const darkIn = (sw: { x: number; y: number }, ne: { x: number; y: number }) =>
+      page.evaluate(
+        async ({ shot, sw, ne }) => {
+          const image = new Image();
+          image.src = `data:image/png;base64,${shot}`;
+          await image.decode();
+          const canvas = new OffscreenCanvas(image.width, image.height);
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(image, 0, 0);
+          const scale = image.width / document.querySelector("[data-testid=explore-maplibre]")!.clientWidth;
+          const [x0, y0] = [Math.round(sw.x * scale), Math.round(ne.y * scale)];
+          const [w, h] = [Math.round((ne.x - sw.x) * scale), Math.round((sw.y - ne.y) * scale)];
+          const data = ctx.getImageData(x0, y0, w, h).data;
+          let dark = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            if (data[i] < 110 && data[i + 1] < 110 && data[i + 2] < 110) dark++;
+          }
+          return dark;
+        },
+        { shot, sw, ne },
+      );
+    const nairobi = await darkIn(at(36.4, -1.7), at(37.3, -0.9));
+    const turkana = await darkIn(at(35.3, 2.6), at(35.8, 3.3));
+    expect(nairobi, "county lines round Nairobi, over the layer").toBeGreaterThan(20);
+    expect(turkana, "no county line inside Turkana").toBeLessThan(3);
 
     // Zoomed in on the coast, the view holds tiles that are inside Kenya's
     // bounding box (so MapLibre asks for them) but are all ocean. Those must

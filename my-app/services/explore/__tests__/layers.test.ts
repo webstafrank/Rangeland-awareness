@@ -5,7 +5,6 @@ import {
   FALLBACK_CATEGORY,
   categoryEntryFor,
   categoryLabel,
-  SATELLITE_CATEGORY,
   filterExploreLayers,
   fromCatalogLayer,
   fromWmsSource,
@@ -107,7 +106,8 @@ describe("fromWmsSource", () => {
   it("builds a MapLibre template with the bbox placeholder left unencoded", () => {
     const [ndvi] = fromWmsSource(gibs, window);
     expect(ndvi.id).toBe(`gibs:${GIBS_LAYERS[0].id}`);
-    expect(ndvi.category).toBe(SATELLITE_CATEGORY);
+    // Listed with the KSA layers, under the heading for what it shows.
+    expect(ndvi.category).toBe("Agriculture and livestock");
     expect(ndvi.tiles.endsWith("&BBOX={bbox-epsg-3857}")).toBe(true);
     const real = unwrapClipUrl(ndvi.tiles)!;
     const query = new URL(real.replace("{bbox-epsg-3857}", "0,0,1,1")).searchParams;
@@ -166,12 +166,16 @@ describe("groupByCategory", () => {
     const groups = groupByCategory([
       make("a", FALLBACK_CATEGORY),
       make("b", "Zoning"),
-      make("c", SATELLITE_CATEGORY),
+      make("c", "Satellite imagery"),
       make("d", "Natural features"),
       make("f", "Natural features"),
     ]);
+    // There is no "Satellite imagery" heading any more: NASA's layers are
+    // filed in the KSA categories. Given one, it sorts with the unconfigured.
+    expect(CATEGORY_ORDER).not.toContain("Satellite imagery");
     expect(groups.map((g) => g.category)).toEqual([
       ...CATEGORY_ORDER,
+      "Satellite imagery",
       "Zoning",
       FALLBACK_CATEGORY,
     ]);
@@ -192,15 +196,15 @@ describe("groupByCategory", () => {
 describe("filterExploreLayers", () => {
   const layers = [
     make("ksa:rivers", "Natural features", "Rivers"),
-    make("gibs:ndvi", SATELLITE_CATEGORY, "NDVI"),
+    { ...make("gibs:ndvi", "Agriculture and livestock", "NDVI"), sourceLabel: "NASA GIBS" },
   ];
 
-  it("matches the title, the category or the id, every word, any case", () => {
+  it("matches the title, the category, the source or the id, every word, any case", () => {
     expect(filterExploreLayers(layers, "RIVERS").map((l) => l.id)).toEqual(["ksa:rivers"]);
     expect(filterExploreLayers(layers, "natural").map((l) => l.id)).toEqual(["ksa:rivers"]);
-    expect(filterExploreLayers(layers, "satellite ndvi").map((l) => l.id)).toEqual([
-      "gibs:ndvi",
-    ]);
+    // "nasa" finds NASA's layers now they have no heading of their own.
+    expect(filterExploreLayers(layers, "nasa ndvi").map((l) => l.id)).toEqual(["gibs:ndvi"]);
+    expect(filterExploreLayers(layers, "livestock").map((l) => l.id)).toEqual(["gibs:ndvi"]);
     expect(filterExploreLayers(layers, "rivers ndvi")).toEqual([]);
     expect(filterExploreLayers(layers, "  ")).toBe(layers);
   });

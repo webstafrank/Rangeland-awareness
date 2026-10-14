@@ -39,17 +39,36 @@ export const CATEGORIES = [
 
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 
-/** The heading NASA's satellite layers are listed under, after the KSA ones. */
-export const SATELLITE_CATEGORY = "Satellite imagery";
+/**
+ * Where each NASA GIBS layer is listed, keyed by its registry id
+ * (services/wms/layers.ts). NASA's layers sit in the same categories as the
+ * KSA ones, by what they show, not under a heading of their own; the row
+ * names its source ("From NASA EOSDIS GIBS"). The unit tests hold every registry id to a line here,
+ * so a layer added to the registry without one fails the gate rather than
+ * landing in "Other".
+ */
+export const GIBS_CATEGORIES: Readonly<Record<string, CategoryId>> = {
+  // Pasture and crop condition: what the herds and farms live on.
+  "ndvi-8day": "agriculture_livestock",
+  "evi-16day": "agriculture_livestock",
+  // Rainfall and the water held in the soil.
+  precipitation: "water",
+  "soil-moisture-root-zone": "water",
+  // Flood water on the land surface: an event, not a resource.
+  "flood-2day": "disaster_risk_management",
+  // Measurements of the land surface, beside soils and rivers. Disaster risk
+  // management holds events (flooding); heat stress reaches the Drought tab
+  // through its hazard list, not through a category.
+  "lst-terra-monthly": "naturalfeatures",
+  "lst-aqua-monthly": "naturalfeatures",
+  "land-cover": "naturalfeatures",
+};
 
 /** Where a KSA layer with no entry below is listed. Always last, and only when non-empty. */
 export const FALLBACK_CATEGORY = "Other";
 
 /** Every heading the panel shows even when empty, in order. */
-export const CATEGORY_ORDER: readonly string[] = [
-  ...CATEGORIES.map((c) => c.label),
-  SATELLITE_CATEGORY,
-];
+export const CATEGORY_ORDER: readonly string[] = CATEGORIES.map((c) => c.label);
 
 export interface LayerCategoryEntry {
   category: CategoryId;
