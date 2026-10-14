@@ -170,8 +170,12 @@ describe("groupByCategory", () => {
       make("d", "Natural features"),
       make("f", "Natural features"),
     ]);
+    // Satellite imagery is not a panel heading (the map's Satellite view
+    // offers it), so given one it sorts with the unconfigured headings.
+    expect(CATEGORY_ORDER).not.toContain(SATELLITE_CATEGORY);
     expect(groups.map((g) => g.category)).toEqual([
       ...CATEGORY_ORDER,
+      SATELLITE_CATEGORY,
       "Zoning",
       FALLBACK_CATEGORY,
     ]);

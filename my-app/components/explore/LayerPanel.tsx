@@ -11,6 +11,11 @@
  * layer to the top of the stack or takes it off. Legends are on the map
  * itself (MapOverlays.tsx), beside what they explain.
  *
+ * The catalogue lists the KSA layers only, narrowed to the hazard tab picked
+ * above it. NASA's satellite layers live on the map's Satellite view; the
+ * catalogue says how many there are for this view and links there. Once on
+ * the map, a NASA layer is in "On the map" like any other.
+ *
  * Moving is buttons, not drag. A drag handle is unusable from a keyboard and
  * fiddly on a trackpad, and two buttons per row make the order change an
  * announced, undoable step rather than a gesture.
@@ -39,9 +44,13 @@ import {
   ZoomFit16Regular,
 } from "@/components/ui/icons";
 import {
+  filterByHazard,
   filterExploreLayers,
   groupByCategory,
+  hazardFor,
+  isSatelliteLayer,
   type ExploreLayer,
+  type HazardView,
   type LayerStack,
   type StackAction,
   type StackEntry,
@@ -57,6 +66,10 @@ export interface LayerPanelProps {
   onFocus: (layer: ExploreLayer) => void;
   /** Scrolls back up to the map, for the phone layout where it is above. */
   onShowMap: () => void;
+  /** The hazard tab: narrows the catalogue to what bears on it. */
+  hazard: HazardView;
+  /** Switches the map to its Satellite view, where the NASA layers are. */
+  onShowSatellite: () => void;
 }
 
 /** 32px square: the shell's --layout-target-min, the smallest hit target. */
@@ -307,7 +320,7 @@ function CatalogStatusNote({ status }: { status: CatalogStatus }) {
     // so the two pages describe the same outage in the same words.
     return (
       <Notice intent="warning" title="Layer catalogue not reachable: showing built-in layers only.">
-        {status.message} The built-in NASA layers below still work.
+        {status.message} The NASA layers on the map&rsquo;s Satellite view still work.
       </Notice>
     );
   }
@@ -330,15 +343,31 @@ export function LayerPanel({
   dispatch,
   onFocus,
   onShowMap,
+  hazard,
+  onShowSatellite,
 }: LayerPanelProps) {
   const [query, setQuery] = useState("");
-  const shown = useMemo(() => filterExploreLayers(layers, query), [layers, query]);
+  const activeHazard = hazardFor(hazard);
+  // The KSA half, in this hazard's view; NASA's half is counted for the link.
+  const { listed, satelliteCount } = useMemo(() => {
+    const inView = filterByHazard(layers, hazard);
+    return {
+      listed: inView.filter((layer) => !isSatelliteLayer(layer)),
+      satelliteCount: inView.filter(isSatelliteLayer).length,
+    };
+  }, [layers, hazard]);
+  const shown = useMemo(() => filterExploreLayers(listed, query), [listed, query]);
+  // A hazard view the KSA catalogue has nothing for, said once in words.
+  const hazardEmpty =
+    activeHazard !== undefined && listed.length === 0 && ksaStatus.kind === "ready";
   const searching = query.trim() !== "";
-  // Every category while browsing, so the empty ones say what is coming;
-  // only the matching ones while searching.
+  // Every category while browsing All, so the empty ones say what is coming;
+  // only the ones with layers in a hazard view or while searching, since an
+  // empty "Administrative boundaries" under Flood says nothing.
+  const narrowed = searching || activeHazard !== undefined;
   const groups = useMemo(
-    () => groupByCategory(shown, undefined, { includeEmpty: !searching }),
-    [shown, searching],
+    () => groupByCategory(shown, undefined, { includeEmpty: !narrowed }),
+    [shown, narrowed],
   );
 
   // The layer whose details the panel's foot shows: the one picked from the
@@ -415,8 +444,13 @@ export function LayerPanel({
             named "over content, under the chrome" step. */}
         <div className="bg-surface px-gutter pt-4 pb-2 lg:sticky lg:top-0 lg:z-map-overlay lg:px-4">
           <h2 id="catalog-heading" className="type-subtitle2 text-ink">
-            Layers
+            {activeHazard === undefined ? "Layers" : `${activeHazard.label} layers`}
           </h2>
+          {activeHazard !== undefined ? (
+            <p className="type-caption1 mt-0.5 text-ink-muted" data-testid="hazard-summary">
+              {activeHazard.summary}
+            </p>
+          ) : null}
           <div className="mt-2">
             <label htmlFor="explore-layer-filter" className="sr-only">
               Filter layers
@@ -438,9 +472,8 @@ export function LayerPanel({
               className="type-caption1 mt-1 text-ink-faint"
             >
               {searching
-                ? `${shown.length} of ${layers.length} layers match`
-                : `${layers.length} layers`}
-              {ksaStatus.kind === "error" ? ", built-in only" : ""}
+                ? `${shown.length} of ${listed.length} ${listed.length === 1 ? "layer matches" : "layers match"}`
+                : `${listed.length} ${listed.length === 1 ? "layer" : "layers"}`}
             </p>
           </div>
         </div>
@@ -448,7 +481,33 @@ export function LayerPanel({
         <div className="space-y-2.5 px-gutter pb-5 lg:px-4">
           <CatalogStatusNote status={ksaStatus} />
 
-          {searching && shown.length === 0 ? (
+          {/* NASA's layers are on the map's Satellite view, not in this list.
+              Said here, with the way there, so they are not lost. */}
+          <div
+            data-testid="satellite-link"
+            className="flex items-center gap-2 rounded-fluent-large border border-edge bg-surface-subtle px-3 py-2"
+          >
+            <p className="type-caption1 min-w-0 flex-1 text-ink-muted">
+              <span className="font-semibold text-ink">
+                {satelliteCount} NASA satellite {satelliteCount === 1 ? "layer" : "layers"}
+              </span>
+              {activeHazard === undefined ? "" : ` for ${activeHazard.label.toLowerCase()}`}{" "}
+              {satelliteCount === 1 ? "is" : "are"} on the map&rsquo;s Satellite view.
+            </p>
+            <button type="button" onClick={onShowSatellite} className={`${textButton} shrink-0`}>
+              Show satellite layers
+            </button>
+          </div>
+
+          {hazardEmpty ? (
+            <p className="type-body1 rounded-fluent-large bg-surface-subtle px-3 py-3 text-ink-muted">
+              No KSA layers for {activeHazard!.label.toLowerCase()} are published yet.
+            </p>
+          ) : null}
+
+          {/* One empty message, never two: a hazard with nothing published
+              says so, and a search inside it has nothing to add. */}
+          {searching && shown.length === 0 && !hazardEmpty ? (
             <p className="type-body1 rounded-fluent-large bg-surface-subtle px-3 py-3 text-ink-muted">
               No layers match &ldquo;{query.trim()}&rdquo;.
             </p>

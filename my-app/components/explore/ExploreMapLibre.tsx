@@ -35,7 +35,7 @@ import maplibregl, {
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { registerKenyaClip } from "@/components/explore/kenyaClipProtocol";
-import { BasemapSwitch, MapLegend } from "@/components/explore/MapOverlays";
+import { BasemapSwitch, MapLegend, SatelliteLayers } from "@/components/explore/MapOverlays";
 import { CountBadge } from "@/components/ui/CountBadge";
 import { LayerDiagonal16Regular } from "@/components/ui/icons";
 import { KENYA_BOUNDS } from "@/components/map/tools";
@@ -43,6 +43,7 @@ import {
   featureName,
   popupRows,
   type ExploreLayer,
+  type HazardView,
   type LayerStack,
   type StackAction,
 } from "@/services/explore";
@@ -64,6 +65,8 @@ export interface ExploreMapLibreProps {
   focus: FocusRequest | null;
   /** Scrolls to the layer panel, for the phone layout where it is below. */
   onShowLayers: () => void;
+  /** The hazard tab, which narrows the Satellite view's NASA layers. */
+  hazard: HazardView;
 }
 
 /** KENYA_BOUNDS is Leaflet's [lat, lng] pairs; MapLibre wants [lng, lat]. */
@@ -299,6 +302,7 @@ export default function ExploreMapLibre({
   onBasemap,
   focus,
   onShowLayers,
+  hazard,
 }: ExploreMapLibreProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -573,7 +577,8 @@ export default function ExploreMapLibre({
         the gaps between them still pan the map.
 
         Top right: on a phone the "Layers" jump (the panel is below the map),
-        the basemap switch, and any feature-load problems. Clear of MapLibre's
+        the basemap switch, on the Satellite view the NASA layers it offers
+        (they are not in the panel), and any feature-load problems. Clear of MapLibre's
         zoom buttons on the left (left-14) and its scale and attribution
         along the bottom.
 
@@ -595,6 +600,9 @@ export default function ExploreMapLibre({
           </button>
           <BasemapSwitch basemap={basemap} onBasemap={onBasemap} />
         </div>
+        {basemap === "satellite" ? (
+          <SatelliteLayers layers={layers} stack={stack} dispatch={dispatch} hazard={hazard} />
+        ) : null}
         {shownErrors.length > 0 ? (
           <div role="status" className="w-64 max-w-full shrink-0 space-y-1">
             {shownErrors.map(([id, message]) => (

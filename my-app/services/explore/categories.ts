@@ -39,17 +39,18 @@ export const CATEGORIES = [
 
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 
-/** The heading NASA's satellite layers are listed under, after the KSA ones. */
+/**
+ * The category NASA's satellite layers carry. They are not listed in the
+ * panel: the map's Satellite view offers them (MapOverlays SatelliteLayers),
+ * so this is a tag, not a panel heading.
+ */
 export const SATELLITE_CATEGORY = "Satellite imagery";
 
 /** Where a KSA layer with no entry below is listed. Always last, and only when non-empty. */
 export const FALLBACK_CATEGORY = "Other";
 
 /** Every heading the panel shows even when empty, in order. */
-export const CATEGORY_ORDER: readonly string[] = [
-  ...CATEGORIES.map((c) => c.label),
-  SATELLITE_CATEGORY,
-];
+export const CATEGORY_ORDER: readonly string[] = CATEGORIES.map((c) => c.label);
 
 export interface LayerCategoryEntry {
   category: CategoryId;
