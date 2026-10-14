@@ -15,12 +15,11 @@
     "contrast": "vitest run lib/theme/__tests__/palette.test.ts --silent=false --reporter=dot",
     "eval": "playwright test",
     "eval:desktop": "playwright test --project=desktop",
-    "geo:build": "node services/geo/scripts/build-counties.mjs && node services/geo/scripts/build-outline.mjs && node services/geo/scripts/build-county-lines.mjs"
+    "geo:build": "node services/geo/scripts/build-counties.mjs && node services/geo/scripts/build-outline.mjs && node services/geo/scripts/build-county-lines.mjs && node services/geo/scripts/build-admin.mjs"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.74.9",
     "@fluentui/react-icons": "^2.0.341",
-    "@geoman-io/leaflet-geoman-free": "^2.20.0",
     "leaflet": "^1.9.4",
     "maplibre-gl": "^5.24.0",
     "next": "^16.3.8",

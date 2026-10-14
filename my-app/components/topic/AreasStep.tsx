@@ -4,21 +4,21 @@
  * Step 3: where. The map workspace.
  *
  * The only step that gets the full band width, because it is the only one with
- * a map. The map takes the room; the three ways in (the map tools, a typed
- * coordinate, a shapefile) are one docked tool panel beside it, and the
- * running list sits under that panel.
+ * a map. The map takes the room; beside it, a column of three cards:
  *
- * The map tool radio lives in the panel rather than on the map because it is a
- * mode switch, and a mode switch hidden inside the thing it modifies is how an
- * analyst ends up drawing a box when they meant to drop a point. The map does
- * carry a quiet chip naming the armed tool, so the mode is visible where the
- * pointer is.
+ *   By name        county, sub-county and ward, each searchable (AdminPicker)
+ *   Other ways in  a shapefile, then a typed coordinate
+ *   Selected areas the running list
+ *
+ * Naming the place is first because it is how an analyst usually knows an
+ * area. The map has no tool switch any more: drawing a shape or a box was
+ * removed when named boundaries arrived, and a click on the map always adds
+ * that point, so there is no mode to show or to get wrong.
  */
 
 import {
   useEffect,
   useRef,
-  useState,
   useSyncExternalStore,
   type ReactElement,
 } from "react";
@@ -27,9 +27,9 @@ import {
   Location20Regular,
   Map20Regular,
 } from "@/components/ui/icons";
+import AdminPicker from "@/components/topic/AdminPicker";
 import CoordinateEntry from "@/components/topic/CoordinateEntry";
 import MapSizeStepper from "@/components/topic/MapSizeStepper";
-import RadioCards from "@/components/topic/RadioCards";
 import SelectedAreas from "@/components/topic/SelectedAreas";
 import SelectionNotice from "@/components/topic/SelectionNotice";
 import ShapefileUpload from "@/components/topic/ShapefileUpload";
@@ -42,7 +42,6 @@ import {
   setStoredMapSize,
   subscribeMapSize,
 } from "@/components/topic/map-size-store";
-import { MAP_TOOL_SPECS, type MapTool } from "@/components/map/tools";
 import { useWizard } from "@/components/topic/useWizard";
 import { undoRestoreCount } from "@/services/analysis/selection";
 import { shortAreaReason } from "@/components/topic/footer-controls";
@@ -64,10 +63,10 @@ export interface AreasStepProps {
 }
 
 /**
- * One input method inside the docked tool panel: an icon, an h3 (the step
- * heading above is the h2), a one-line hint, then the control. Sections are
- * divided by hairlines inside one card rather than being three cards, so the
- * panel reads as one tool rather than a stack of unrelated boxes.
+ * One input method inside a card: an icon, an h3 (the step heading above is
+ * the h2), a one-line hint, then the control. Sections sharing a card are
+ * divided by hairlines, so the shapefile and the coordinate read as one
+ * "other ways in" card rather than two more boxes.
  */
 function ToolSection({
   title,
@@ -100,7 +99,6 @@ function ToolSection({
 export default function AreasStep({ topic, initial }: AreasStepProps) {
   const wizard = useWizard(topic.slug, initial);
   const { state, dispatch, spec, canReview } = wizard;
-  const [tool, setTool] = useState<MapTool>("point");
 
   // Read through an external store rather than state plus an effect, so the
   // remembered height survives a reload without a hydration mismatch and
@@ -134,7 +132,6 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
   }, []);
 
   const atCapacity = state.areas.length >= spec.maxAreas && spec.maxAreas > 1;
-  const activeTool = MAP_TOOL_SPECS.find((t) => t.id === tool);
 
   // The cap only, beside the count badge. What is still missing is said once,
   // in the footer beside Continue, not here as well.
@@ -170,8 +167,9 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
         this step 1737px tall (969px of scrolling on a 1366x768 laptop), and
         the map and the controls that drive it were never on screen together.
 
-        So on lg and up the tool panel and the running list share a 360px
-        column on the left at their natural height, and every tool is reached
+        So on lg and up the cards and the running list share a 360px column
+        on the left (400px from xl, where Sub-county and Ward fit side by
+        side) at their natural height, and every tool is reached
         by scrolling the page. (A fixed-height column that scrolled inside
         itself hid the shapefile upload below "Add area" with no cue.) The map
         takes the rest and is sticky under the top bar, so it stays in view
@@ -185,49 +183,49 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
         Below lg everything stacks, with the map FIRST: on a phone the map is
         what the step is for, and the panel follows it.
       */}
-      <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)] xl:grid-cols-[400px_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="card overflow-hidden">
+          {/*
+            No overflow-hidden here, unlike the cards below: the boxes' lists
+            open inline (AdminPicker) and must hang over the cards under this
+            one, hence also the z-index.
+          */}
+          <div className="card relative z-10">
             <ToolSection
-              title="On the map"
+              title="By name"
               icon={<Map20Regular />}
               hint={
                 atCapacity
-                  ? `Holding ${spec.maxAreas} areas, the maximum. Adding another will ask you to remove one.`
-                  : activeTool?.hint
+                  ? `Holding ${spec.maxAreas} areas, the maximum. Remove one to add another.`
+                  : "Type a name. Each box searches all of Kenya."
               }
             >
-              <RadioCards
-                legend="Map tool"
-                hideLegend
-                name="selection-tool"
-                value={tool}
-                options={MAP_TOOL_SPECS.map((t) => ({
-                  id: t.id,
-                  label: t.label,
-                }))}
-                onChange={setTool}
-                compact
-                layout="stack"
+              <AdminPicker
+                areas={state.areas}
+                maxAreas={spec.maxAreas}
+                onAdd={(draft) => dispatch({ type: "addAreas", areas: [draft] })}
+                onShow={(id) => dispatch({ type: "focusArea", id })}
               />
             </ToolSection>
+          </div>
 
-            <ToolSection
-              title="By coordinate"
-              icon={<Location20Regular />}
-              hint="Paste a latitude and longitude. Radius 0 is the exact point."
-            >
-              <CoordinateEntry
-                onAreas={(areas) => dispatch({ type: "addAreas", areas })}
-              />
-            </ToolSection>
-
+          <div className="card overflow-hidden">
             <ToolSection
               title="From a shapefile"
               icon={<ArrowUpload20Regular />}
               hint="A .zip holding .shp, .shx, .dbf and .prj. Polygons only."
             >
               <ShapefileUpload
+                onAreas={(areas) => dispatch({ type: "addAreas", areas })}
+              />
+            </ToolSection>
+
+            <ToolSection
+              title="By coordinate"
+              icon={<Location20Regular />}
+              hint="Paste a latitude and longitude, or click the map to add a point."
+            >
+              <CoordinateEntry
                 onAreas={(areas) => dispatch({ type: "addAreas", areas })}
               />
             </ToolSection>
@@ -242,8 +240,8 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
               areas={state.areas}
               cap={capHint}
               emptyHint={
-                "Nothing selected yet. Click or draw on the map, paste a " +
-                "coordinate, or upload a shapefile."
+                "Nothing selected yet. Pick a county, sub-county or ward, " +
+                "upload a shapefile, paste a coordinate, or click the map."
               }
               onFocus={(id) => dispatch({ type: "focusArea", id })}
               onFitAll={() => dispatch({ type: "focusAll" })}
@@ -273,29 +271,10 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
               <MapPanel
                 areas={state.areas}
                 focus={state.focus}
-                tool={tool}
+                tool="point"
                 onAddAreas={(areas) => dispatch({ type: "addAreas", areas })}
                 onFocusArea={(id) => dispatch({ type: "focusArea", id })}
-                onDrawFinished={() => setTool("point")}
               />
-
-              {/*
-              The armed tool, named on the map itself, where the pointer is.
-              Docked under the zoom buttons, so it reads as part of the map's
-              own controls and never sits over the basemap's place names.
-              pointer-events-none so it can never swallow a click meant for
-              the map. Decorative for assistive technology: the radio group
-              already says which tool is checked.
-            */}
-              {activeTool && (
-                <p
-                  aria-hidden="true"
-                  className="type-caption1 pointer-events-none absolute left-2.5 top-[84px] z-map-overlay flex items-center gap-1.5 whitespace-nowrap rounded-fluent-large border border-edge bg-surface px-2 py-1 font-semibold text-ink shadow-8"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                  {activeTool.label}
-                </p>
-              )}
             </div>
           </div>
         </div>

@@ -429,7 +429,6 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
                 tool="point"
                 onAddAreas={() => {}}
                 onFocusArea={() => {}}
-                onDrawFinished={() => {}}
               />
             </div>
 

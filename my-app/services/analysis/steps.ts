@@ -61,7 +61,7 @@ export const STEPS: readonly Step[] = [
     segment: "areas",
     label: "Areas",
     title: "Which areas?",
-    hint: "Click or draw on the map, type a coordinate, or upload a shapefile. Mix these freely; every selection zooms the map to what you picked.",
+    hint: "Pick a county, sub-county or ward by name, upload a shapefile, type a coordinate, or click the map. Every selection zooms the map to it.",
   },
   {
     id: "review",

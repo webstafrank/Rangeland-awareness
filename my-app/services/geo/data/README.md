@@ -10,6 +10,38 @@ files generated from them.
 | `raw/geoBoundaries-KEN-ADM0_simplified.geojson` | The national outline. Committed, never edited. See "The national outline" below. |
 | `counties.generated.ts` | Generated. Do not hand-edit. See below. |
 | `kenya-outline.generated.ts` | Generated from the ADM0 file. Do not hand-edit. |
+| `raw/geoBoundaries-KEN-ADM2_simplified.geojson`, `-ADM2-metadata.json` | 290 sub-counties. See "Sub-counties and wards". |
+| `raw/geoBoundaries-KEN-ADM3_simplified.geojson`, `-ADM3-metadata.json` | 1452 wards. See "Sub-counties and wards". |
+| `admin-index.generated.ts` | Generated. Every county, sub-county and ward as `[id, name]`. |
+| `admin-geometry.generated.ts`, `admin/<county>.json` | Generated. Boundaries, one file per county, loaded on demand. |
+
+## Sub-counties and wards
+
+From the same geoBoundaries commit (`9469f09`), gbOpen:
+
+| Level | Units | Source | License | Attribution required |
+| --- | --- | --- | --- | --- |
+| ADM2, sub-counties | 290 | IEBC, OCHA ROSEA | CC BY 3.0 IGO | Yes |
+| ADM3, wards | 1452 | Benedict Aboki Omare and George Omare | CC BY 4.0 | Yes |
+
+The 290 "sub-counties" are IEBC's units, the 290 constituencies, which is
+what wards nest inside. They are not the ~300 administrative sub-counties of
+the national government (the KSA GeoServer's `Kenya_SubCounties:ke_subcounty`
+layer holds those 304), which wards do not nest inside.
+
+Neither release names its parents, so `../scripts/build-admin.mjs` assigns
+them by geometry: each unit goes to the parent that covers most of its area,
+measured on a sample grid. Checked against IEBC: every county's constituency
+count matches exactly (one hand correction, Buret to Kericho, explained in the
+script). The ward release has 1452 wards to IEBC's 1450: it lists Mwiki
+(Nairobi) and Tarakwa (Uasin Gishu) twice, and splits Kwale/Taita Taveta and
+Kiambu/Nakuru one ward differently. `../__tests__/admin.test.ts` pins all of
+this, so a data refresh that moves any ward fails there.
+
+Upstream files:
+
+- <https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/KEN/ADM2/geoBoundaries-KEN-ADM2_simplified.geojson>
+- <https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/KEN/ADM3/geoBoundaries-KEN-ADM3_simplified.geojson>
 
 ## The national outline
 

@@ -22,7 +22,12 @@ import { isTopicSlug, type TopicSlug } from "@/services/analysis/topics";
 import type { AoiSource, SelectionState } from "@/services/analysis/selection";
 import type { BoundsTuple } from "@/services/geo/bounds";
 
-export const SCHEMA_VERSION = "1.0.0";
+/**
+ * 1.1.0: an area's `source` may be "admin" (a county, sub-county or ward
+ * picked by name), whose feature properties carry `adminId` and `level`.
+ * Additive: every 1.0.0 payload is still a valid 1.1.0 one.
+ */
+export const SCHEMA_VERSION = "1.1.0";
 
 export interface RequestArea {
   id: string;

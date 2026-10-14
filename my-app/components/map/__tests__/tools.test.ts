@@ -13,11 +13,12 @@ describe("selection map tile loading", () => {
 });
 
 describe("map tools", () => {
-  it("offers the three tools, each with a label and a hint", () => {
-    expect(MAP_TOOL_SPECS.map((t) => t.id)).toEqual(["point", "polygon", "rectangle"]);
+  it("offers only the point tool: drawing a shape or a box is gone", () => {
+    expect(MAP_TOOL_SPECS.map((t) => t.id)).toEqual(["point"]);
     for (const tool of MAP_TOOL_SPECS) {
       expect(tool.label.length).toBeGreaterThan(0);
       expect(tool.hint.length).toBeGreaterThan(0);
+      expect(tool.label).not.toMatch(/draw/i);
     }
   });
 });
