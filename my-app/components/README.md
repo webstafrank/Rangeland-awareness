@@ -30,8 +30,8 @@ under `map/` and is reached only through `MapPanel`.
 | File | What it owns |
 | --- | --- |
 | `MapPanel.tsx` | The ssr:false boundary and the loading placeholder. |
-| `AoiMap.tsx` | The Leaflet map: basemaps, click-to-select, fly-to-focus, the view readout. |
-| `tools.ts` | The one map tool (click a point), the tile loading policy and the initial Kenya bounds. Plain module, so a server component can import the type. |
+| `AoiMap.tsx` | The Leaflet map: basemaps, Kenya's border (outlined, the world outside dimmed), the Identify place / Add point switch, the dashed preview of a unit chosen by name, fly-to-focus, the view readout. |
+| `tools.ts` | The two click modes (identify the place, add a point), the tile loading policy and the initial Kenya bounds. Plain module, so a server component can import the type. |
 
 Two things in `AoiMap.tsx` are not obvious:
 
@@ -59,6 +59,7 @@ description of that sequence; nothing here hardcodes a step order or a URL.
 | `ModelStep.tsx` | Step 2: the model, on its trade-off. |
 | `AreasStep.tsx` | Step 3: pick by name, upload a shapefile or type a coordinate, the map, the running list. |
 | `AdminPicker.tsx`, `admin-picker.ts` | County, sub-county and ward as three searchable Fluent Comboboxes, the chosen path, and Add. The rules (options, context, refusals) are pure in `admin-picker.ts`; search and cascade are `services/geo/admin.ts`. |
+| `useAdminMapSync.ts` | The By name boxes and the map, each moving the other: a chosen unit is outlined and flown to; in Identify place mode a map click fills the boxes (`services/geo/locate.ts`). Owns the choice, the click mode and the map's status line. |
 | `ReviewStep.tsx` | Step 4: every decision restated, then Run. |
 | `RadioCards.tsx` | A labelled `role="radiogroup"` of native radios. |
 | `CoordinateEntry.tsx` | The keyboard path to an area: type or paste a coordinate. |

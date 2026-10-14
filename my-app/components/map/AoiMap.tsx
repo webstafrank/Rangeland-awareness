@@ -17,6 +17,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GeoJSON,
   MapContainer,
+  Pane,
+  Polygon,
+  Polyline,
   TileLayer,
   useMap,
   useMapEvents,
@@ -33,9 +36,13 @@ import {
 } from "@/services/analysis/selection";
 import {
   KENYA_BOUNDS,
+  MAP_TOOL_SPECS,
   TILE_LOADING,
   type MapTool,
 } from "@/components/map/tools";
+// Straight from the generated file, not the services/geo barrel, which also
+// re-exports the 170KB county overview data this map does not use.
+import { KENYA_OUTLINE } from "@/services/geo/data/kenya-outline.generated";
 import { token } from "@/lib/theme/palette";
 import { BasemapSwitch } from "@/components/explore/MapOverlays";
 import type { Basemap } from "@/components/explore/ExploreMapLibre";
@@ -65,12 +72,31 @@ const CONTROL_SKIN = [
   "[&_.leaflet-control-attribution]:rounded-tl-fluent-medium",
 ].join(" ");
 
+/**
+ * A unit chosen in the By name boxes but not yet added: outlined dashed, so
+ * it reads as "this is what Add would add", not as part of the selection.
+ */
+export interface MapPreview {
+  /** The unit's id, so a new unit swaps the layer rather than restyling it. */
+  id: string;
+  feature: Feature;
+  /** Where to fly, or null to outline it without moving the map. */
+  focus: FocusRequest | null;
+}
+
 export interface AoiMapProps {
   areas: readonly AreaOfInterest[];
   focus: FocusRequest | null;
   tool: MapTool;
+  /** The Identify place / Add point switch. Absent, the switch is not shown. */
+  onTool?: (tool: MapTool) => void;
   onAddAreas: (areas: DraftArea[]) => void;
   onFocusArea: (id: string) => void;
+  /** A click in identify mode, in lon/lat. */
+  onIdentify?: (lon: number, lat: number) => void;
+  preview?: MapPreview | null;
+  /** One short line on the map: "Finding the place...", "Outside Kenya...". */
+  note?: string | null;
 }
 
 /**
@@ -92,14 +118,15 @@ export interface AoiMapProps {
  * stylesheet has not loaded.
  */
 const ACCENT_FALLBACK = token("--color-accent");
+const INK_FALLBACK = token("--color-ink");
 
-function accentColor(): string {
-  if (typeof window === "undefined") return ACCENT_FALLBACK;
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue("--color-accent")
-    .trim();
-  return value === "" ? ACCENT_FALLBACK : value;
+function themeColor(name: "--color-accent" | "--color-ink", fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value === "" ? fallback : value;
 }
+
+const accentColor = () => themeColor("--color-accent", ACCENT_FALLBACK);
 
 /** Style for selected geometry. Readable on street tiles and on imagery. */
 function areaStyle(): L.PathOptions {
@@ -247,21 +274,28 @@ function ResizeController() {
   return null;
 }
 
-/** Click-to-select: a click on the map adds that point. */
-function PointSelector({
-  active,
+/**
+ * What a click does, by tool: identify names the place under it (the step
+ * looks it up and fills the By name boxes); point adds the point itself.
+ */
+function ClickHandler({
+  tool,
   onAddAreas,
+  onIdentify,
 }: {
-  active: boolean;
+  tool: MapTool;
   onAddAreas: (areas: DraftArea[]) => void;
+  onIdentify?: (lon: number, lat: number) => void;
 }) {
   useMapEvents({
     click(event) {
-      if (!active) return;
-
       // Leaflet gives lat/lng; GeoJSON wants lng/lat. The flip lives here and
       // in services/geo/bounds.ts, nowhere else.
       const { lat, lng } = event.latlng;
+      if (tool === "identify") {
+        onIdentify?.(lng, lat);
+        return;
+      }
       const draft = draftAreaFromGeometry(
         { type: "Point", coordinates: [lng, lat] },
         "point",
@@ -274,12 +308,104 @@ function PointSelector({
   return null;
 }
 
+/** The whole Mercator world, as the outer ring the mask cuts Kenya out of. */
+const WORLD_RING: L.LatLngTuple[] = [
+  [-85, -180],
+  [-85, 180],
+  [85, 180],
+  [85, -180],
+];
+
+/**
+ * Kenya's border, made hard to miss.
+ *
+ * Three layers in a pane under the areas (overlayPane is 400), none of them
+ * taking clicks, so a click anywhere still reaches the map:
+ *   - a mask over everything outside Kenya, cut out with the even-odd rule
+ *     (Leaflet's default), so the 108 rings of the outline, islands and all,
+ *     come through undimmed;
+ *   - a wide white halo, so the line reads on dark satellite imagery;
+ *   - the line itself, in the palette's ink.
+ * The outline is the national ADM0 release (services/geo/data/README.md), the
+ * same one Explore clips its imagery to.
+ */
+function KenyaBorder() {
+  const rings = useMemo(
+    () => KENYA_OUTLINE.map((ring) => ring.map(([lon, lat]) => [lat, lon] as L.LatLngTuple)),
+    [],
+  );
+  const ink = useMemo(() => themeColor("--color-ink", INK_FALLBACK), []);
+
+  return (
+    // `interactive` is a prop on each layer, not a key in pathOptions:
+    // react-leaflet applies pathOptions with setStyle, which ignores it, and
+    // the paths then took clicks meant for the map.
+    <Pane name="kenya-border" style={{ zIndex: 350 }}>
+      <Polygon
+        positions={[WORLD_RING, ...rings]}
+        interactive={false}
+        pathOptions={{ stroke: false, fillColor: ink, fillOpacity: 0.22 }}
+      />
+      <Polyline
+        positions={rings}
+        interactive={false}
+        pathOptions={{ color: "#ffffff", weight: 6, opacity: 0.85 }}
+      />
+      <Polyline
+        positions={rings}
+        interactive={false}
+        pathOptions={{ color: ink, weight: 2.5, opacity: 1 }}
+      />
+    </Pane>
+  );
+}
+
+/**
+ * Identify place or Add point, in the same segmented style as the basemap
+ * switch on the other corner, so the map's two switches read as a pair.
+ */
+function ClickModeSwitch({ tool, onTool }: { tool: MapTool; onTool: (tool: MapTool) => void }) {
+  return (
+    <fieldset
+      className="pointer-events-auto flex rounded-fluent-large border border-edge bg-surface p-0.5 shadow-8"
+      data-testid="map-click-mode"
+    >
+      <legend className="sr-only">Clicking the map</legend>
+      {MAP_TOOL_SPECS.map((spec) => (
+        <label
+          key={spec.id}
+          title={spec.hint}
+          className={`type-caption1 cursor-pointer whitespace-nowrap rounded-fluent-medium px-2.5 py-1 font-semibold transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-accent ${
+            tool === spec.id
+              ? "bg-accent-soft text-accent"
+              : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
+          }`}
+        >
+          <input
+            type="radio"
+            name="aoi-click-mode"
+            value={spec.id}
+            checked={tool === spec.id}
+            onChange={() => onTool(spec.id)}
+            className="sr-only"
+          />
+          {spec.label}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
 export default function AoiMap({
   areas,
   focus,
   tool,
+  onTool,
   onAddAreas,
   onFocusArea,
+  onIdentify,
+  preview = null,
+  note = null,
 }: AoiMapProps) {
   // A point AOI is rendered as a circle rather than a pin, which sidesteps
   // Leaflet's default marker icon entirely. Its icon URLs are resolved
@@ -356,13 +482,50 @@ export default function AoiMap({
           />
         )}
 
+        <KenyaBorder />
+
         {layers}
 
+        {preview !== null && (
+          <GeoJSON
+            // Keyed by unit, so choosing another one swaps the layer.
+            key={`preview-${preview.id}`}
+            data={preview.feature}
+            style={{ ...style, weight: 2.5, dashArray: "6 5", fillOpacity: 0.06 }}
+            interactive={false}
+          />
+        )}
+
         <FocusController focus={focus} />
+        {/* Its own controller, so its tokens never collide with the reducer's. */}
+        <FocusController focus={preview?.focus ?? null} />
         <ResizeController />
         <ViewReadout />
-        <PointSelector active={tool === "point"} onAddAreas={onAddAreas} />
+        <ClickHandler tool={tool} onAddAreas={onAddAreas} onIdentify={onIdentify} />
       </MapContainer>
+
+      {/*
+        The click mode and its status line, top left under the zoom buttons.
+        Outside MapContainer, like the basemap switch, so a click on them never
+        reaches Leaflet as a map click.
+      */}
+      {onTool !== undefined && (
+        <div className="pointer-events-none absolute left-2.5 top-[84px] z-map-overlay flex max-w-[calc(100%-1.25rem)] flex-col items-start gap-1.5">
+          <ClickModeSwitch tool={tool} onTool={onTool} />
+          <p
+            role="status"
+            aria-live="polite"
+            data-testid="map-note"
+            className={
+              note === null
+                ? "sr-only"
+                : "type-caption1 rounded-fluent-large border border-edge bg-surface/95 px-2 py-1 text-ink-muted shadow-8"
+            }
+          >
+            {note ?? ""}
+          </p>
+        </div>
+      )}
 
       {/*
         Explore's own basemap switch, top right where Explore has it. Outside

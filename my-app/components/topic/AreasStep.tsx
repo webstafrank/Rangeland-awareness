@@ -11,9 +11,11 @@
  *   Selected areas the running list
  *
  * Naming the place is first because it is how an analyst usually knows an
- * area. The map has no tool switch any more: drawing a shape or a box was
- * removed when named boundaries arrived, and a click on the map always adds
- * that point, so there is no mode to show or to get wrong.
+ * area. The boxes and the map move each other (useAdminMapSync): a chosen
+ * unit is outlined and flown to, and in Identify place mode a click on the
+ * map fills the boxes with the place under it. The map's switch, Identify
+ * place or Add point, sits on the map beside the basemap switch. Drawing a
+ * shape or a box was removed when named boundaries arrived.
  */
 
 import {
@@ -43,6 +45,7 @@ import {
   subscribeMapSize,
 } from "@/components/topic/map-size-store";
 import { useWizard } from "@/components/topic/useWizard";
+import { useAdminMapSync } from "@/components/topic/useAdminMapSync";
 import { undoRestoreCount } from "@/services/analysis/selection";
 import { shortAreaReason } from "@/components/topic/footer-controls";
 import type { Topic } from "@/services/analysis/topics";
@@ -99,6 +102,8 @@ function ToolSection({
 export default function AreasStep({ topic, initial }: AreasStepProps) {
   const wizard = useWizard(topic.slug, initial);
   const { state, dispatch, spec, canReview } = wizard;
+  // The By name boxes and the map, each moving the other. See useAdminMapSync.
+  const sync = useAdminMapSync(state.areas);
 
   // Read through an external store rather than state plus an effect, so the
   // remembered height survives a reload without a hydration mismatch and
@@ -197,10 +202,12 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
               hint={
                 atCapacity
                   ? `Holding ${spec.maxAreas} areas, the maximum. Remove one to add another.`
-                  : "Type a name. Each box searches all of Kenya."
+                  : "Type a name, or click the map to find the place there."
               }
             >
               <AdminPicker
+                choice={sync.choice}
+                onChoice={sync.setChoice}
                 areas={state.areas}
                 maxAreas={spec.maxAreas}
                 onAdd={(draft) => dispatch({ type: "addAreas", areas: [draft] })}
@@ -223,7 +230,7 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
             <ToolSection
               title="By coordinate"
               icon={<Location20Regular />}
-              hint="Paste a latitude and longitude, or click the map to add a point."
+              hint="Paste a latitude and longitude, or switch the map to Add point and click."
             >
               <CoordinateEntry
                 onAreas={(areas) => dispatch({ type: "addAreas", areas })}
@@ -271,9 +278,13 @@ export default function AreasStep({ topic, initial }: AreasStepProps) {
               <MapPanel
                 areas={state.areas}
                 focus={state.focus}
-                tool="point"
+                tool={sync.tool}
+                onTool={sync.setTool}
                 onAddAreas={(areas) => dispatch({ type: "addAreas", areas })}
                 onFocusArea={(id) => dispatch({ type: "focusArea", id })}
+                onIdentify={sync.identify}
+                preview={sync.preview}
+                note={sync.note}
               />
             </div>
           </div>
