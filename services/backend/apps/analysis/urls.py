@@ -10,4 +10,8 @@ urlpatterns = [
     path("runs", views.create_run, name="create-run"),
     path("runs/<str:run_id>", views.run_status, name="run-status"),
     path("runs/<str:run_id>/result", views.run_result, name="run-result"),
+    path("runs/<str:run_id>/tiles/<str:map_id>", views.run_tile, name="run-tile"),
+    # `<str:name>` cannot contain "/", and the name is then only ever used as a
+    # key into the result's `rasters`, never as a path.
+    path("runs/<str:run_id>/rasters/<str:name>.tif", views.run_raster, name="run-raster"),
 ]

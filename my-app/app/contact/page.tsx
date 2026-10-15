@@ -43,7 +43,7 @@ const CHANNELS = [
 ] as const;
 
 const LOCATION = [
-  ["Address", "Kenya Space Agency, National Space Secretariat, Off Mombasa Road, Nairobi, Kenya"],
+  ["Address", "Kenya Space Agency, Pitman House, Off Jakaya Kikwete Road, Nairobi, Kenya"],
   ["Website", "www.ksa.go.ke"],
   ["Hours", "Monday to Friday, 08:00 to 17:00 EAT"],
 ] as const;

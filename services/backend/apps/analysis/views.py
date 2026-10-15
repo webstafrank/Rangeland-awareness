@@ -14,14 +14,20 @@ import json
 import logging
 from typing import Any
 
-from django.http import HttpRequest, HttpResponseNotAllowed, JsonResponse
+from django.http import (
+    FileResponse,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseNotAllowed,
+    JsonResponse,
+)
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_safe
 
-from apps.analysis import bindings
+from apps.analysis import bindings, maps
 from apps.analysis.domain import ahp, criteria
 from apps.analysis.jobs.runner import submit
-from apps.analysis.jobs.stages import plan_stages
+from apps.analysis.jobs.stages import plan_for_config
 from apps.analysis.models import Run, config_hash
 from apps.analysis.validation import validate_run_config
 
@@ -249,15 +255,13 @@ def create_run(request: HttpRequest) -> JsonResponse:
             status=200,
         )
 
-    method = criteria.method_for(config["topic"])
-    used = [c for c in method.criteria if c.id in config["weights"]]
     run = Run(
         run_id=run_id,
         topic=config["topic"],
         config=config,
         status=Run.Status.QUEUED,
     )
-    run.set_stages(plan_stages(used, publish_layers=config["publishLayers"]))
+    run.set_stages(plan_for_config(config))
     # Re-asserted after set_stages, which derives status from the stage list.
     # An all-pending plan derives as queued anyway; saying so here means a
     # reader does not have to know that to follow the code.
@@ -300,24 +304,102 @@ def run_result(request: HttpRequest, run_id: str) -> JsonResponse:
     409 rather than 404 while it is still running: the run exists, it simply has
     no result yet, and a 404 would send the client looking for a wrong id.
     """
+    run, problem = _succeeded_run(run_id)
+    if problem is not None:
+        return problem
+    assert run is not None
+
+    result = run.result or {}
+    return JsonResponse(
+        {
+            "runId": run.run_id,
+            "config": run.config,
+            "generatedAt": run.ended_at.isoformat() if run.ended_at else None,
+            **result,
+            # After the stored result, so they win over what it holds. A result
+            # stored before `kind` existed is an overlay; one stored before
+            # `rasters` held file names held server paths, which the caller has
+            # no use for and should not see.
+            "kind": maps.result_kind(result),
+            "rasters": maps.public_rasters(result),
+            "maps": maps.maps_json(run.run_id, result),
+        }
+    )
+
+
+def _succeeded_run(run_id: str) -> tuple[Run | None, JsonResponse | None]:
+    """The run, or the 404/409 that the result, tile and download endpoints
+    all answer instead.
+
+    One copy, so the three cannot drift: a 404 is a wrong id, a 409 is a right
+    id that has nothing to show yet. The 409 carries `runError` everywhere,
+    because a map client told only "not succeeded" for a failed run would keep
+    asking, while the stage and message tell it to stop.
+    """
     run = Run.objects.filter(pk=run_id).first()
     if run is None:
-        return _problem(f'No run "{run_id}".', status=404)
-
+        return None, _problem(f'No run "{run_id}".', status=404)
     if run.status != Run.Status.SUCCEEDED:
-        return _problem(
+        return None, _problem(
             f'Run "{run_id}" has not succeeded; it is {run.status}.',
             status=409,
             runStatus=run.status,
             runError=run.error,
             statusUrl=f"/api/v1/runs/{run_id}",
         )
+    return run, None
 
-    return JsonResponse(
-        {
-            "runId": run.run_id,
-            "config": run.config,
-            "generatedAt": run.ended_at.isoformat() if run.ended_at else None,
-            **(run.result or {}),
-        }
+
+@require_safe
+def run_tile(request: HttpRequest, run_id: str, map_id: str) -> HttpResponse:
+    """One map of a finished run, as a transparent PNG for an EPSG:3857 box.
+
+    The order of the checks is the order of the questions: does the run exist,
+    has it finished, does it have this map, is the box sensible. Answering 400
+    for a bad box on a run that does not exist would send the caller fixing the
+    wrong thing.
+    """
+    run, problem = _succeeded_run(run_id)
+    if problem is not None:
+        return problem
+    assert run is not None
+    result = run.result or {}
+    try:
+        spec = maps.spec_for(result, map_id)
+        bbox, width, height = maps.parse_tile_request(request.GET)
+        path = maps.raster_path(run, result, map_id)
+        png = maps.render_tile(path, spec, bbox, width, height)
+    except maps.MapError as exc:
+        return _problem(exc.message, status=exc.status)
+
+    response = HttpResponse(png, content_type="image/png")
+    response["Cache-Control"] = f"public, max-age={maps.TILE_MAX_AGE}"
+    return response
+
+
+@require_safe
+def run_raster(request: HttpRequest, run_id: str, name: str) -> HttpResponse:
+    """Download one of a finished run's GeoTIFFs, as computed, in its grid CRS.
+
+    Streamed with FileResponse rather than read into memory: a county result
+    at 30 m is hundreds of megabytes. Only names the result lists are served,
+    and `maps.raster_path` proves the file is inside the run's workspace, so
+    this endpoint cannot be walked to any other file on the server.
+    """
+    run, problem = _succeeded_run(run_id)
+    if problem is not None:
+        return problem
+    assert run is not None
+    try:
+        path = maps.raster_path(run, run.result or {}, name)
+    except maps.MapError as exc:
+        return _problem(exc.message, status=exc.status)
+
+    response = FileResponse(
+        path.open("rb"),
+        as_attachment=True,
+        filename=f"{run.run_id}-{name}.tif",
+        content_type="image/tiff",
     )
+    response["Cache-Control"] = f"public, max-age={maps.TILE_MAX_AGE}"
+    return response

@@ -51,14 +51,31 @@ FROM ghcr.io/osgeo/gdal:ubuntu-small-3.12.2
 # (The development machine cannot pip install at all, for this same PEP 668
 # reason plus a missing python3-venv. That constraint is the host's and is not
 # copied into this image: here, pip works.)
+#
+# scikit-learn and XGBoost are the two models a prediction run trains
+# (apps/analysis/prediction/models.py). Two details, both about not breaking
+# the numpy rule above:
+#
+#   - numpy is pinned to the apt version through a constraints file, so pip can
+#     satisfy scikit-learn's and SciPy's numpy requirement only with the copy
+#     GDAL was built against. Without it pip may "upgrade" numpy and the ABI
+#     failure above comes back in a different place.
+#   - `xgboost-cpu`, not `xgboost`. On x86_64 Linux the full package depends on
+#     nvidia-nccl-cu12, about 200 MB of CUDA collective-communication library
+#     for GPUs this server does not have. The CPU build is the same booster
+#     (same `xgboost` import) without it.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3-pip python3-numpy \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --break-system-packages --no-cache-dir \
+    && python3 -c "import numpy; print(f'numpy=={numpy.__version__}')" > /tmp/numpy-pin.txt \
+    && pip install --break-system-packages --no-cache-dir -c /tmp/numpy-pin.txt \
         "Django~=5.2.15" \
         "requests>=2.32,<3" \
         "gunicorn~=26.2" \
-    && python3 -c "from osgeo import gdal; import numpy, django; print('gdal', gdal.__version__, '| numpy', numpy.__version__, '| django', django.get_version())"
+        "scikit-learn>=1.4,<2" \
+        "xgboost-cpu>=2.1,<4" \
+    && rm /tmp/numpy-pin.txt \
+    && python3 -c "from osgeo import gdal; import numpy, django, sklearn, xgboost; print('gdal', gdal.__version__, '| numpy', numpy.__version__, '| django', django.get_version(), '| sklearn', sklearn.__version__, '| xgboost', xgboost.__version__)"
 
 # ------------------------------------------------------------------- the code
 #

@@ -425,6 +425,7 @@ class GeoServerClient:
         *,
         subset: tuple[float, float, float, float] | None = None,
         subset_crs: str | None = None,
+        scale_factor: float | None = None,
     ) -> bytes:
         """A coverage as GeoTIFF bytes, optionally windowed.
 
@@ -451,6 +452,18 @@ class GeoServerClient:
             ]
             if subset_crs:
                 params["subsettingCRS"] = subset_crs
+        if scale_factor is not None:
+            # WCS 2.0 Scaling extension: one factor for both axes, answered by
+            # GeoServer with a smaller grid over the same window. Used by the
+            # prediction pipeline, which computes at 250 m and has no use for a
+            # 10 m land-cover window that is 880 MB over one county. Verified
+            # against the live server (SCALEFACTOR=0.05 on the flood hotspots
+            # returned 426 x 563 for an 8514 x 11266 coverage).
+            if not 0 < scale_factor <= 1:
+                raise GeoServerError(
+                    f"scale_factor must be in (0, 1], got {scale_factor}"
+                )
+            params["SCALEFACTOR"] = f"{scale_factor:.6f}"
 
         response = self._get("wcs", params, timeout=self.coverage_timeout)
         content_type = response.headers.get("Content-Type", "")

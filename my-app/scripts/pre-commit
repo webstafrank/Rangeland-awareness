@@ -64,9 +64,19 @@ npx vitest run --silent
 # frontend-only commit does not pay for it, and skipped entirely when Django is
 # not installed, because the backend is not every contributor's concern.
 if git diff --cached --name-only | grep -q '^services/backend/'; then
-  if python3 -c "import django" 2>/dev/null; then
-    echo "  - backend tests"
-    (cd "$repo_root/services/backend" && python3 manage.py test apps --verbosity 0)
+  # The backend's virtualenv when it has one. Prediction runs need scikit-learn
+  # and XGBoost, which live in services/backend/.venv (README "What is
+  # installed"); the system python3 has Django and GDAL but not those, and
+  # running the suite with it fails every model test on an import, which says
+  # nothing about the code being committed. The venv is created with
+  # --system-site-packages, so it is a superset of the system interpreter.
+  backend_python=python3
+  if [ -x "$repo_root/services/backend/.venv/bin/python" ]; then
+    backend_python="$repo_root/services/backend/.venv/bin/python"
+  fi
+  if "$backend_python" -c "import django" 2>/dev/null; then
+    echo "  - backend tests ($backend_python)"
+    (cd "$repo_root/services/backend" && "$backend_python" manage.py test apps --verbosity 0)
   else
     echo "  - backend tests SKIPPED (django not importable)"
   fi

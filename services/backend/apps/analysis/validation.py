@@ -12,10 +12,12 @@ minutes into a raster fetch.
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
 from typing import Any
 
 from apps.analysis.bindings import unbound
 from apps.analysis.domain import criteria
+from apps.analysis.prediction.recipes import MODEL_MEMBERS, recipe_for
 
 #: A projected CRS in metres is required, and this is not a style preference.
 #: The pipeline computes a Euclidean distance transform; in a geographic CRS
@@ -29,6 +31,16 @@ MAX_RESOLUTION_M = 1000
 MAX_AREAS = 12
 MIN_WINDOW_DAYS = 30
 MAX_WINDOW_DAYS = 3660
+
+#: The contract's ceiling for a prediction grid. At 20M pixels one float32
+#: layer is 80 MB, and a prediction holds a dozen feature layers on disk and a
+#: chunk of each in memory beside two fitted ensembles; past this a 7 GB
+#: machine swaps. Refused at validation with the number, not discovered as an
+#: out-of-memory kill.
+MAX_PREDICTION_PIXELS = 20_000_000
+#: The earliest month a prediction can describe: MODIS NDVI starts in 2000-03,
+#: and a forecast needs eight years of history before its feature month.
+MIN_AS_OF = date(2008, 6, 1)
 
 
 class ConfigErrors(dict):
@@ -60,15 +72,49 @@ def validate_run_config(body: dict[str, Any]) -> tuple[dict[str, Any], ConfigErr
         except KeyError:
             errors.add("topic", f'Unknown topic "{topic}".')
         else:
-            if method.kind != "weighted-overlay":
-                # Not a 400 in spirit — the topic exists — but it cannot run
-                # this pipeline, and saying so beats a confusing failure later.
-                errors.add(
-                    "topic",
-                    f'"{topic}" runs a model, not a weighted overlay. '
-                    "No model backend is connected yet.",
-                )
-            config["topic"] = topic
+            # `method_for` answers "model" for any topic the criteria artifact
+            # does not list, including a typo. A model topic is only real if a
+            # prediction recipe exists for it.
+            if method.kind == "model" and recipe_for(topic) is None:
+                errors.add("topic", f'Unknown topic "{topic}".')
+                method = None
+            else:
+                config["topic"] = topic
+
+    # ------------------------------------------------------------------ model
+    #
+    # Whether this is a prediction run is decided by `model`, and only by it.
+    # The criteria artifact stays the source of truth for which topics MUST
+    # run a model (method kind "model"); flood-risk is an overlay topic that
+    # MAY, because a recipe exists for it. Without `model`, flood-risk is the
+    # weighted overlay exactly as before, down to the run id: nothing below
+    # adds a field to an overlay config.
+    model = body.get("model")
+    prediction = False
+    if model is not None:
+        if not isinstance(model, str) or model not in MODEL_MEMBERS:
+            errors.add(
+                "model",
+                f'Unknown model {model!r}; use one of {", ".join(sorted(MODEL_MEMBERS))}.',
+            )
+        elif isinstance(topic, str) and recipe_for(topic) is None and method is not None:
+            errors.add(
+                "model",
+                f'"{topic}" has no model; it runs a weighted overlay. Remove "model".',
+            )
+        else:
+            prediction = True
+            config["model"] = model
+    elif method is not None and method.kind == "model":
+        errors.add(
+            "model",
+            f'"{topic}" runs a model, so "model" is required: one of '
+            f'{", ".join(sorted(MODEL_MEMBERS))}.',
+        )
+    # A model topic is a prediction run even when `model` is missing or bad,
+    # so its other fields are checked by the prediction rules (no weights)
+    # rather than reported as "weights are required" on top of the real error.
+    prediction = prediction or (method is not None and method.kind == "model")
 
     # ------------------------------------------------------------------ areas
     areas = body.get("areas")
@@ -85,7 +131,17 @@ def validate_run_config(body: dict[str, Any]) -> tuple[dict[str, Any], ConfigErr
 
     # ---------------------------------------------------------------- weights
     weights = body.get("weights")
-    if not isinstance(weights, dict) or not weights:
+    if prediction:
+        if weights is not None:
+            # Refused rather than ignored: a model learns its own weights, and
+            # silently dropping a field the analyst set would let them believe
+            # their weights shaped the map.
+            errors.add(
+                "weights",
+                "A prediction run learns its own weights; remove \"weights\" "
+                "(or remove \"model\" for a weighted overlay).",
+            )
+    elif not isinstance(weights, dict) or not weights:
         errors.add("weights", "Weights are required, one per criterion.")
     elif method is not None and method.kind == "weighted-overlay":
         expected = {c.id for c in method.criteria}
@@ -201,8 +257,101 @@ def validate_run_config(body: dict[str, Any]) -> tuple[dict[str, Any], ConfigErr
         else:
             config["dateWindow"] = window
 
+    # ------------------------------------------------------------------- asOf
+    as_of_raw = body.get("asOf")
+    as_of: date | None = None
+    if as_of_raw is not None:
+        try:
+            as_of = date.fromisoformat(str(as_of_raw)[:10])
+        except ValueError:
+            errors.add("asOf", "asOf must be an ISO date (YYYY-MM-DD).")
+    if prediction:
+        today = datetime.now(UTC).date()
+        if as_of is None and "asOf" not in errors:
+            as_of = default_as_of(today)
+        if as_of is not None:
+            # The month the features describe, so the day is dropped: 2026-08-17
+            # and 2026-08-01 are the same run and must hash the same.
+            as_of = as_of.replace(day=1)
+            if as_of < MIN_AS_OF:
+                errors.add(
+                    "asOf",
+                    f"asOf {as_of} is too early; a forecast needs eight years of "
+                    f"satellite history before it. The earliest is {MIN_AS_OF}.",
+                )
+            elif as_of > today.replace(day=1):
+                errors.add("asOf", f"asOf {as_of} is in the future.")
+            else:
+                # Written into the stored config BEFORE hashing, so a run posted
+                # without asOf in October and one posting the resolved month
+                # explicitly are the same run with the same id.
+                config["asOf"] = as_of.isoformat()
+    # On an overlay run asOf is accepted and not stored. Nothing in the overlay
+    # reads it, and storing it would change the run id of a configuration that
+    # computes exactly what it computed before.
+
+    # ------------------------------------------------------------ grid size
+    if (
+        prediction
+        and not errors.get("areas")
+        and "targetCrs" in config
+        and "resolution" in config
+    ):
+        problem = _prediction_grid_problem(
+            config["areas"], config["targetCrs"], config["resolution"]
+        )
+        if problem:
+            errors.add("resolution", problem)
+
     config["publishLayers"] = bool(body.get("publishLayers", False))
     return config, errors
+
+
+def default_as_of(today: date) -> date:
+    """The first day of the month two calendar months before ``today``.
+
+    The latest month every monthly GIBS layer used here has published (MODIS
+    NDVI and LST lag about a month; MERRA-2 a little more).
+    """
+    total = today.year * 12 + (today.month - 1) - 2
+    return date(total // 12, total % 12 + 1, 1)
+
+
+def _prediction_grid_problem(areas: list, crs: str, resolution: float) -> str | None:
+    """Over `MAX_PREDICTION_PIXELS`? Then say so, and name a resolution that fits.
+
+    The grid is the real snapped grid from `raster.reference_grid`, the same
+    call the run makes, so the count cannot disagree with what would run.
+    Imported here rather than at module top: GDAL is a large native import and
+    validation of an overlay run does not need it.
+    """
+    import math
+
+    from apps.analysis.pipeline import raster
+    from apps.analysis.pipeline.overlay import PipelineError, _merge_areas
+
+    try:
+        grid = raster.reference_grid(_merge_areas(areas), crs, resolution)
+    except (raster.RasterError, PipelineError):
+        # Not this check's to report: an unusable geometry or CRS fails the run
+        # with GDAL's own message, which is better than a guess here.
+        return None
+    pixels = grid.width * grid.height
+    if pixels <= MAX_PREDICTION_PIXELS:
+        return None
+    fits = resolution * math.sqrt(pixels / MAX_PREDICTION_PIXELS)
+    # Rounded up to a tidy number, then nudged until the snapped grid fits.
+    suggestion = math.ceil(fits / 10) * 10
+    while suggestion <= MAX_RESOLUTION_M:
+        probe = raster.reference_grid(_merge_areas(areas), crs, suggestion)
+        if probe.width * probe.height <= MAX_PREDICTION_PIXELS:
+            break
+        suggestion += 10
+    return (
+        f"The areas are {pixels:,} pixels at {resolution:g} m, over the "
+        f"{MAX_PREDICTION_PIXELS:,} limit for a prediction run. "
+        f"{suggestion:g} m fits; the app sends 250 m for predictions."
+    )
 
 
 def _geometry_problem(area: Any) -> str | None:
