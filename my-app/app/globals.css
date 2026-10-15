@@ -505,6 +505,32 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The app background: public/back.webp under a wash of the canvas colour.
+ *
+ * Section headings and intros sit straight on this ground in ink, so the wash
+ * is what keeps them legible. 92% is the floor: at it, --color-ink-faint over
+ * the photo's darkest (near black) pixel measures 4.72:1, still WCAG AA; at
+ * 90% it drops to 4.48:1 and fails. Lower --bg-wash and the faintest text
+ * fails first.
+ *
+ * A fixed pseudo-element rather than background-attachment: fixed, which iOS
+ * Safari ignores. z-index -1 puts it above the canvas, which carries the body
+ * colour (still set above, so the page and the theme eval read the same ground
+ * while the image loads), and below every panel.
+ */
+body::before {
+  --bg-wash: color-mix(in srgb, var(--color-page) 92%, transparent);
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--bg-wash), var(--bg-wash)),
+    url("/back.webp") center / cover no-repeat;
+}
+
 /* One focus ring for the whole app. :focus-visible so a mouse click does not
    leave a ring behind, but every keyboard path does. */
 :focus-visible {
