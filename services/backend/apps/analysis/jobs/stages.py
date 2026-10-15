@@ -113,6 +113,58 @@ def plan_stages(
     ]
 
 
+#: A prediction run, in execution order (`prediction/pipeline.py`).
+#:
+#: Weights are shares of wall clock measured on the first live runs over a
+#: 20 km Tana River box with a cold cache: the ~400 GIBS requests of a forecast
+#: dominate, then training (the final fit plus the held-out fits), and the
+#: per-pixel prediction. As for the overlay, they shape the bar and never decide
+#: when a stage ends.
+PREDICTION_SCRIPT: tuple[StageTemplate, ...] = (
+    StageTemplate("resolve", "Resolving area geometry", 0.03),
+    StageTemplate("fetch", "Fetching GeoServer layers", 0.12),
+    StageTemplate("satellite", "Fetching NASA GIBS satellite layers", 0.30),
+    StageTemplate("features", "Building features on the run grid", 0.08),
+    StageTemplate("labels", "Building training labels", 0.05),
+    StageTemplate("train", "Training the models", 0.14),
+    StageTemplate("validate", "Validating on held-out data", 0.14),
+    StageTemplate("predict", "Predicting every pixel", 0.08),
+    StageTemplate("statistics", "Per-class and per-area statistics", 0.03),
+    StageTemplate("publish", "Publishing layers to GeoServer", 0.03),
+)
+
+
+def plan_prediction_stages() -> list[Stage]:
+    """The prediction stage list. Only `publish` is ever skipped, and always:
+    the same reason as the overlay (no GeoServer write credentials here), and
+    decided up front so the list never reflows."""
+    return [
+        Stage(
+            id=template.id,
+            label=template.label,
+            weight=template.weight,
+            state=StageState.SKIPPED if template.id == "publish" else StageState.PENDING,
+        )
+        for template in PREDICTION_SCRIPT
+    ]
+
+
+def plan_for_config(config: dict) -> list[Stage]:
+    """The stage list for a validated run configuration.
+
+    `model` decides, exactly as it decides in validation and in the runner:
+    one rule in three places, so a run cannot be planned as an overlay and
+    executed as a prediction.
+    """
+    if config.get("model"):
+        return plan_prediction_stages()
+    from apps.analysis.domain import criteria as criteria_module
+
+    method = criteria_module.method_for(config["topic"])
+    used = [c for c in method.criteria if c.id in config.get("weights", {})]
+    return plan_stages(used, publish_layers=config.get("publishLayers", False))
+
+
 def progress_of(stages: list[Stage]) -> float:
     """Fraction complete, from finished stage weights.
 

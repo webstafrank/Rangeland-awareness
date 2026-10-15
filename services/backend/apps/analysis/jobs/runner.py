@@ -128,9 +128,16 @@ def execute(run: Run) -> None:
 
     The pipeline itself is imported lazily, inside the function. GDAL is a large
     native import and the web process should not pay for it just to answer a
-    poll; only a worker actually executing a run needs it.
+    poll; only a worker actually executing a run needs it. The same goes double
+    for scikit-learn and XGBoost, which only a prediction run imports.
+
+    `model` in the stored config decides overlay or prediction, the same rule
+    validation and the stage plan use (`stages.plan_for_config`).
     """
-    from apps.analysis.pipeline.overlay import run_weighted_overlay
+    if run.config.get("model"):
+        from apps.analysis.prediction.pipeline import run_prediction as pipeline
+    else:
+        from apps.analysis.pipeline.overlay import run_weighted_overlay as pipeline
 
     run.started_at = datetime.now(UTC)
     run.status = Run.Status.RUNNING
@@ -148,7 +155,7 @@ def execute(run: Run) -> None:
         )
         run.save(update_fields=["stages", "progress", "status"])
 
-    result = run_weighted_overlay(
+    result = pipeline(
         config=run.config,
         workspace=workspace_for(run.run_id),
         report=report,

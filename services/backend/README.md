@@ -29,15 +29,34 @@ cannot read them, and gives one place to cache tiles rather than one per client.
 
 ## What is installed, and what is deliberately absent
 
-Everything this service needs is already on the machine. There is no virtualenv,
-no wheel to build, no `pip install` step:
+The overlay needs only what is already on the machine. Prediction runs add the
+two models they train, scikit-learn and XGBoost, which are not:
 
 | | |
 | --- | --- |
 | Django 5.2.15 | the HTTP layer |
 | `osgeo.gdal` 3.12.2 | every raster operation |
 | numpy 2.3.5 | the array maths |
-| requests | GeoServer I/O |
+| requests | GeoServer and NASA GIBS I/O |
+| scikit-learn 1.9 | Random Forest, held-out metrics (prediction runs) |
+| XGBoost 3.4 | gradient-boosted trees (prediction runs) |
+
+They go in a virtualenv that can still see the system GDAL and numpy, created
+once (`python3-venv` is installed now, which it was not when the paragraphs
+below were written):
+
+```bash
+cd services/backend
+python3 -m venv --system-site-packages .venv
+.venv/bin/pip install scikit-learn xgboost
+.venv/bin/python manage.py runserver
+```
+
+`--system-site-packages` is the important flag: GDAL's Python bindings live in
+the system dist-packages and are compiled against the system numpy, so a venv
+that cannot see them has no raster stack at all. `.venv/` is gitignored. The
+Docker image installs the same two with numpy pinned to the apt copy
+(`Dockerfile.backend` explains why).
 
 **No Django REST Framework.** This API is a handful of endpoints that return
 JSON and one that streams an image. `JsonResponse` and `View` do that with no
@@ -115,6 +134,43 @@ separately, on purpose:
 ```bash
 python3 manage.py check_geoserver     # hits the real thing, prints what it finds
 ```
+
+The prediction tests (`apps/analysis/tests/test_prediction.py`) run every
+topic end to end through the real pipeline on synthetic layers (a `FakeSources`
+behind the same interface the live GeoServer and GIBS client implement) and
+decode against GIBS colormaps recorded in `apps/analysis/tests/fixtures/gibs/`.
+The live equivalent, which trains on real GeoServer and GIBS data over a small
+Tana River box and prints the result summary:
+
+```bash
+.venv/bin/python manage.py predict_smoke --topic drought-monitoring --model combined
+```
+
+## Prediction runs
+
+`POST /api/v1/runs` with a `model` (`random-forest`, `xgboost` or `combined`)
+trains and applies the models instead of the weighted overlay. The contract,
+including what each topic predicts and where its training labels come from, is
+`contracts/prediction.md`. In short:
+
+| topic | the model predicts | labels from |
+| --- | --- | --- |
+| flood-risk | pixel is a mapped flood hotspot | GeoServer `TanaRiver_Flood_Hotspots` |
+| drought-monitoring | NDVI in its driest fifth next month | NASA GIBS NDVI history |
+| rangeland-dynamics | NDVI anomaly falling next month, rangeland only | NASA GIBS NDVI history |
+| food-security | cropland NDVI in its driest fifth next month | NASA GIBS NDVI history |
+
+Features are the GeoServer criterion layers plus NASA GIBS satellite layers
+(NDVI, MERRA-2 precipitation and soil moisture, land surface temperature, MODIS
+land cover), decoded from GIBS's colour-mapped PNGs through each layer's
+published colormap (`apps/analysis/satellite/`). Validation is always held out:
+spatial blocks for flood, the most recent year for the forecasts. A run writes
+`probability.tif`, `classes.tif` and (for `combined`) `disagreement.tif`, with
+overviews, and `GET /api/v1/runs/{id}/tiles/{map}` draws them on the map.
+
+GIBS responses are cached under `WORKSPACE_DIR/gibs-cache`; a forecast on a
+cold cache makes about 400 requests (eight years of monthly layers), about a
+minute, and a warm one none.
 
 ## What this service must never do
 

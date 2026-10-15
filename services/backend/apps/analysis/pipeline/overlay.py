@@ -253,6 +253,12 @@ def run_weighted_overlay(
     classed = classify(index, breaks)
     classed_path = workspace / "classes.tif"
     raster.write_array(classed, grid, str(classed_path))
+    # The classes raster is drawn on the results map; at 30 m over a county a
+    # zoomed-out tile without overviews reads all ~100M pixels. Imported here
+    # because maps imports Django settings and this module is otherwise pure.
+    from apps.analysis.maps import build_overviews_quietly
+
+    build_overviews_quietly(classed_path, "classes")
     report("classify", StageState.DONE, f"{len(breaks)} breaks")
 
     # ----------------------------------------------------------- 9. statistics
@@ -282,6 +288,10 @@ def run_weighted_overlay(
     report("publish", StageState.SKIPPED, "no GeoServer write credentials")
 
     return {
+        # Additive (contracts/prediction.md): a result without `kind` is an
+        # overlay, and saying so lets the app tell the two apart without
+        # sniffing for `breaks`.
+        "kind": "overlay",
         "indicator": {
             "id": "fhi" if topic == "flood-risk" else f"{topic}-index",
             "label": f"{topic.replace('-', ' ').title()} Index",
@@ -296,9 +306,13 @@ def run_weighted_overlay(
         "classes": classes,
         "contribution": {k: round(v, 6) for k, v in sorted(shares.items())},
         "validPixels": total_valid,
+        # File NAMES, not paths (contracts/prediction.md). A server path is
+        # useless to the app and tells any reader where the workspace lives;
+        # the raster endpoint resolves a name inside the run's own workspace
+        # and serves only names listed here.
         "rasters": {
-            "index": str(index_path),
-            "classes": str(classed_path),
+            "index": index_path.name,
+            "classes": classed_path.name,
         },
         "layers": [],
     }

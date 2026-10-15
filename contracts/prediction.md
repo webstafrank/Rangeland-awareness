@@ -64,7 +64,7 @@ probabilities. Where the two disagree is itself a map (`disagreement`).
 A prediction run over more than **20,000,000** grid pixels is refused at
 validation with the pixel count and the resolution that would fit.
 
-Errors use the existing `400 {"errors": {"field": ["message"]}}` shape.
+Errors use the existing `400 {"error": "Invalid run configuration", "fieldErrors": {"field": ["message"]}}` shape.
 
 ## Stages of a prediction run
 
