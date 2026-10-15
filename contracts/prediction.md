@@ -193,9 +193,13 @@ is something the app can draw and download without knowing what produced it:
 
 `legend.type` is `continuous` (with `stops`) or `classes` (with
 `items: [{"value": 1, "label": "Very low", "color": "#..."}]`). Paths are
-relative to the backend base URL. Known maps: `probability` (continuous 0..1),
-`classes` (the five classes, for both overlay and prediction runs),
-`disagreement` (continuous 0..1, combined runs only).
+relative to the backend base URL. Known maps, in this order: `probability`
+(continuous 0..1; for a combined run, the mean of the two members),
+`probability-random-forest` and `probability-xgboost` (each member's own
+probability, same legend as `probability`, combined runs only), `classes` (the
+five classes, for both overlay and prediction runs), `disagreement`
+(continuous 0..1, combined runs only). The two member maps are additive to v1:
+a client that does not know them ignores them.
 
 ## `GET /api/v1/runs/{id}/tiles/{map}`
 

@@ -188,6 +188,11 @@ def map_specs(result: dict[str, Any]) -> list[MapSpec]:
     specs: list[MapSpec] = []
     if "probability" in rasters:
         specs.append(MapSpec("probability", "Probability", _continuous(PROBABILITY_STOPS, "probability")))
+    for member, label in (("random-forest", "Random Forest probability"), ("xgboost", "XGBoost probability")):
+        if f"probability-{member}" in rasters:
+            specs.append(
+                MapSpec(f"probability-{member}", label, _continuous(PROBABILITY_STOPS, "probability"))
+            )
     if "classes" in rasters:
         labels = _class_labels(result)
         specs.append(

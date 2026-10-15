@@ -594,6 +594,8 @@ class EndToEndTests(SimpleTestCase):
         self.assertEqual(result["metrics"]["validation"], "temporal-holdout")
         self.assertEqual(set(result["metrics"]["members"]), {"random-forest", "xgboost", "combined"})
         self.assertIn("disagreement", result["rasters"])
+        for member in ("random-forest", "xgboost"):
+            self.assertTrue((workspace / result["rasters"][f"probability-{member}"]).exists())
         self.assertIsNotNone(result["agreement"])
         self.assertTrue(any("Precipitation is from" in w for w in result["warnings"]),
                         "a lagging satellite layer is named, not hidden")
@@ -605,6 +607,7 @@ class EndToEndTests(SimpleTestCase):
         self.check_contract(result, workspace, reported, "random-forest")
         self.assertIsNone(result["agreement"])
         self.assertNotIn("disagreement", result["rasters"])
+        self.assertNotIn("probability-random-forest", result["rasters"])
         west, east = result["areas"]
         # Almost none rather than none: the land cover is ~1 km, so the one
         # column of 250 m pixels sharing a cell with the savanna inherits it.

@@ -783,6 +783,13 @@ class _Run:
             rasters["disagreement"] = "disagreement.tif"
             raster.write_array(difference, grid, str(self.workspace / rasters["disagreement"]))
             agreement = {"meanAbsDifference": round(float(difference[valid].mean()), 6)}
+            # Each member's own probability, so the analyst can see where the
+            # two models part ways rather than only by how much.
+            for member in ("random-forest", "xgboost"):
+                rasters[f"probability-{member}"] = f"probability-{member}.tif"
+                raster.write_array(
+                    per_member[member], grid, str(self.workspace / rasters[f"probability-{member}"])
+                )
         for name, filename in rasters.items():
             # Now rather than on the first tile request: the analyst opens the
             # map seconds after this, and a zoomed-out tile without overviews

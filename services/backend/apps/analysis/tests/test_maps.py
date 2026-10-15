@@ -152,12 +152,16 @@ class MapTestCase(TestCase):
                     "probability": "probability.tif",
                     "classes": "classes.tif",
                     "disagreement": "disagreement.tif",
+                    "probability-random-forest": "probability-random-forest.tif",
+                    "probability-xgboost": "probability-xgboost.tif",
                 },
             },
             files={
                 "probability.tif": probability,
                 "classes.tif": CLASS_GRID,
                 "disagreement.tif": np.full((SIZE, SIZE), 0.25, dtype=np.float32),
+                "probability-random-forest.tif": np.full((SIZE, SIZE), 0.5, dtype=np.float32),
+                "probability-xgboost.tif": np.full((SIZE, SIZE), 0.25, dtype=np.float32),
             },
             **kwargs,
         )
@@ -174,7 +178,14 @@ class MapsListTests(MapTestCase):
         run = self.prediction_run()
         body = self.client.get(f"/api/v1/runs/{run.run_id}/result").json()
         self.assertEqual(body["kind"], "prediction")
-        self.assertEqual([m["id"] for m in body["maps"]], ["probability", "classes", "disagreement"])
+        self.assertEqual(
+            [m["id"] for m in body["maps"]],
+            ["probability", "probability-random-forest", "probability-xgboost", "classes", "disagreement"],
+        )
+        members = body["maps"][1:3]
+        self.assertEqual([m["label"] for m in members], ["Random Forest probability", "XGBoost probability"])
+        self.assertTrue(all(m["legend"] == body["maps"][0]["legend"] for m in members),
+                        "a member map is read against the same key as the combined one")
 
         probability = body["maps"][0]
         self.assertEqual(
@@ -196,7 +207,7 @@ class MapsListTests(MapTestCase):
                 ],
             },
         )
-        disagreement = body["maps"][2]["legend"]
+        disagreement = body["maps"][4]["legend"]
         self.assertEqual((disagreement["type"], disagreement["min"], disagreement["max"]), ("continuous", 0, 1))
 
     def test_an_overlay_result_draws_only_its_classes(self) -> None:
@@ -311,6 +322,18 @@ class TileTests(MapTestCase):
         x, y = utm_to_3857(*pixel_centre(2, 2))
         image = decode_png(self.tile(run.run_id, "probability", (x - 100, y - 100, x + 100, y + 100), 4, 4).content)
         self.assertTrue((image[..., 3] == 0).all())
+
+    def test_each_member_map_draws_its_own_raster_on_the_probability_ramp(self) -> None:
+        """Random Forest holds 0.5 everywhere and XGBoost 0.25: each tile shows
+        that member's value at the ramp's stop, not the combined mean."""
+        run = self.prediction_run()
+        x, y = utm_to_3857(*pixel_centre(1, 3))
+        for map_id, colour in (("probability-random-forest", "#ffffbf"), ("probability-xgboost", "#abd9e9")):
+            response = self.tile(run.run_id, map_id, (x - 200, y - 200, x + 200, y + 200), 8, 8)
+            self.assertEqual(response.status_code, 200, map_id)
+            image = decode_png(response.content)
+            self.assertTrue((image[..., :3] == rgb(colour)).all(), map_id)
+            self.assertTrue((image[..., 3] == 255).all(), map_id)
 
     def test_a_tile_entirely_outside_the_raster_is_fully_transparent(self) -> None:
         run = self.prediction_run()
