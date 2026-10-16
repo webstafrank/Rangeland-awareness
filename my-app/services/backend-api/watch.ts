@@ -79,13 +79,23 @@ export function initialState(
    * Caught by opening a real finished run, not by a test.
    */
   progress = 0,
+  /**
+   * The failure the service already reported, when the state comes from a
+   * status read of a run that has failed.
+   *
+   * A terminal status is settled, so no poll ever follows to fill it in: a
+   * failed run opened from a link or a refresh used to say "failed without
+   * naming a stage" while its own stage list showed which one had failed,
+   * and the service's message never reached the failure panel.
+   */
+  error: RunError | null = null,
 ): WatchState {
   return {
     runId,
     status,
     stages,
     progress: Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0,
-    error: null,
+    error,
     transportFailure: null,
     consecutiveFailures: 0,
     settled: isTerminal(status),

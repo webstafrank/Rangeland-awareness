@@ -220,6 +220,11 @@ class RunEndpointTests(TestCase):
         patcher = mock.patch("apps.analysis.views.submit")
         self.submit = patcher.start()
         self.addCleanup(patcher.stop)
+        # The coverage check asks GeoServer; it has its own tests
+        # (test_coverage.py), and these are about the endpoint around it.
+        coverage = mock.patch("apps.analysis.views.areas_outside_coverage", return_value=[])
+        coverage.start()
+        self.addCleanup(coverage.stop)
 
     def post(self, body):
         return self.client.post(

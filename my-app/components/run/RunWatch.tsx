@@ -16,7 +16,7 @@
 import type { Route } from "next";
 import RunningScreen from "@/components/run/RunningScreen";
 import { createBackendClient } from "@/services/backend-api";
-import type { RunStatus, Stage } from "@/services/backend-api";
+import type { RunError, RunStatus, Stage } from "@/services/backend-api";
 import type { Topic } from "@/services/analysis/topics";
 
 export interface RunWatchProps {
@@ -25,6 +25,7 @@ export interface RunWatchProps {
   initialStatus: RunStatus;
   initialStages: readonly Stage[];
   initialProgress: number;
+  initialError: RunError | null;
   resultHref: Route;
   reviewHref: Route;
 }

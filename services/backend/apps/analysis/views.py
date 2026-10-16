@@ -26,6 +26,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_safe
 
 from apps.analysis import bindings, maps
+from apps.analysis.coverage import areas_outside_coverage
 from apps.analysis.domain import ahp, criteria
 from apps.analysis.jobs.runner import submit, workspace_for
 from apps.analysis.jobs.stages import plan_for_config
@@ -269,6 +270,16 @@ def create_run(request: HttpRequest) -> JsonResponse:
                 "stages": existing.as_status_json()["stages"],
             },
             status=200,
+        )
+
+    # An area with no data under it is refused now, naming the area and where
+    # the data is, rather than accepted and failed at `fetch` a second later
+    # with GeoServer's XML (coverage.py). After the cache lookup, so replaying
+    # a run that exists costs nothing and is never refused after the fact.
+    outside = areas_outside_coverage(config)
+    if outside:
+        return _problem(
+            "Invalid run configuration", status=400, fieldErrors={"areas": outside}
         )
 
     run = Run(

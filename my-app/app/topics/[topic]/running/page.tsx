@@ -133,6 +133,7 @@ export default async function RunningPage({
         initialStatus={status.data.status}
         initialStages={status.data.stages}
         initialProgress={status.data.progress}
+        initialError={status.data.error ?? null}
         resultHref={resultHref(topic.slug, query, runId)}
         reviewHref={stepHref(topic.slug, "review", query)}
       />

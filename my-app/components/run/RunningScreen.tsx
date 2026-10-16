@@ -81,6 +81,7 @@ import {
 } from "@/services/backend-api";
 import type {
   BackendResult,
+  RunError,
   RunStatus,
   RunStatusResponse,
   Stage,
@@ -102,6 +103,11 @@ export interface RunningScreenProps {
    * status. Omitted after a POST, where zero is the truth.
    */
   initialProgress?: number;
+  /**
+   * The failure the service reported, when the caller read the status of a
+   * run that has already failed. Omitted after a POST, where nothing has.
+   */
+  initialError?: RunError | null;
   /** Where to send the analyst when the run succeeds. */
   resultHref: Route;
   /** Back to the review step. */
@@ -238,6 +244,7 @@ export default function RunningScreen({
   initialStatus,
   initialStages,
   initialProgress = 0,
+  initialError = null,
   resultHref,
   reviewHref,
   poll,
@@ -249,7 +256,7 @@ export default function RunningScreen({
    * re-render would rebuild it and throw away the polled state.
    */
   const [state, setState] = useState<WatchState>(() =>
-    initialState(runId, initialStatus, initialStages, initialProgress),
+    initialState(runId, initialStatus, initialStages, initialProgress, initialError),
   );
   /** The last `Retry-After` the service sent, fed straight back to nextDelayMs. */
   const [retryAfterMs, setRetryAfterMs] = useState<number | null>(null);

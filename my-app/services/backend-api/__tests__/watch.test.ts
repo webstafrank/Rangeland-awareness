@@ -67,6 +67,18 @@ describe("the first frame", () => {
     expect(state.progress).toBe(1);
   });
 
+  it("keeps the failure the caller already read, since no poll follows a settled run", () => {
+    // Found on a real run: a flood run opened after it had failed showed "The
+    // service reported the run as failed without naming a stage" while its
+    // own stage list said which stage had failed, because the status read on
+    // the server carried `error` and this dropped it.
+    const error = { stage: "fetch", message: "The selected areas are outside the data." };
+    const state = initialState("r_1", "failed", STAGES, 0.1, error);
+    expect(state.settled).toBe(true);
+    expect(state.error).toEqual(error);
+    expect(initialState("r_1", "queued", STAGES).error).toBeNull();
+  });
+
   it("clamps a progress it is handed, and defaults to zero after a POST", () => {
     expect(initialState("r_1", "queued", STAGES).progress).toBe(0);
     expect(initialState("r_1", "running", STAGES, 1.5).progress).toBe(1);

@@ -386,7 +386,26 @@ def _fetch(
         # Transforming here keeps `geoserver.py` free of GDAL and means the
         # request is always expressed in the terms the coverage itself declared.
         described = client.describe_coverage(bound.layer)
-        subset = raster.transform_bounds(grid.bounds, grid.crs, described.crs)
+        window = raster.transform_bounds(grid.bounds, grid.crs, described.crs)
+        # Clipped to what the coverage holds. A window wholly outside it is
+        # answered by GeoServer with a 404 and an XML exception report, which
+        # is what an analyst used to read on the failed run; the run is
+        # normally refused before it starts (coverage.py), and this says the
+        # same thing in words if one gets here anyway.
+        extent = described.extent
+        subset = (
+            max(window[0], extent[0]),
+            max(window[1], extent[1]),
+            min(window[2], extent[2]),
+            min(window[3], extent[3]),
+        )
+        if subset[0] >= subset[2] or subset[1] >= subset[3]:
+            box = raster.transform_bounds(extent, described.crs, "EPSG:4326")
+            raise PipelineError(
+                f'The selected areas are outside "{bound.layer}", which covers only '
+                f"lon {box[0]:.2f} to {box[2]:.2f}, lat {box[1]:.2f} to {box[3]:.2f}. "
+                "Choose an area inside it."
+            )
         data = client.get_coverage(bound.layer, subset=subset, described=described)
         out.write_bytes(data)
         return out

@@ -122,8 +122,13 @@ test.describe("running screen", () => {
     backend.fail("fetch", 'GeoServer returned no features for "TR_Rivers".');
     await gotoRunning(page);
 
-    await expect(page.getByText("Fetching criterion layers")).toBeVisible();
-    await expect(page.getByText(/TR_Rivers/)).toBeVisible();
+    // The failure panel itself, not only the stage list: both used to show the
+    // stage name, so this passed while the panel of a run opened after it had
+    // failed said "failed without naming a stage" and dropped the message.
+    const panel = page.getByTestId("run-failed");
+    await expect(panel).toContainText('The run failed at "Fetching criterion layers"');
+    await expect(panel).toContainText(/TR_Rivers/);
+    await expect(panel).not.toContainText("without naming a stage");
     await expect(page.getByRole("link", { name: /review/i })).toBeVisible();
   });
 
