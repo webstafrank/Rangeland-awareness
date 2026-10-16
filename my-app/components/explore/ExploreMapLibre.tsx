@@ -53,6 +53,13 @@ import {
   type StackAction,
 } from "@/services/explore";
 
+// maplibre-gl 6 looks for its worker beside its own file, which does not exist
+// once Turbopack has bundled it; app/maplibre-gl-worker.mjs/route.ts serves the
+// installed copy. Set once, before any map is created (this module only ever
+// loads in the browser: ExploreView imports it with `ssr: false`). The version
+// in the query keeps a cached worker from outliving a library upgrade.
+maplibregl.setWorkerUrl(`/maplibre-gl-worker.mjs?v=${maplibregl.getVersion()}`);
+
 export type Basemap = "street" | "satellite";
 
 export interface FocusRequest {
