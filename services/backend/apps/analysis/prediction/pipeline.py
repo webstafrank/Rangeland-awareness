@@ -40,6 +40,7 @@ from __future__ import annotations
 import logging
 import math
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 from typing import Any, Callable
@@ -369,21 +370,45 @@ class _Run:
         igbp_year = latest_on_or_before(self.sources.satellite_times(catalog.IGBP), feature_month)
         if igbp_year is not None:
             requests.append((catalog.IGBP, igbp_year))
-        snapshots = feat.fetch_snapshots(self.sources, requests, bbox)
+        snapshots = feat.fetch_snapshots(
+            self.sources, requests, bbox, progress=self._satellite_progress
+        )
 
-        stacks: dict[str, np.ndarray] = {}
+        stacks: dict[str, np.ndarray] = {
+            layer_id: np.full((len(months),) + self.history.shape, np.nan, np.float32)
+            for layer_id in times
+        }
         unknown = 0
         decoded = 0
+        placed = []
         for layer_id in times:
-            stack = np.full((len(months),) + self.history.shape, np.nan, np.float32)
             for index, month in enumerate(months):
                 snap = snapshots.get((layer_id, month))
                 if snap is None or snap.empty:
                     continue
                 unknown += snap.unknown_colours
                 decoded += snap.values.size
-                stack[index] = feat.snapshot_on_grid(snap, self.history, self.geometry, self.scratch)
-            stacks[layer_id] = stack
+                placed.append((layer_id, index, snap))
+        # ~400 independent warps onto the history grid. GDAL releases the GIL
+        # and each warp writes its own uuid-named scratch files, so they run
+        # side by side; each result lands in its own slot of a preallocated
+        # stack, so completion order does not matter.
+        pool = ThreadPoolExecutor(max_workers=feat.FETCH_THREADS, thread_name_prefix="warp")
+        try:
+            futures = [
+                (pool.submit(feat.snapshot_on_grid, snap, self.history, self.geometry, self.scratch),
+                 layer_id, index)
+                for layer_id, index, snap in placed
+            ]
+            del placed
+            while futures:
+                # Popped, so each warped array is released once it is copied
+                # into its stack rather than held until the run ends.
+                future, layer_id, index = futures.pop(0)
+                stacks[layer_id][index] = future.result()
+        finally:
+            # A failed warp fails the run now, not after the queued ones finish.
+            pool.shutdown(wait=True, cancel_futures=True)
         if decoded and unknown / decoded > 0.001:
             self.warnings.append(
                 f"{unknown / decoded:.2%} of GIBS pixels had colours outside their "
@@ -616,6 +641,17 @@ class _Run:
 
     # ============================================================== helpers
 
+    def _satellite_progress(self, done: int, total: int) -> None:
+        """Name how far the GIBS fetch has got, at most ~10 times a run.
+
+        The satellite stage is the longest one on a cold cache, and without
+        this the status shows "running" and nothing else for a minute or more.
+        Throttled because every report is a database write.
+        """
+        step = max(1, total // 10)
+        if done == total or done % step == 0:
+            self.report("satellite", StageState.RUNNING, f"{done}/{total} GIBS snapshots")
+
     def _static_features(self, grids) -> list[feat.Feature]:
         out = []
         for spec in STATIC_FEATURES:
@@ -654,7 +690,9 @@ class _Run:
                 self.warnings.append(f"{layer.label} has no time on or before {self.as_of}; it was dropped.")
                 continue
             requests.append((layer, when))
-        snapshots = feat.fetch_snapshots(self.sources, requests, bbox)
+        snapshots = feat.fetch_snapshots(
+            self.sources, requests, bbox, progress=self._satellite_progress
+        )
         unknown = sum(s.unknown_colours for s in snapshots.values())
         decoded = sum(s.values.size for s in snapshots.values())
         if decoded and unknown / decoded > 0.001:
@@ -733,21 +771,15 @@ class _Run:
 
     # ============================================================== predict
 
-    def _predict_and_summarise(self, trained: "_Trained") -> dict[str, Any]:
-        self.report("predict", StageState.RUNNING, None)
-        grid = self.grid
-        columns, groups = feat.column_groups(trained.features)
-        probability = np.full(grid.shape, np.nan, np.float32)
-        per_member = {m.name: np.full(grid.shape, np.nan, np.float32) for m in trained.members}
-        base_valid = self.inside if self.mask_run is None else self.inside & self.mask_run
-
-        for first in range(0, grid.height, feat.CHUNK_ROWS):
-            count = min(feat.CHUNK_ROWS, grid.height - first)
+    def _predict_chunks(self, trained, readers, base_valid, probability, per_member) -> None:
+        """Fill ``probability`` and ``per_member`` strip by strip, in place."""
+        for first in range(0, self.grid.height, feat.CHUNK_ROWS):
+            count = min(feat.CHUNK_ROWS, self.grid.height - first)
             chunk_valid = base_valid[first:first + count]
             if not chunk_valid.any():
                 continue
             values = {
-                f.id: feat.read_rows(f.paths["run"], first, count).ravel()
+                f.id: readers[f.id].rows(first, count).ravel()
                 for f in trained.features
             }
             X = feat.matrix(trained.features, values)
@@ -763,10 +795,27 @@ class _Run:
             for member, output in zip(trained.members, outputs):
                 block = per_member[member.name][first:first + count].ravel()
                 block[ok] = output
-                per_member[member.name][first:first + count] = block.reshape(count, grid.width)
+                per_member[member.name][first:first + count] = block.reshape(count, self.grid.width)
             block = probability[first:first + count].ravel()
             block[ok] = np.mean(outputs, axis=0)
-            probability[first:first + count] = block.reshape(count, grid.width)
+            probability[first:first + count] = block.reshape(count, self.grid.width)
+
+    def _predict_and_summarise(self, trained: "_Trained") -> dict[str, Any]:
+        self.report("predict", StageState.RUNNING, None)
+        grid = self.grid
+        columns, groups = feat.column_groups(trained.features)
+        probability = np.full(grid.shape, np.nan, np.float32)
+        per_member = {m.name: np.full(grid.shape, np.nan, np.float32) for m in trained.members}
+        base_valid = self.inside if self.mask_run is None else self.inside & self.mask_run
+
+        readers: dict[str, feat.RowReader] = {}
+        try:
+            for f in trained.features:
+                readers[f.id] = feat.RowReader(f.paths["run"])
+            self._predict_chunks(trained, readers, base_valid, probability, per_member)
+        finally:
+            for reader in readers.values():
+                reader.close()
 
         valid = np.isfinite(probability)
         if not valid.any():
@@ -790,13 +839,18 @@ class _Run:
                 raster.write_array(
                     per_member[member], grid, str(self.workspace / rasters[f"probability-{member}"])
                 )
-        for name, filename in rasters.items():
-            # Now rather than on the first tile request: the analyst opens the
-            # map seconds after this, and a zoomed-out tile without overviews
-            # reads every pixel of the raster (maps.py module docstring).
-            maps.build_overviews_quietly(
-                self.workspace / filename, "classes" if name == "classes" else "continuous"
-            )
+        # Now rather than on the first tile request: the analyst opens the map
+        # seconds after this, and a zoomed-out tile without overviews reads
+        # every pixel of the raster (maps.py module docstring). Up to five
+        # independent files on a combined run, so side by side; each build sets
+        # its GDAL options thread-locally.
+        with ThreadPoolExecutor(max_workers=len(rasters), thread_name_prefix="ovr") as pool:
+            list(pool.map(
+                lambda item: maps.build_overviews_quietly(
+                    self.workspace / item[1], "classes" if item[0] == "classes" else "continuous"
+                ),
+                rasters.items(),
+            ))
         self.report("predict", StageState.DONE, f"{int(valid.sum())} pixels")
 
         # ------------------------------------------------------ statistics

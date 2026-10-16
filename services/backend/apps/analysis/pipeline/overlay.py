@@ -387,7 +387,7 @@ def _fetch(
         # request is always expressed in the terms the coverage itself declared.
         described = client.describe_coverage(bound.layer)
         subset = raster.transform_bounds(grid.bounds, grid.crs, described.crs)
-        data = client.get_coverage(bound.layer, subset=subset)
+        data = client.get_coverage(bound.layer, subset=subset, described=described)
         out.write_bytes(data)
         return out
     except GeoServerError as exc:

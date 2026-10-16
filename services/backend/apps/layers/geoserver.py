@@ -426,6 +426,7 @@ class GeoServerClient:
         subset: tuple[float, float, float, float] | None = None,
         subset_crs: str | None = None,
         scale_factor: float | None = None,
+        described: CoverageGrid | None = None,
     ) -> bytes:
         """A coverage as GeoTIFF bytes, optionally windowed.
 
@@ -433,7 +434,8 @@ class GeoServerClient:
         from DescribeCoverage rather than assumed to be E/N: a geographic
         coverage calls them Long/Lat, and a subset naming the wrong axis is
         rejected by GeoServer with a message that does not say which axis it
-        wanted.
+        wanted. A caller that has already described the coverage passes it as
+        ``described`` and saves the second DescribeCoverage round trip.
         """
         params: dict[str, Any] = {
             "SERVICE": "WCS",
@@ -443,7 +445,7 @@ class GeoServerClient:
             "format": "image/tiff",
         }
         if subset is not None:
-            grid = self.describe_coverage(layer_name)
+            grid = described or self.describe_coverage(layer_name)
             axes = _axis_labels(grid)
             minx, miny, maxx, maxy = subset
             params["subset"] = [

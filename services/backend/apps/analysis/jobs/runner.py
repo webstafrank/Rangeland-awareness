@@ -102,6 +102,27 @@ def _execute_guarded(run_id: str) -> None:
         close_old_connections()
 
 
+#: What an interrupted run says. Names the fix, because the analyst reading it
+#: did nothing wrong.
+INTERRUPTED = "The backend restarted before this run finished. Submit it again to rerun it."
+
+
+def recover_interrupted() -> int:
+    """Fail every run a restart left `queued` or `running`. Returns how many.
+
+    The worker thread died with the process, so nothing will ever move these
+    rows again, and an app polling one would wait forever. Called once per
+    container start, before gunicorn forks a worker (the `recover_runs`
+    command in the entrypoint), which is the one moment no run can be live:
+    called from a worker it would fail a sibling worker's runs.
+    """
+    count = 0
+    for run in Run.objects.filter(status__in=(Run.Status.QUEUED, Run.Status.RUNNING)):
+        _fail(run, stage_id=_current_stage_id(run), message=INTERRUPTED)
+        count += 1
+    return count
+
+
 def _current_stage_id(run: Run) -> str:
     for stage in run.stages:
         if stage["state"] == str(StageState.RUNNING):
@@ -154,6 +175,17 @@ def execute(run: Run) -> None:
             advance(run.stage_objects(), stage_id, state, at=now_iso(), detail=detail)
         )
         run.save(update_fields=["stages", "progress", "status"])
+        if state != StageState.RUNNING:
+            # The durations are already on the row (startedAt/endedAt per
+            # stage); this puts them in the log, where "which stage is slow"
+            # is answered without querying the database.
+            stage = next((st for st in run.stage_objects() if st.id == stage_id), None)
+            if stage is not None and stage.started_at and stage.ended_at:
+                took = (
+                    datetime.fromisoformat(stage.ended_at.replace("Z", "+00:00"))
+                    - datetime.fromisoformat(stage.started_at.replace("Z", "+00:00"))
+                ).total_seconds()
+                log.info("run %s stage %s %s in %.0fs", run.run_id, stage_id, state, took)
 
     result = pipeline(
         config=run.config,

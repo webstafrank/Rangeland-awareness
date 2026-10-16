@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import tempfile
+import time
 from datetime import date
 from pathlib import Path
 from unittest import mock
@@ -32,10 +34,12 @@ from apps.analysis.prediction import labels as lab
 from apps.analysis.prediction import models as mdl
 from apps.analysis.prediction import statistics as stats
 from apps.analysis.prediction.pipeline import run_prediction
+from apps.analysis.prediction.sources import WCS_CACHE_TTL_S, LiveSources
 from apps.analysis.satellite import catalog
 from apps.analysis.satellite.colormap import parse_colormap
 from apps.analysis.satellite.gibs import Snapshot, decode_png
 from apps.analysis.validation import default_as_of, validate_run_config
+from apps.layers.geoserver import CoverageGrid
 
 FIXTURES = Path(__file__).parent / "fixtures" / "gibs"
 
@@ -404,6 +408,14 @@ class PredictionValidationTests(SimpleTestCase):
         self.assertIn("asOf", validate_run_config(body(asOf="2001-01-01"))[1])
         self.assertIn("asOf", validate_run_config(body(asOf="last tuesday"))[1])
 
+    def test_a_prediction_without_a_resolution_runs_at_250_m_not_30(self) -> None:
+        # 30 m is the overlay's default. A prediction at 30 m is ~69x the
+        # pixels of 250 m for inputs that are ~1 km, and was what an API
+        # caller that named no resolution got.
+        config, errors = validate_run_config(body(resolution=None))
+        self.assertFalse(errors, errors)
+        self.assertEqual(config["resolution"], 250)
+
     def test_over_twenty_million_pixels_is_refused_with_a_resolution_that_fits(self) -> None:
         big = [{
             "type": "Polygon",
@@ -437,6 +449,55 @@ class PredictionEndpointTests(TestCase):
         self.assertEqual([s["id"] for s in response.json()["stages"]], [t.id for t in PREDICTION_SCRIPT])
         self.assertEqual(response.json()["stages"][-1]["state"], StageState.SKIPPED)
         self.submit.assert_called_once()
+
+
+# ====================================================== live sources
+
+
+class LiveSourcesCacheTests(SimpleTestCase):
+    """GeoServer windows are described once per run and fetched once per day."""
+
+    def setUp(self) -> None:
+        workspace = Path(tempfile.mkdtemp(prefix="sources-test-"))
+        override = override_settings(WORKSPACE_DIR=workspace)
+        override.enable()
+        self.addCleanup(override.disable)
+        self.cache = workspace / "wcs-cache"
+        self.out = workspace / "out"
+        self.out.mkdir()
+
+        self.described = CoverageGrid(
+            coverage_id="ws__TanaRiver_Slope", crs="EPSG:32637", size=(2000, 2000),
+            # UTM 37N, so south of the equator the northings are negative.
+            extent=(500_000.0, -300_000.0, 700_000.0, 0.0),
+        )
+        self.geoserver = mock.Mock(url="http://geoserver.test/geoserver")
+        self.geoserver.describe_coverage.return_value = self.described
+        self.geoserver.get_coverage.return_value = b"coverage bytes"
+        self.sources = LiveSources(geoserver=self.geoserver, gibs=mock.Mock())
+        self.grid = raster.reference_grid(AREAS[0]["geometry"], "EPSG:32637", 250)
+
+    def fetch(self, name: str) -> Path | None:
+        return self.sources.raster("ws:TanaRiver_Slope", self.grid, self.out / name)
+
+    def test_a_second_fetch_of_the_same_window_reads_the_cache(self) -> None:
+        first = self.fetch("a.tif")
+        second = self.fetch("b.tif")
+        self.assertEqual(first.read_bytes(), b"coverage bytes")
+        self.assertEqual(second.read_bytes(), b"coverage bytes")
+        self.geoserver.get_coverage.assert_called_once()
+        self.geoserver.describe_coverage.assert_called_once()
+        # The description already in hand goes along, so get_coverage does
+        # not ask DescribeCoverage a second time for its axis names.
+        self.assertIs(self.geoserver.get_coverage.call_args.kwargs["described"], self.described)
+
+    def test_a_window_older_than_the_ttl_is_fetched_again(self) -> None:
+        self.fetch("a.tif")
+        stale = time.time() - WCS_CACHE_TTL_S - 60
+        for cached in self.cache.iterdir():
+            os.utime(cached, (stale, stale))
+        self.fetch("b.tif")
+        self.assertEqual(self.geoserver.get_coverage.call_count, 2)
 
 
 # =========================================================== end to end
