@@ -11,7 +11,8 @@
  * as it did when it fetched the URL itself.
  */
 
-import maplibregl from "maplibre-gl";
+// Namespace import for maplibre-gl 6; see components/explore/ExploreMapLibre.tsx.
+import * as maplibregl from "maplibre-gl";
 
 import {
   CLIP_PROTOCOL,
