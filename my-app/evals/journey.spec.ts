@@ -2262,6 +2262,7 @@ test.describe("results", () => {
   test("explains itself when opened cold, with a way back", async ({ page }) => {
     // A bookmark from yesterday, or a link pasted to a colleague. The config is
     // valid; the areas are simply not in this browser session.
+    const problems = watchConsole(page);
     await page.goto("/topics/rangeland-dynamics/results?req=deadbeef123");
 
     const problem = page.getByTestId("handoff-problem");
@@ -2269,6 +2270,11 @@ test.describe("results", () => {
     await expect(problem).toHaveAttribute("data-reason", "missing");
     await expect(page.getByRole("link", { name: /select areas/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /back to review/i })).toBeVisible();
+    // The server cannot read sessionStorage. It used to render "this browser
+    // cannot store the areas" while the browser rendered "the areas are
+    // missing", a hydration mismatch on every cold open (React error 418 in a
+    // production build). The page must hydrate without one.
+    expect(problems).toEqual([]);
   });
 
   test("is not in the step rail, because it is not a decision", async ({ page }) => {

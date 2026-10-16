@@ -29,7 +29,7 @@
  * for. A confidently wrong answer is worse than none.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -242,6 +242,14 @@ function requestFiles(
   ];
 }
 
+/* ----------------------------------------------------------- hydration ---- */
+
+// `useSyncExternalStore` arguments for "is this the browser?": nothing to
+// subscribe to, true in the browser, false on the server and during hydration.
+const subscribeNever = () => () => {};
+const isClient = () => true;
+const isServer = () => false;
+
 /* --------------------------------------------------------------- props ---- */
 
 export interface ResultsStepProps {
@@ -262,21 +270,27 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
   const [notes, setNotes] = useState("");
 
   /**
-   * Read the handoff once, on the client.
+   * Read the handoff on the client only, and render nothing until then.
    *
-   * A lazy initialiser rather than an effect: the server render has no
-   * sessionStorage and would produce the failure state, and correcting that in
-   * an effect is a flash of "no result" on every successful run.
+   * The server has no sessionStorage, so whatever it rendered here would be
+   * a guess, and a wrong guess is a hydration error: the lazy `useState` this
+   * replaces rendered "cannot store the areas" on the server and "the areas
+   * are missing" in the browser for every bookmarked or shared results link.
+   * `useSyncExternalStore` hands React the server snapshot (false) for the
+   * server render and for hydration, then the client snapshot (true), so the
+   * markup always matches. Nothing renders in between rather than a failure
+   * state, so a successful run never flashes "no result" (the reason an
+   * effect was not used); a client-side navigation reads storage on the
+   * first render, as before.
    */
-  const [handoff] = useState<
-    { ok: true; areas: RequestArea[] } | { ok: false; reason: HandoffFailure }
+  const onClient = useSyncExternalStore(subscribeNever, isClient, isServer);
+  const handoff = useMemo<
+    { ok: true; areas: RequestArea[] } | { ok: false; reason: HandoffFailure } | null
   >(() => {
-    if (typeof window === "undefined") {
-      return { ok: false as const, reason: "unavailable" as const };
-    }
+    if (!onClient) return null;
     if (runId === null) return { ok: false as const, reason: "missing" as const };
     return readAreas(runId);
-  });
+  }, [onClient, runId]);
 
   /**
    * The map flies here once the areas are known.
@@ -288,7 +302,7 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
    * is what the map fits. Rubric T5 applies here as much as on the areas step.
    */
   const focus = useMemo<FocusRequest | null>(() => {
-    if (!handoff.ok) return null;
+    if (handoff === null || !handoff.ok) return null;
     const union = unionBounds(handoff.areas.map((a) => a.bounds));
     return union === null ? null : { bounds: padBounds(union), token: 1 };
   }, [handoff]);
@@ -309,7 +323,7 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
    * accept, or the page says why not.
    */
   const validation = useMemo(() => {
-    if (!handoff.ok) return null;
+    if (handoff === null || !handoff.ok) return null;
     return buildRequest(topic.slug, {
       analysisType: initial.analysisType ?? "single",
       modelId: initial.modelId ?? "random-forest",
@@ -336,6 +350,8 @@ export default function ResultsStep({ topic, initial }: ResultsStepProps) {
     if (validation === null || !validation.ok) return false;
     return requestId(validation.request) === runId;
   }, [validation, runId]);
+
+  if (handoff === null) return null;
 
   if (!handoff.ok) {
     return <HandoffProblem topic={topic} reason={handoff.reason} query={query} />;

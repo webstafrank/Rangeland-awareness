@@ -26,11 +26,17 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import maplibregl, {
-  type ExpressionSpecification,
-  type Map as MapLibreMap,
-  type MapGeoJSONFeature,
-  type StyleSpecification,
+// A namespace import, not `import maplibregl from`: maplibre-gl 6 is a real ES
+// module with named exports only, so a default import fails the build ("Export
+// default doesn't exist in target module") and takes every map page down with
+// it. 5.x shipped a UMD bundle the bundler wrapped in a default, which is why
+// the old spelling worked until the upgrade. This one works with both.
+import * as maplibregl from "maplibre-gl";
+import type {
+  ExpressionSpecification,
+  Map as MapLibreMap,
+  MapGeoJSONFeature,
+  StyleSpecification,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
