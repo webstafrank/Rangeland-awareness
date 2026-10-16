@@ -17,6 +17,7 @@
 import { createRequire } from "node:module";
 import { realpathSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /** The directory `dependency` resolves to when required from inside `fromDir`. */
@@ -27,7 +28,7 @@ function resolveFrom(fromDir: string, dependency: string): string {
 
 describe("keyborg", () => {
   it("is one copy for Fluent's hooks and for tabster", () => {
-    const app = dirname(new URL(import.meta.url).pathname);
+    const app = dirname(fileURLToPath(import.meta.url));
     const reactTabster = resolveFrom(app, "@fluentui/react-tabster");
     const tabster = resolveFrom(reactTabster, "tabster");
     expect(resolveFrom(tabster, "keyborg")).toBe(resolveFrom(reactTabster, "keyborg"));
