@@ -91,6 +91,7 @@ services:
       # -- process -------------------------------------------------------
       GUNICORN_WORKERS: "${GUNICORN_WORKERS:-1}"
       GUNICORN_THREADS: "${GUNICORN_THREADS:-8}"
+      ANALYSIS_THREADS: "${ANALYSIS_THREADS:-}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
 
     ports:

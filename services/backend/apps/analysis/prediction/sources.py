@@ -14,7 +14,9 @@ exercise the real code path rather than a mock of it.
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import time
 from datetime import date
 from pathlib import Path
 from typing import Any, Protocol
@@ -23,10 +25,18 @@ from django.conf import settings
 
 from apps.analysis.pipeline import raster
 from apps.analysis.satellite.catalog import SatelliteLayer
-from apps.analysis.satellite.gibs import GibsClient, GibsError, Snapshot
-from apps.layers.geoserver import GeoServerClient, GeoServerError
+from apps.analysis.satellite.gibs import GibsClient, GibsError, Snapshot, _atomic_write
+from apps.layers.geoserver import CoverageGrid, GeoServerClient, GeoServerError
 
 log = logging.getLogger(__name__)
+
+
+#: How long a fetched GeoServer coverage window is reused. Unlike a GIBS month,
+#: a GeoServer layer can be republished in place (a corrected rainfall surface),
+#: so the cache expires; a day keeps repeat runs and the run/history grids of
+#: one forecast off the network while a republished layer is picked up by
+#: tomorrow's runs.
+WCS_CACHE_TTL_S = 24 * 3600
 
 
 class SourceError(RuntimeError):
@@ -64,6 +74,11 @@ class LiveSources:
     ) -> None:
         self.geoserver = geoserver or GeoServerClient()
         self.gibs = gibs or GibsClient(Path(settings.WORKSPACE_DIR) / "gibs-cache")
+        self.wcs_cache = Path(settings.WORKSPACE_DIR) / "wcs-cache"
+        #: DescribeCoverage per layer, for this run. A forecast fetches every
+        #: layer for two grids and flood describes the label layer up to three
+        #: times; the answer does not change inside one run.
+        self._described: dict[str, CoverageGrid] = {}
 
     # ------------------------------------------------------------- GIBS
 
@@ -97,11 +112,7 @@ class LiveSources:
           to the grid). Twice rather than once so the downsample is an average
           of several source pixels, not a single nearest one.
         """
-        try:
-            described = self.geoserver.describe_coverage(layer)
-        except GeoServerError as exc:
-            raise SourceError(f'Could not describe "{layer}": {exc}') from exc
-
+        described = self._describe(layer)
         window = raster.transform_bounds(grid.bounds, grid.crs, described.crs)
         extent = described.extent
         clipped = (
@@ -116,12 +127,26 @@ class LiveSources:
         native = min(described.resolution)
         target = grid.pixel_size / 111_320.0 if _is_geographic(described.crs) else grid.pixel_size
         scale = min(1.0, 2.0 * native / target) if target > 0 else 1.0
+        scale_factor = scale if scale < 0.999 else None
+        key = hashlib.sha256(
+            f"{self.geoserver.url}|{layer}|{described.crs}|"
+            f"{','.join(f'{v:.6f}' for v in clipped)}|{scale_factor}".encode()
+        ).hexdigest()[:20]
+        cached = self.wcs_cache / f"{key}.tif"
         try:
-            data = self.geoserver.get_coverage(
-                layer, subset=clipped, scale_factor=scale if scale < 0.999 else None
-            )
-        except GeoServerError as exc:
-            raise SourceError(f'Could not fetch "{layer}": {exc}') from exc
+            fresh = time.time() - cached.stat().st_mtime < WCS_CACHE_TTL_S
+        except FileNotFoundError:
+            fresh = False
+        if fresh:
+            data = cached.read_bytes()
+        else:
+            try:
+                data = self.geoserver.get_coverage(
+                    layer, subset=clipped, scale_factor=scale_factor, described=described
+                )
+            except GeoServerError as exc:
+                raise SourceError(f'Could not fetch "{layer}": {exc}') from exc
+            _atomic_write(cached, data)
         out_path.write_bytes(data)
         return out_path
 
@@ -136,11 +161,18 @@ class LiveSources:
         return {"type": "FeatureCollection", "features": features}
 
     def raster_extent(self, layer: str) -> tuple[float, float, float, float] | None:
-        try:
-            described = self.geoserver.describe_coverage(layer)
-        except GeoServerError as exc:
-            raise SourceError(f'Could not describe "{layer}": {exc}') from exc
+        described = self._describe(layer)
         return raster.transform_bounds(described.extent, described.crs, "EPSG:4326")
+
+    def _describe(self, layer: str) -> CoverageGrid:
+        described = self._described.get(layer)
+        if described is None:
+            try:
+                described = self.geoserver.describe_coverage(layer)
+            except GeoServerError as exc:
+                raise SourceError(f'Could not describe "{layer}": {exc}') from exc
+            self._described[layer] = described
+        return described
 
 
 def _is_geographic(crs: str) -> bool:

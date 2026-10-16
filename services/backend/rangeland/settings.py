@@ -128,6 +128,19 @@ WORKSPACE_DIR = Path(
     os.environ.get("RANGELAND_WORKSPACE", "/tmp/rangeland-workspace")
 )
 
+# Cores a prediction run's model fits and predictions use (scikit-learn and
+# XGBoost `n_jobs`). Defaults to the cores this process may be scheduled on (a
+# container's cpuset, not the host's count). A `--cpus` quota is invisible to
+# that, so a container limited that way should set this to the quota. Runs
+# execute one at a time (jobs/runner.py), so nothing else shares the cores.
+ANALYSIS_THREADS = max(
+    1,
+    int(
+        os.environ.get("ANALYSIS_THREADS")
+        or (len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1)
+    ),
+)
+
 # ------------------------------------------------------------------- browser
 
 # The app's origins. A tile proxy that no browser may call is a proxy that does

@@ -9,12 +9,20 @@ discover.
 from __future__ import annotations
 
 import json
+import tempfile
+from pathlib import Path
 from unittest import mock
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.analysis.bindings import DEFAULT_BINDINGS, binding_for, unbound
-from apps.analysis.jobs.stages import StageState
+from apps.analysis.jobs.runner import INTERRUPTED, recover_interrupted
+from apps.analysis.jobs.stages import (
+    StageState,
+    advance,
+    plan_for_config,
+    plan_prediction_stages,
+)
 from apps.analysis.models import Run, config_hash
 from apps.analysis.validation import validate_run_config
 
@@ -159,6 +167,13 @@ class ValidationTests(SimpleTestCase):
             )
             self.assertIn("polygons only", errors["areas"][0], kind)
 
+    def test_an_overlay_without_a_resolution_keeps_30_m(self) -> None:
+        body = config()
+        del body["resolution"]
+        validated, errors = validate_run_config(body)
+        self.assertFalse(errors, errors)
+        self.assertEqual(validated["resolution"], 30)
+
     def test_refuses_a_backwards_or_tiny_date_window(self) -> None:
         _, errors = validate_run_config(
             config(dateWindow={"start": "2024-06-01", "end": "2024-01-01"})
@@ -234,6 +249,39 @@ class RunEndpointTests(TestCase):
         self.assertEqual(first.json()["runId"], second.json()["runId"])
         self.submit.assert_called_once()
 
+    def test_a_failed_configuration_is_rerun_when_submitted_again(self) -> None:
+        """A failure (GeoServer down, a restart mid-run) is not a result to
+        hand back from the cache forever."""
+        first = self.post(config())
+        run = Run.objects.get(pk=first.json()["runId"])
+        run.status = Run.Status.FAILED
+        run.error = {"stage": "fetch", "message": "GeoServer unreachable"}
+        run.save()
+
+        second = self.post(config())
+        self.assertEqual(second.status_code, 202)
+        self.assertFalse(second.json()["cached"])
+        self.assertEqual(second.json()["runId"], run.run_id)
+        self.assertEqual(self.submit.call_count, 2)
+        rerun = Run.objects.get(pk=run.run_id)
+        self.assertEqual(rerun.status, Run.Status.QUEUED)
+        self.assertIsNone(rerun.error)
+
+    def test_a_rerun_starts_from_an_empty_workspace(self) -> None:
+        # Same id, same workspace: an overview left by the failed attempt
+        # would otherwise be served over the rerun's new raster.
+        with tempfile.TemporaryDirectory() as root, override_settings(WORKSPACE_DIR=Path(root)):
+            first = self.post(config())
+            run = Run.objects.get(pk=first.json()["runId"])
+            run.status = Run.Status.FAILED
+            run.save()
+            leftover = Path(root) / run.run_id / "probability.tif.ovr"
+            leftover.parent.mkdir(parents=True)
+            leftover.write_bytes(b"old")
+
+            self.assertEqual(self.post(config()).status_code, 202)
+            self.assertFalse(leftover.exists())
+
     def test_refuses_an_invalid_configuration_with_every_problem(self) -> None:
         response = self.post(config(targetCrs="EPSG:4326", resolution=9999))
         self.assertEqual(response.status_code, 400)
@@ -288,6 +336,48 @@ class RunEndpointTests(TestCase):
         run.set_stages(done)
         self.assertEqual(run.status, "succeeded")
         self.assertAlmostEqual(run.progress, 1.0, places=6)
+
+
+class RecoverInterruptedTests(TestCase):
+    def make_run(self, resolution: int) -> Run:
+        validated, errors = validate_run_config(config(resolution=resolution))
+        self.assertFalse(errors, errors)
+        run = Run(run_id=config_hash(validated), topic=validated["topic"], config=validated)
+        run.set_stages(plan_for_config(validated))
+        run.save()
+        return run
+
+    def test_fails_queued_and_running_runs_and_leaves_finished_ones(self) -> None:
+        queued = self.make_run(90)
+        running = self.make_run(100)
+        stages = advance(running.stage_objects(), "resolve", StageState.RUNNING, at="t0")
+        stages = advance(stages, "resolve", StageState.DONE, at="t1")
+        running.set_stages(advance(stages, "fetch", StageState.RUNNING, at="t1"))
+        running.save()
+        finished = self.make_run(120)
+        finished.status = Run.Status.SUCCEEDED
+        finished.save()
+
+        self.assertEqual(recover_interrupted(), 2)
+
+        queued.refresh_from_db()
+        running.refresh_from_db()
+        finished.refresh_from_db()
+        self.assertEqual(queued.status, Run.Status.FAILED)
+        self.assertEqual(queued.error, {"stage": "resolve", "message": INTERRUPTED})
+        self.assertEqual(running.status, Run.Status.FAILED)
+        self.assertEqual(running.error["stage"], "fetch")
+        self.assertEqual(finished.status, Run.Status.SUCCEEDED)
+
+
+class StageAdvanceTests(SimpleTestCase):
+    def test_a_running_stage_reporting_again_keeps_its_start_time(self) -> None:
+        stages = advance(plan_prediction_stages(), "satellite", StageState.RUNNING, at="t1")
+        stages = advance(stages, "satellite", StageState.RUNNING, at="t2",
+                         detail="40/400 GIBS snapshots")
+        satellite = next(s for s in stages if s.id == "satellite")
+        self.assertEqual(satellite.started_at, "t1")
+        self.assertEqual(satellite.detail, "40/400 GIBS snapshots")
 
 
 class CriteriaEndpointTests(TestCase):

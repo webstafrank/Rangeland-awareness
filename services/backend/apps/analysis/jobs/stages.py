@@ -206,7 +206,10 @@ def advance(stages: list[Stage], stage_id: str, state: StageState, *, at: str,
             updated.append(stage)
             continue
         if state == StageState.RUNNING:
-            updated.append(replace(stage, state=state, started_at=at, detail=detail))
+            # A running stage may report again to update its detail ("120/400
+            # GIBS snapshots"); it keeps the time it actually started.
+            started = stage.started_at if stage.state == StageState.RUNNING else None
+            updated.append(replace(stage, state=state, started_at=started or at, detail=detail))
         else:
             updated.append(replace(stage, state=state, ended_at=at, detail=detail))
     return updated

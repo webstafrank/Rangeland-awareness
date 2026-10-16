@@ -141,8 +141,12 @@ VOLUME ["/data", "/workspace"]
 # ------------------------------------------------------------------- startup
 #
 # Written into the image rather than kept as a separate file, because the whole
-# start sequence is six lines and a second file is a second thing to keep in
+# start sequence is seven lines and a second file is a second thing to keep in
 # sync with this one.
+#
+# `recover_runs` fails any run the previous process left queued or running:
+# its worker thread died with that process, and before any worker starts is the
+# one moment no run can be live (apps/analysis/jobs/runner.py).
 #
 # `migrate` runs on every start. It is idempotent, it is what makes a fresh
 # volume work with no manual step, and with one replica there is no migration
@@ -171,6 +175,7 @@ RUN printf '%s\n' \
     'set -e' \
     'echo "[entrypoint] applying migrations"' \
     'python3 manage.py migrate --noinput' \
+    'python3 manage.py recover_runs' \
     'echo "[entrypoint] serving on 0.0.0.0:8000"' \
     'exec gunicorn rangeland.wsgi:application --bind 0.0.0.0:8000 --workers "${GUNICORN_WORKERS:-1}" --threads "${GUNICORN_THREADS:-8}" --timeout 120 --access-logfile - --error-logfile -' \
     > /usr/local/bin/rangeland-entrypoint \

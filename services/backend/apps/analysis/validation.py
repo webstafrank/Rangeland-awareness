@@ -28,6 +28,12 @@ GEOGRAPHIC_CRS_SUFFIXES = ("4326", "4258", "4269", "4267")
 
 MIN_RESOLUTION_M = 10
 MAX_RESOLUTION_M = 1000
+#: What a run gets when the request names no resolution. An overlay keeps the
+#: 30 m of its criterion layers. A prediction gets 250 m: its satellite inputs
+#: are ~1 km, so 30 m is ~69x the pixels (and the prediction time) for no extra
+#: information, and a county at 30 m is over `MAX_PREDICTION_PIXELS` anyway.
+DEFAULT_RESOLUTION_M = 30
+DEFAULT_PREDICTION_RESOLUTION_M = 250
 MAX_AREAS = 12
 MIN_WINDOW_DAYS = 30
 MAX_WINDOW_DAYS = 3660
@@ -233,7 +239,9 @@ def validate_run_config(body: dict[str, Any]) -> tuple[dict[str, Any], ConfigErr
         config["targetCrs"] = target_crs.upper()
 
     # -------------------------------------------------------------- resolution
-    resolution = body.get("resolution", 30)
+    resolution = body.get(
+        "resolution", DEFAULT_PREDICTION_RESOLUTION_M if prediction else DEFAULT_RESOLUTION_M
+    )
     try:
         resolution = float(resolution)
     except (TypeError, ValueError):

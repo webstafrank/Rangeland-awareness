@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 from typing import Any
 
 from django.http import (
@@ -26,7 +27,7 @@ from django.views.decorators.http import require_GET, require_safe
 
 from apps.analysis import bindings, maps
 from apps.analysis.domain import ahp, criteria
-from apps.analysis.jobs.runner import submit
+from apps.analysis.jobs.runner import submit, workspace_for
 from apps.analysis.jobs.stages import plan_for_config
 from apps.analysis.models import Run, config_hash
 from apps.analysis.validation import validate_run_config
@@ -243,6 +244,21 @@ def create_run(request: HttpRequest) -> JsonResponse:
 
     run_id = config_hash(config)
     existing = Run.objects.filter(pk=run_id).first()
+    if existing is not None and existing.status == Run.Status.FAILED:
+        # A failure is not a result worth caching: GeoServer was down, or the
+        # backend restarted mid-run (runner.recover_interrupted). Submitting
+        # the same configuration again is the analyst asking for another try,
+        # so the row is replaced and rerun under the same id. The delete is
+        # conditional on the row still being failed, so of two resubmits (a
+        # double click) only one reruns and the other gets that new run back.
+        deleted, _ = Run.objects.filter(pk=run_id, status=Run.Status.FAILED).delete()
+        if deleted:
+            # Same id, same workspace: clear the failed attempt's files, or
+            # its overviews would outlive the rasters the rerun rewrites.
+            shutil.rmtree(workspace_for(run_id), ignore_errors=True)
+            existing = None
+        else:
+            existing = Run.objects.filter(pk=run_id).first()
     if existing is not None:
         return JsonResponse(
             {

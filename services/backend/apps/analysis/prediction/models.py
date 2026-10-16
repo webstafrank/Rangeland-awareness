@@ -82,8 +82,16 @@ def uniform_subsample(count: int, cap: int, seed: int = SEED) -> np.ndarray:
     return np.sort(rng.choice(count, size=cap, replace=False))
 
 
-def fit(name: str, X: np.ndarray, y: np.ndarray, *, threads: int = 4) -> Member:
-    """Fit one member with balanced class weights and a fixed seed."""
+def fit(name: str, X: np.ndarray, y: np.ndarray, *, threads: int | None = None) -> Member:
+    """Fit one member with balanced class weights and a fixed seed.
+
+    ``threads`` defaults to ``settings.ANALYSIS_THREADS``. The fitted model keeps
+    it as its ``n_jobs``, so prediction uses the same cores.
+    """
+    if threads is None:
+        from django.conf import settings
+
+        threads = settings.ANALYSIS_THREADS
     y = y.astype(np.int64)
     positives = int(y.sum())
     negatives = int(y.size - positives)

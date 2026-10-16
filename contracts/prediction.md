@@ -58,7 +58,7 @@ probabilities. Where the two disagree is itself a map (`disagreement`).
 | `model` | `random-forest` \| `xgboost` \| `combined`. **Required** for `drought-monitoring`, `rangeland-dynamics`, `food-security`. Optional for `flood-risk`: present means a prediction run, absent means the weighted overlay exactly as before |
 | `weights` | overlay runs only. Must be absent on a prediction run (a model learns its own weights; sending some is refused rather than ignored) |
 | `asOf` | optional ISO date. The month the features describe. Default: the first day of the month two calendar months before today (UTC), which is the latest month every monthly GIBS layer used here has published. The resolved value is written into the stored config before hashing, so the run id is stable |
-| `resolution` | 10..1000 as before. The app sends **250** for prediction runs: satellite inputs are ~1 km and a 30 m prediction over a county is ~100M pixels for no extra information |
+| `resolution` | 10..1000 as before. When omitted it defaults to **250** for prediction runs (30 for an overlay), and the app sends 250: satellite inputs are ~1 km and a 30 m prediction over a county is ~100M pixels for no extra information |
 | `areas`, `targetCrs`, `publishLayers` | unchanged |
 
 A prediction run over more than **20,000,000** grid pixels is refused at

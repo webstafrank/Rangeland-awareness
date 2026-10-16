@@ -124,19 +124,36 @@ def read(path: Path) -> np.ndarray:
     return values.astype(np.float32, copy=False)
 
 
-def read_rows(path: Path, first: int, count: int) -> np.ndarray:
-    """Rows ``first .. first+count`` of band 1, nodata as NaN."""
-    dataset = gdal.Open(str(path), gdal.GA_ReadOnly)
-    try:
-        band = dataset.GetRasterBand(1)
-        values = band.ReadAsArray(0, first, dataset.RasterXSize, count).astype(np.float32)
-        nodata = band.GetNoDataValue()
-        band = None
-    finally:
-        dataset = None
-    if nodata is not None:
-        values[values == np.float32(nodata)] = np.nan
-    return values
+class RowReader:
+    """Band 1 of one GeoTIFF, opened once and read a window of rows at a time.
+
+    Prediction walks the grid in `CHUNK_ROWS` strips over a dozen features;
+    opening each file per strip would reopen it hundreds of times. Close it,
+    or use it as a context manager, when the loop ends.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self._dataset = gdal.Open(str(path), gdal.GA_ReadOnly)
+        self._band = self._dataset.GetRasterBand(1)
+        self._width = self._dataset.RasterXSize
+        self._nodata = self._band.GetNoDataValue()
+
+    def rows(self, first: int, count: int) -> np.ndarray:
+        """Rows ``first .. first+count``, nodata as NaN."""
+        values = self._band.ReadAsArray(0, first, self._width, count).astype(np.float32)
+        if self._nodata is not None:
+            values[values == np.float32(self._nodata)] = np.nan
+        return values
+
+    def close(self) -> None:
+        self._band = None
+        self._dataset = None
+
+    def __enter__(self) -> "RowReader":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
 
 
 # ------------------------------------------------------------ static layers

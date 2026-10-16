@@ -87,7 +87,9 @@ class Command(BaseCommand):
         def report(stage, state, detail=None) -> None:
             now = time.monotonic()
             if str(state) == "running":
-                clocks[stage] = now
+                # Kept from the first report: a running stage reports again to
+                # update its detail ("120/400 GIBS snapshots").
+                clocks.setdefault(stage, now)
                 return
             took = now - clocks.get(stage, now)
             self.stdout.write(f"  {stage:10} {str(state):8} {took:6.1f}s  {detail or ''}")
