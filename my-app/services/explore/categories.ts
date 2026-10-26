@@ -97,11 +97,28 @@ export const LAYER_CATEGORIES: Readonly<Record<string, LayerCategoryEntry>> = {
   irrigation_schemes: { category: "agriculture_livestock", title: "Irrigation schemes" },
   livestock_routes: { category: "agriculture_livestock", title: "Livestock routes" },
 
+  // -------------------------------------------------------- county_projects
+  // The eco clusters are the county's planned safe zones for disaster
+  // relocation, so they sit with its other projects.
+  eco_clusters_urbanisation: {
+    category: "county_projects",
+    title: "Eco clusters (disaster safe zones)",
+  },
+  garsen_township: { category: "county_projects", title: "Garsen township" },
+  kisip_sites: { category: "county_projects", title: "KISIP sites" },
+  stella_mundi_lucerne: { category: "county_projects", title: "Stella Mundi lucerne" },
+
+  // ---------------------------------------------------------- infastructure
+  roads: { category: "infastructure", title: "Roads" },
+  ketraco_wayleave: { category: "infastructure", title: "KETRACO wayleave" },
+
   // ------------------------------------------------ institutions_facilities
   agriculture_training_center: {
     category: "institutions_facilities",
     title: "Agriculture training centres",
   },
+  schools: { category: "institutions_facilities", title: "Schools" },
+  social_amenities: { category: "institutions_facilities", title: "Social amenities" },
 
   // -------------------------------------------------------- naturalfeatures
   rivers: { category: "naturalfeatures", title: "Rivers" },
